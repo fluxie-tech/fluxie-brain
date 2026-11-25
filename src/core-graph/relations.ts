@@ -1,27 +1,29 @@
 import { and, eq, getTableColumns, inArray, or } from 'drizzle-orm';
+import { logChange } from './changelog.ts';
 import { db } from './db.ts';
-import { type Entity, entityColumns, findEntityOrThrow } from './entities.ts';
 import { NotFoundError } from './errors.ts';
-import { logChange } from './history.ts';
 import { type EntityStatus, getOntology, validateRelation } from './ontology.ts';
+import { type Entity, entityColumns, findEntityOrThrow } from './rows.ts';
 import { entities, relations } from './schema.ts';
 import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
 
 export type Relation = typeof relations.$inferSelect;
 
+export type LinkInput = {
+  fromId: string;
+  toId: string;
+  type: string;
+  weight?: number;
+  metadata?: Record<string, unknown>;
+};
+
 /**
  * Creates a typed relation between two entities of the same space. Idempotent: linking the same
  * (from, to, type) again returns the existing relation without writing.
  */
-export async function linkEntities(
-  spaceId: string,
-  fromId: string,
-  toId: string,
-  type: string,
-  actor: Actor,
-  opts: { weight?: number; metadata?: Record<string, unknown> } = {},
-): Promise<Relation> {
+export async function linkEntities(spaceId: string, link: LinkInput, actor: Actor): Promise<Relation> {
+  const { fromId, toId, type } = link;
   return db.transaction(async (tx) => {
     const space = await findSpaceOrThrow(tx, spaceId);
     const from = await findEntityOrThrow(tx, spaceId, fromId);
@@ -31,7 +33,7 @@ export async function linkEntities(
 
     const [created] = await tx
       .insert(relations)
-      .values({ fromId, toId, type, weight: opts.weight, metadata: opts.metadata, createdBy: actor })
+      .values({ fromId, toId, type, weight: link.weight, metadata: link.metadata, createdBy: actor })
       .onConflictDoNothing()
       .returning();
     if (!created) {
@@ -81,6 +83,7 @@ export async function unlink(spaceId: string, relationId: string, actor: Actor):
 }
 
 export type GraphSlice = { entities: (Entity & { depth: number })[]; relations: Relation[] };
+type NeighborFilters = { relationTypes?: string[]; statuses?: EntityStatus[] };
 
 /**
  * Entities reachable from `entityId` within `depth` hops (either direction), plus the relations among them.
@@ -91,7 +94,7 @@ export async function neighbors(
   spaceId: string,
   entityId: string,
   depth: 1 | 2,
-  opts: { relationTypes?: string[]; statuses?: EntityStatus[] } = {},
+  opts: NeighborFilters = {},
 ): Promise<GraphSlice> {
   await findSpaceOrThrow(db, spaceId);
   const [root] = isUuid(entityId)
@@ -106,31 +109,8 @@ export async function neighbors(
   const found: GraphSlice['entities'] = [];
   const edges = new Map<string, Relation>();
   let frontier = [entityId];
-
   for (let d = 1; d <= depth && frontier.length > 0; d++) {
-    const touching = await db
-      .select()
-      .from(relations)
-      .where(
-        and(
-          or(inArray(relations.fromId, frontier), inArray(relations.toId, frontier)),
-          opts.relationTypes ? inArray(relations.type, opts.relationTypes) : undefined,
-        ),
-      );
-    const candidates = [...new Set(touching.flatMap((r) => [r.fromId, r.toId]))].filter((id) => !visited.has(id));
-    const next =
-      candidates.length === 0
-        ? []
-        : await db
-            .select(entityColumns)
-            .from(entities)
-            .where(
-              and(
-                eq(entities.spaceId, spaceId),
-                inArray(entities.id, candidates),
-                opts.statuses ? inArray(entities.status, opts.statuses) : undefined,
-              ),
-            );
+    const { touching, next } = await expandLevel(spaceId, frontier, visited, opts);
     for (const e of next) {
       visited.add(e.id);
       found.push({ ...e, depth: d });
@@ -138,8 +118,38 @@ export async function neighbors(
     for (const r of touching) if (visited.has(r.fromId) && visited.has(r.toId)) edges.set(r.id, r);
     frontier = next.map((e) => e.id);
   }
-
   return { entities: found, relations: [...edges.values()] };
+}
+
+/** One BFS step: relations touching the frontier and the not-yet-visited entities they reach. */
+async function expandLevel(
+  spaceId: string,
+  frontier: string[],
+  visited: Set<string>,
+  opts: NeighborFilters,
+): Promise<{ touching: Relation[]; next: Entity[] }> {
+  const touching = await db
+    .select()
+    .from(relations)
+    .where(
+      and(
+        or(inArray(relations.fromId, frontier), inArray(relations.toId, frontier)),
+        opts.relationTypes ? inArray(relations.type, opts.relationTypes) : undefined,
+      ),
+    );
+  const candidates = [...new Set(touching.flatMap((r) => [r.fromId, r.toId]))].filter((id) => !visited.has(id));
+  if (candidates.length === 0) return { touching, next: [] };
+  const next = await db
+    .select(entityColumns)
+    .from(entities)
+    .where(
+      and(
+        eq(entities.spaceId, spaceId),
+        inArray(entities.id, candidates),
+        opts.statuses ? inArray(entities.status, opts.statuses) : undefined,
+      ),
+    );
+  return { touching, next };
 }
 
 /** All relations touching an entity, in either direction. */

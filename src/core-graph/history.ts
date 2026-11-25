@@ -1,36 +1,14 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
-import { db, type Tx } from './db.ts';
-import { type Entity, entityColumns, findEntityOrThrow } from './entities.ts';
+import { type ChangeLogEntry, logChange } from './changelog.ts';
+import { db } from './db.ts';
 import { NotFoundError } from './errors.ts';
 import { getOntology, validateEntity } from './ontology.ts';
+import { type Entity, entityColumns, findEntityOrThrow } from './rows.ts';
 import { changeLog, entities, entityProposals } from './schema.ts';
 import { findSpaceOrThrow } from './scope.ts';
 import type { Actor } from './types.ts';
 
-export type ChangeLogEntry = typeof changeLog.$inferSelect;
-
-type ChangeEntry = {
-  spaceId: string;
-  kind: ChangeLogEntry['targetKind'];
-  action: ChangeLogEntry['action'];
-  target: string;
-  actor: Actor;
-  before: object | null;
-  after: object | null;
-};
-
-/** Records one write in the change log; must run inside the same transaction as the write. */
-export async function logChange(tx: Tx, e: ChangeEntry): Promise<void> {
-  await tx.insert(changeLog).values({
-    spaceId: e.spaceId,
-    targetKind: e.kind,
-    targetId: e.target,
-    action: e.action,
-    actor: e.actor,
-    before: e.before,
-    after: e.after,
-  });
-}
+export type { ChangeLogEntry };
 
 /** The entity's change log, oldest first, including the proposals made on it. */
 export async function history(spaceId: string, entityId: string): Promise<ChangeLogEntry[]> {

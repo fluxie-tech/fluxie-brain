@@ -125,7 +125,7 @@ listProposals(spaceId, opts?: { status? }): Promise<Proposal[]>
 acceptProposal(spaceId, proposalId, actor): Promise<Entity>
 rejectProposal(spaceId, proposalId, actor): Promise<Proposal>
 
-linkEntities(spaceId, fromId, toId, type, actor, opts?: { weight?; metadata? }): Promise<Relation>   // idempotente
+linkEntities(spaceId, link: { fromId; toId; type; weight?; metadata? }, actor): Promise<Relation>   // idempotente
 unlink(spaceId, relationId, actor): Promise<void>
 neighbors(spaceId, entityId, depth: 1 | 2, opts?: { relationTypes?; statuses? }): Promise<GraphSlice>
   // GraphSlice = { entities: (Entity & { depth })[]; relations: Relation[] }  (sem a entidade raiz)
@@ -155,11 +155,14 @@ fluxie-brain/                    (pasta local: omnigraph)
   src/core-graph/
     schema.ts        → tabelas Drizzle
     ontology.ts      → tipo Ontology, registro, validação
-    entities.ts      → upsertEntity, getEntity, setStatus, recordUsage
+    rows.ts          → base: colunas, tipo Entity, findEntityOrThrow, sameContent
+    changelog.ts     → base: logChange
+    entities.ts      → upsertEntity, getEntity, setStatus, recordUsage (topo: usa proposals e relations)
     proposals.ts     → listProposals, acceptProposal, rejectProposal
     relations.ts     → linkEntities, unlink, neighbors
     history.ts       → history, revertEntity
     errors.ts
+                       (camadas sem ciclos: rows/changelog ← proposals, relations, history ← entities; ver CONSTRAINTS.md)
     index.ts         → API pública do módulo
   migrations/        → SQL gerado pelo drizzle-kit (+ custom: create extension vector)
   tests/core-graph/  → testes de integração

@@ -1,8 +1,8 @@
 import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { logChange } from './changelog.ts';
 import { db, type Tx } from './db.ts';
-import { type Entity, entityColumns, findEntityOrThrow, sameContent } from './entities.ts';
 import { ConflictError, NotFoundError, VersionConflictError } from './errors.ts';
-import { logChange } from './history.ts';
+import { type Entity, entityColumns, findEntityOrThrow, sameContent } from './rows.ts';
 import { entities, entityProposals, type ProposedChange } from './schema.ts';
 import { isUuid } from './scope.ts';
 import type { Actor } from './types.ts';

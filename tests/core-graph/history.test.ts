@@ -85,7 +85,7 @@ describe('history and revert', () => {
       { type: 'project', key: 'p1', title: 'P', content: '' },
       agent,
     ); // create
-    const relation = await linkEntities(space.id, entity.id, project.id, 'learned_from', agent); // create (relation)
+    const relation = await linkEntities(space.id, { fromId: entity.id, toId: project.id, type: 'learned_from' }, agent); // create (relation)
     await unlink(space.id, relation.id, curator); // unlink
     await setStatus(space.id, entity.id, 'approved', curator); // status
     const accepted = (await upsertEntity(space.id, { ...learning, title: 'v3' }, agent)).proposal; // propose

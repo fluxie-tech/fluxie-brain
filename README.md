@@ -47,7 +47,7 @@ registerOntology('development-graph', {
 const space = await createSpace({ slug: 'dev', name: 'Dev graph', preset: 'development-graph' });
 const { entity: project } = await upsertEntity(space.id, { type: 'project', key: 'fluxie', title: 'fluxie-brain', content: '' }, 'human:owner');
 const { entity: learning } = await upsertEntity(space.id, { type: 'learning', key: 'rrf', title: 'Use RRF', content: '...' }, 'agent:claude-code');
-await linkEntities(space.id, learning.id, project.id, 'learned_from', 'agent:claude-code');
+await linkEntities(space.id, { fromId: learning.id, toId: project.id, type: 'learned_from' }, 'agent:claude-code');
 const slice = await neighbors(space.id, project.id, 2);
 ```
 

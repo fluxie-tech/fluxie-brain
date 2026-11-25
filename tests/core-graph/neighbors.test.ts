@@ -45,8 +45,8 @@ describe('neighbors', () => {
           agent,
         )
       ).entity;
-      await linkEntities(space.id, l1.id, p1.id, 'learned_from', agent);
-      await linkEntities(space.id, r1.id, p1.id, 'applies_to', agent);
+      await linkEntities(space.id, { fromId: l1.id, toId: p1.id, type: 'learned_from' }, agent);
+      await linkEntities(space.id, { fromId: r1.id, toId: p1.id, type: 'applies_to' }, agent);
     });
 
     it('returns direct neighbors at depth 1', async () => {
@@ -74,9 +74,9 @@ describe('neighbors', () => {
   it('terminates on a cycle and returns each neighbor once', async () => {
     const [a, b, c] = [await learning('a'), await learning('b'), await learning('c')];
     if (!a || !b || !c) throw new Error('setup failed');
-    await linkEntities(space.id, a.id, b.id, 'relates_to', agent);
-    await linkEntities(space.id, b.id, c.id, 'relates_to', agent);
-    await linkEntities(space.id, c.id, a.id, 'relates_to', agent);
+    await linkEntities(space.id, { fromId: a.id, toId: b.id, type: 'relates_to' }, agent);
+    await linkEntities(space.id, { fromId: b.id, toId: c.id, type: 'relates_to' }, agent);
+    await linkEntities(space.id, { fromId: c.id, toId: a.id, type: 'relates_to' }, agent);
     const slice = await neighbors(space.id, a.id, 2);
     expect(keysByDepth(slice)).toEqual(['b@1', 'c@1']);
     expect(slice.relations).toHaveLength(3);
