@@ -1,0 +1,346 @@
+{
+  "entities": [
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "repo",
+      "key": "repo:fictora/pebble-web",
+      "title": "pebble-web",
+      "content": "Collaborative note-taking web app. Notes are edited offline and merged when the browser reconnects.",
+      "metadata": { "host": "github", "ref": "fictora/pebble-web", "defaultBranch": "main", "visibility": "private" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "component",
+      "key": "component:pebble-web/editor",
+      "title": "Editor",
+      "content": "Rich-text editor for notes. Renders the document model and turns keystrokes into document operations.",
+      "metadata": { "path": "src/editor", "criticality": "high" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "component",
+      "key": "component:pebble-web/sync",
+      "title": "Sync engine",
+      "content": "Merges local and remote note changes and persists them through the sync service backed by Postgres.",
+      "metadata": { "path": "src/sync", "criticality": "critical" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "dependency",
+      "key": "dependency:language/typescript",
+      "title": "TypeScript",
+      "content": "Language of the whole web app, compiled in strict mode.",
+      "metadata": { "ecosystem": "language", "version": "6.2" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "dependency",
+      "key": "dependency:npm/react",
+      "title": "React",
+      "content": "UI library used for every screen of the web app.",
+      "metadata": { "ecosystem": "npm", "version": "19.3.0" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "dependency",
+      "key": "dependency:npm/yjs",
+      "title": "Yjs",
+      "content": "CRDT library that represents each note as a shared document and merges concurrent edits.",
+      "metadata": { "ecosystem": "npm", "version": "13.6.0" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "spec",
+      "key": "spec:pebble-web/SPEC-sync.md",
+      "title": "Offline sync specification",
+      "content": "How notes are edited offline, merged on reconnect and stored, including conflict and attachment rules.",
+      "metadata": { "location": "SPEC-sync.md" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "decision",
+      "key": "decision:pebble-crdt-sync",
+      "title": "Sync notes with a CRDT instead of last-write-wins",
+      "content": "Context: users edit the same note offline on two devices and last-write-wins silently dropped paragraphs. Decision: model notes as Yjs documents and merge updates. Consequences: larger payloads and a migration for old notes. Alternatives: operational transform (needs a central server), field-level locking (bad offline).",
+      "metadata": {}
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "principle",
+      "key": "principle:pebble-no-direct-dom-in-editor",
+      "title": "Never mutate the DOM directly inside the editor",
+      "content": "Direct DOM writes bypass the document model and get lost on the next render or merge. Correct alternative: emit a document operation and let the editor render it.",
+      "metadata": { "polarity": "forbids" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "invariant",
+      "key": "invariant:pebble-sync-converges",
+      "title": "Two devices that applied the same updates show the same note",
+      "content": "If this breaks, users see different text for the same note and later edits fork silently.",
+      "metadata": { "state": "holds", "guardRef": "src/sync/convergence.test.ts" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "assumption",
+      "key": "assumption:yjs-updates-order-independent",
+      "title": "Yjs updates can be applied in any order",
+      "content": "The sync engine replays queued updates without sorting them. If Yjs ever requires causal order, the queue must be sorted first.",
+      "metadata": { "kind": "runtime", "state": "holds", "guardRef": "src/sync/shuffle.test.ts" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "learning",
+      "key": "learning:react-strict-mode-double-effects",
+      "title": "Make effects idempotent: React strict mode runs them twice in development",
+      "content": "The sync subscription was opened twice in development and every update was applied two times. Return a cleanup function and guard the subscription.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "gap",
+      "key": "gap:pebble-offline-attachments",
+      "title": "Attachments added offline are not synced yet",
+      "content": "Current behavior: images added offline stay local until the user reattaches them. Target: queue attachments with the note updates. Workaround: the editor warns when offline.",
+      "metadata": { "state": "narrowing" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "learning",
+      "key": "learning:pebble-crdt-migration-hindsight",
+      "title": "Migrate stored notes before switching the merge strategy",
+      "content": "Switching to CRDT documents while old plain-text notes were still syncing produced duplicated content. Next time, freeze sync, migrate, then switch.",
+      "metadata": { "kind": "hindsight" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "repo",
+      "key": "repo:fictora/quarry-api",
+      "title": "quarry-api",
+      "content": "API de faturamento de uma distribuidora fictícia: pedidos, cobrança e emissão de notas fiscais.",
+      "metadata": { "host": "gitlab", "ref": "fictora/quarry-api", "defaultBranch": "main", "visibility": "private" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "component",
+      "key": "component:quarry-api/faturamento",
+      "title": "Faturamento",
+      "content": "Gera cobranças a partir dos pedidos fechados e controla o status de pagamento.",
+      "metadata": { "path": "app/Billing", "criticality": "critical" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "component",
+      "key": "component:quarry-api/emissor-nf",
+      "title": "Emissor de notas fiscais",
+      "content": "Parte do faturamento que monta e envia as notas fiscais para o serviço externo de emissão.",
+      "metadata": { "path": "app/Billing/Invoices", "criticality": "high" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "dependency",
+      "key": "dependency:language/php",
+      "title": "PHP",
+      "content": "Linguagem da API inteira.",
+      "metadata": { "ecosystem": "language", "version": "8.5" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "dependency",
+      "key": "dependency:composer/laravel",
+      "title": "Laravel",
+      "content": "Framework web da API: rotas, filas, ORM (Eloquent) e cache.",
+      "metadata": { "ecosystem": "composer", "version": "12.4.0" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "spec",
+      "key": "spec:quarry-api/SPEC-faturamento.md",
+      "title": "Especificação do faturamento",
+      "content": "Regras de cobrança, reenvio de notas e conciliação com o banco.",
+      "metadata": { "location": "docs/SPEC-faturamento.md" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-notas-em-tabela",
+      "title": "Emitir notas fiscais de forma síncrona, gravando a pendência numa tabela",
+      "content": "Contexto: a primeira versão emitia a nota dentro da requisição do pedido. Decisão: gravar a pendência numa tabela e emitir no mesmo processo. Consequências: pedidos lentos quando o serviço de emissão demora.",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-notas-em-fila",
+      "title": "Emitir notas fiscais por fila, com reenvio automático",
+      "content": "Contexto: o serviço de emissão fica fora do ar em horários de pico e travava os pedidos. Decisão: enviar cada nota por um job da fila do Laravel, com reenvio exponencial. Consequências: a nota sai segundos depois do pedido. Alternativas: cron a cada minuto (atraso maior), emissão síncrona (decisão anterior).",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "principle",
+      "key": "principle:quarry-sem-sql-cru-nos-controllers",
+      "title": "Não escrever SQL cru nos controllers",
+      "content": "SQL espalhado pelos controllers fugia das regras de tenant e dos testes. Alternativa correta: usar os repositórios do domínio ou o Eloquent.",
+      "metadata": { "polarity": "forbids" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-sql-cru-em-relatorios",
+      "title": "Permitir SQL cru só nos relatórios de conciliação",
+      "content": "Contexto: os relatórios agregam milhões de linhas e o ORM gerava consultas lentas. Decisão: relatórios de conciliação podem usar SQL cru, revisado e testado. Consequências: a regra de não usar SQL cru vale para todo o resto.",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "invariant",
+      "key": "invariant:quarry-nota-idempotente",
+      "title": "Reenviar uma nota nunca gera duas notas para o mesmo pedido",
+      "content": "Se quebrar, o cliente recebe cobrança em dobro. A chave de idempotência é o número do pedido.",
+      "metadata": { "state": "holds", "guardRef": "tests/Feature/InvoiceRetryTest.php" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "assumption",
+      "key": "assumption:eloquent-chunk-mantem-ordem",
+      "title": "O chunk do Eloquent mantém a ordem quando a coluna de ordenação muda durante o loop",
+      "content": "Acreditávamos que sim, mas registros pulavam quando o status era atualizado dentro do chunk. Contorno: usar chunkById.",
+      "metadata": { "kind": "runtime", "state": "violated" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "learning",
+      "key": "learning:laravel-config-cache-em-producao",
+      "title": "Depois de config:cache, o env() fora dos arquivos de config devolve null",
+      "content": "Em produção, uma chave de API lida com env() direto no código sumiu após o deploy. Ler sempre via config() e definir o valor em config/services.php.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "gap",
+      "key": "gap:quarry-upgrade-laravel-bloqueado",
+      "title": "Atualização do Laravel bloqueada por um pacote de boletos sem suporte",
+      "content": "Comportamento atual: presos na versão 12.4 porque o pacote de boletos não suporta a próxima. Alvo: atualizar assim que o pacote lançar a versão compatível. Contorno: patches de segurança aplicados à mão.",
+      "metadata": {
+        "state": "widened",
+        "upstreamUrl": "https://example.com/fictora/boletos/issues/42",
+        "pinnedVersion": "12.4.0"
+      }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "learning",
+      "key": "learning:quarry-retro-fila-de-notas",
+      "title": "Monitorar o tamanho da fila de notas desde o primeiro dia",
+      "content": "Na retrospectiva, a fila de notas cresceu por dois dias sem ninguém perceber. Um alerta de tamanho da fila teria avisado no primeiro pico.",
+      "metadata": { "kind": "retro" }
+    },
+    {
+      "lang": "en",
+      "project": "shared",
+      "type": "dependency",
+      "key": "dependency:docker/postgres",
+      "title": "PostgreSQL",
+      "content": "Relational database used by both projects, run from the official container image.",
+      "metadata": { "ecosystem": "docker", "version": "18.3" }
+    },
+    {
+      "lang": "en",
+      "project": "shared",
+      "type": "learning",
+      "key": "learning:postgres-advisory-locks-behind-pooler",
+      "title": "Session advisory locks do not work behind a transaction-mode connection pooler",
+      "content": "Each statement may run on a different server connection, so a lock taken by one request is released or held by someone else. Use transaction-level advisory locks or a dedicated session connection.",
+      "metadata": { "kind": "incident_review" }
+    },
+    {
+      "lang": "pt",
+      "project": "shared",
+      "type": "principle",
+      "key": "principle:fixar-tag-das-imagens-docker",
+      "title": "Fixar a tag exata de toda imagem Docker",
+      "content": "Tags flutuantes como latest mudaram o Postgres de versão num deploy e quebraram uma extensão. Use a versão completa, por exemplo 18.3, e atualize de propósito.",
+      "metadata": { "polarity": "prescribes" }
+    }
+  ],
+  "relations": [
+    { "from": "component:pebble-web/editor", "to": "repo:fictora/pebble-web", "type": "part_of" },
+    { "from": "component:pebble-web/sync", "to": "repo:fictora/pebble-web", "type": "part_of" },
+    { "from": "repo:fictora/pebble-web", "to": "dependency:language/typescript", "type": "depends_on" },
+    { "from": "repo:fictora/pebble-web", "to": "dependency:docker/postgres", "type": "depends_on" },
+    { "from": "component:pebble-web/editor", "to": "dependency:npm/react", "type": "depends_on" },
+    { "from": "component:pebble-web/sync", "to": "dependency:npm/yjs", "type": "depends_on" },
+    { "from": "component:pebble-web/editor", "to": "component:pebble-web/sync", "type": "depends_on" },
+    { "from": "spec:pebble-web/SPEC-sync.md", "to": "component:pebble-web/sync", "type": "describes" },
+    { "from": "decision:pebble-crdt-sync", "to": "component:pebble-web/sync", "type": "applies_to" },
+    { "from": "decision:pebble-crdt-sync", "to": "invariant:pebble-sync-converges", "type": "establishes" },
+    { "from": "principle:pebble-no-direct-dom-in-editor", "to": "component:pebble-web/editor", "type": "applies_to" },
+    { "from": "invariant:pebble-sync-converges", "to": "component:pebble-web/sync", "type": "about" },
+    { "from": "assumption:yjs-updates-order-independent", "to": "dependency:npm/yjs", "type": "about" },
+    { "from": "learning:react-strict-mode-double-effects", "to": "dependency:npm/react", "type": "about" },
+    { "from": "gap:pebble-offline-attachments", "to": "component:pebble-web/sync", "type": "about" },
+    { "from": "spec:pebble-web/SPEC-sync.md", "to": "decision:pebble-crdt-sync", "type": "references" },
+    { "from": "learning:pebble-crdt-migration-hindsight", "to": "component:pebble-web/sync", "type": "about" },
+    { "from": "learning:pebble-crdt-migration-hindsight", "to": "decision:pebble-crdt-sync", "type": "references" },
+    { "from": "gap:pebble-offline-attachments", "to": "spec:pebble-web/SPEC-sync.md", "type": "relates_to" },
+    { "from": "gap:pebble-offline-attachments", "to": "invariant:pebble-sync-converges", "type": "undermines" },
+
+    { "from": "component:quarry-api/faturamento", "to": "repo:fictora/quarry-api", "type": "part_of" },
+    { "from": "component:quarry-api/emissor-nf", "to": "component:quarry-api/faturamento", "type": "part_of" },
+    { "from": "repo:fictora/quarry-api", "to": "dependency:language/php", "type": "depends_on" },
+    { "from": "repo:fictora/quarry-api", "to": "dependency:composer/laravel", "type": "depends_on" },
+    { "from": "repo:fictora/quarry-api", "to": "dependency:docker/postgres", "type": "depends_on" },
+    { "from": "spec:quarry-api/SPEC-faturamento.md", "to": "component:quarry-api/faturamento", "type": "describes" },
+    { "from": "decision:quarry-notas-em-tabela", "to": "component:quarry-api/emissor-nf", "type": "applies_to" },
+    { "from": "decision:quarry-notas-em-fila", "to": "component:quarry-api/emissor-nf", "type": "applies_to" },
+    { "from": "decision:quarry-notas-em-fila", "to": "decision:quarry-notas-em-tabela", "type": "supersedes" },
+    { "from": "decision:quarry-notas-em-fila", "to": "invariant:quarry-nota-idempotente", "type": "establishes" },
+    { "from": "principle:quarry-sem-sql-cru-nos-controllers", "to": "repo:fictora/quarry-api", "type": "applies_to" },
+    { "from": "decision:quarry-sql-cru-em-relatorios", "to": "component:quarry-api/faturamento", "type": "applies_to" },
+    {
+      "from": "decision:quarry-sql-cru-em-relatorios",
+      "to": "principle:quarry-sem-sql-cru-nos-controllers",
+      "type": "relaxes"
+    },
+    { "from": "invariant:quarry-nota-idempotente", "to": "component:quarry-api/emissor-nf", "type": "about" },
+    { "from": "assumption:eloquent-chunk-mantem-ordem", "to": "dependency:composer/laravel", "type": "about" },
+    { "from": "learning:laravel-config-cache-em-producao", "to": "dependency:composer/laravel", "type": "about" },
+    { "from": "gap:quarry-upgrade-laravel-bloqueado", "to": "repo:fictora/quarry-api", "type": "about" },
+    { "from": "gap:quarry-upgrade-laravel-bloqueado", "to": "dependency:composer/laravel", "type": "waits_for" },
+    { "from": "learning:quarry-retro-fila-de-notas", "to": "component:quarry-api/emissor-nf", "type": "about" },
+    { "from": "learning:quarry-retro-fila-de-notas", "to": "decision:quarry-notas-em-fila", "type": "references" },
+
+    { "from": "learning:postgres-advisory-locks-behind-pooler", "to": "dependency:docker/postgres", "type": "about" },
+    { "from": "principle:fixar-tag-das-imagens-docker", "to": "dependency:docker/postgres", "type": "applies_to" }
+  ]
+}

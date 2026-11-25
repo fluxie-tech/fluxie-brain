@@ -96,9 +96,9 @@ Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{ind
 
 ## Checkpoint A: ontologia completa
 
-- [ ] 10 tipos e 12 relações, coerentes, com descrição e instrução.
-- [ ] `pnpm check:task` verde.
-- [ ] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
+- [x] 10 tipos e 12 relações, coerentes, com descrição e instrução.
+- [x] `pnpm check:task` verde.
+- [x] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
 
 ## Fase 3: Corpus e fechamento
 
@@ -113,9 +113,9 @@ Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{ind
 O helper `load.ts` carrega o corpus num space pelo core-graph e devolve um mapa `key → Entity`.
 
 **Critérios de aceite:**
-- [ ] O corpus carrega inteiro sem erro, e cada entidade tem o `defaultStatus` do seu tipo.
-- [ ] `neighbors(repoA, 2)` inclui a `learning` da dependência compartilhada e não inclui conhecimento específico da stack do B (e vice-versa).
-- [ ] Toda entidade de conhecimento do corpus tem ao menos uma ligação a `repo`, `component` ou `dependency`. Um teste confere, e confere também a cobertura de tipos, relações e idiomas.
+- [x] O corpus carrega inteiro sem erro, e cada entidade tem o `defaultStatus` do seu tipo.
+- [x] `neighbors(repoA, 2)` inclui a `learning` da dependência compartilhada e não inclui conhecimento específico da stack do B (e vice-versa).
+- [x] Toda entidade de conhecimento do corpus tem ao menos uma ligação a `repo`, `component` ou `dependency`. Um teste confere, e confere também a cobertura de tipos, relações e idiomas.
 
 **Verificação:** `pnpm test tests/presets` · `pnpm check:task` · revisão manual de que nenhum nome ou dado do corpus é real.
 

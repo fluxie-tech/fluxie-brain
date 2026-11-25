@@ -49,7 +49,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [ ] Revisão humana das descrições e instruções, que são o que o agente vai ler
 
 ### Fase 3: Corpus e fechamento
-- [ ] T4: corpus fictício PT/EN e prova multiprojeto (M)
+- [x] T4: corpus fictício PT/EN e prova multiprojeto (M)
 - [ ] T5: API pública, créditos e rastreabilidade (S)
 
 ### Checkpoint B: completo

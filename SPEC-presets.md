@@ -198,11 +198,11 @@ export type { Preset, EntityTypeDef, RelationTypeDef }
 - **Formato:**
 
   ```json
-  { "entities": [{ "lang": "pt", "type": "...", "key": "...", "title": "...", "content": "...", "metadata": {} }],
+  { "entities": [{ "lang": "pt", "project": "quarry", "type": "...", "key": "...", "title": "...", "content": "...", "metadata": {} }],
     "relations": [{ "from": "<key>", "to": "<key>", "type": "..." }] }
   ```
 
-  `lang` é anotação do corpus, não vai para o banco. O `embeddings` acrescenta depois as consultas e os resultados esperados do benchmark.
+  `lang` e `project` (projeto fictício ou `shared`) são anotações do corpus e não vão para o banco. O `embeddings` acrescenta depois as consultas e os resultados esperados do benchmark.
 - **Carga nos testes:** um helper em `tests/fixtures/development-graph/load.ts` carrega o corpus num space pelo core-graph real.
 
 ## Comandos
