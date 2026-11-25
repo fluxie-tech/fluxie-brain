@@ -81,4 +81,38 @@ describe('development graph through core-graph', () => {
     await expect(linkEntities(space.id, link, agent)).rejects.toThrow(OntologyError);
     expect(await queryRows('select id from relations')).toHaveLength(0);
   });
+
+  it('creates governance knowledge as drafts linked by governance relations', async () => {
+    const link = (from: Entity, to: Entity, type: string) =>
+      linkEntities(space.id, { fromId: from.id, toId: to.id, type }, agent);
+    const repo = await add({ type: 'repo', key: 'repo:acme/app', title: 'App', content: '' });
+    const component = await add({ type: 'component', key: 'component:app/api', title: 'API', content: '' });
+    const oldDecision = await add({ type: 'decision', key: 'decision:rest', title: 'Use REST', content: '' });
+    const decision = await add({ type: 'decision', key: 'decision:grpc', title: 'Use gRPC', content: '' });
+    const principle = await add({
+      type: 'principle',
+      key: 'principle:no-raw-sql',
+      title: 'Never write raw SQL in handlers',
+      content: 'Use the query layer.',
+      metadata: { polarity: 'forbids' },
+    });
+    const invariant = await add({
+      type: 'invariant',
+      key: 'invariant:idempotent-webhooks',
+      title: 'Webhooks are idempotent',
+      content: '',
+      metadata: { state: 'holds', guardRef: 'tests/webhooks.test.ts' },
+    });
+    for (const entity of [oldDecision, decision, principle, invariant]) expect(entity.status).toBe('draft');
+
+    await link(decision, component, 'applies_to');
+    await link(principle, repo, 'applies_to');
+    await link(decision, principle, 'establishes');
+    await link(decision, invariant, 'establishes');
+    await link(decision, principle, 'relaxes');
+    await link(decision, oldDecision, 'supersedes');
+    expect(await queryRows('select id from relations')).toHaveLength(6);
+
+    await expect(link(principle, repo, 'establishes')).rejects.toThrow(OntologyError);
+  });
 });

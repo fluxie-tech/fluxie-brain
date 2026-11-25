@@ -152,7 +152,7 @@ type Preset = {
 | `part_of` | component | repo, component | RepoHasComponent, ComponentHasSubcomponent (invertidas) |
 | `depends_on` | repo, component | component, dependency | ComponentDependsOn (+ repo: ferramentas do repositório, como pnpm e TypeScript) |
 | `describes` | spec | repo, component | SpecDescribes |
-| `applies_to` | decision, principle | repo, component, spec | DecisionAppliesTo* |
+| `applies_to` | decision, principle | repo, component, dependency, spec | DecisionAppliesTo* (+ dependency: regra ou decisão sobre uma dependência compartilhada) |
 | `establishes` | decision | principle, invariant | DecisionEstablishes* |
 | `relaxes` | decision | principle, invariant | DecisionRelaxes* |
 | `supersedes` | decision, spec, principle | decision, spec, principle | *Supersedes |

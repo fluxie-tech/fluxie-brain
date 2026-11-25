@@ -55,9 +55,9 @@ Cada tipo tem `description`, `instruction` (com a convenção de key) e schema `
 Também acrescenta as relações `applies_to`, `establishes`, `relaxes` e `supersedes`. As instruções exigem âncora (`repo`, `component` ou `dependency`).
 
 **Critérios de aceite:**
-- [ ] Os testes de coerência da T1 cobrem os novos tipos sem mudança no teste: ele percorre a ontologia.
-- [ ] Integração: os três nascem `draft`; `applies_to`, `establishes`, `relaxes` e `supersedes` são aceitas entre as pontas do spec, e `establishes` de `principle` para `repo` é recusada.
-- [ ] Exemplo válido e inválido por tipo; `polarity` e `state` fora do enum são recusados.
+- [x] Os testes de coerência da T1 cobrem os novos tipos sem mudança no teste: ele percorre a ontologia.
+- [x] Integração: os três nascem `draft`; `applies_to`, `establishes`, `relaxes` e `supersedes` são aceitas entre as pontas do spec, e `establishes` de `principle` para `repo` é recusada.
+- [x] Exemplo válido e inválido por tipo; `polarity` e `state` fora do enum são recusados.
 
 **Verificação:** `pnpm test tests/presets` · `pnpm check:task`.
 

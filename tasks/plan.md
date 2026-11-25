@@ -40,7 +40,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T1: tipos genéricos, registro e tipos estruturais (S/M)
 
 ### Fase 2: Ontologia completa
-- [ ] T2: decision, principle e invariant (S)
+- [x] T2: decision, principle e invariant (S)
 - [ ] T3: assumption, gap e learning, fechando a ontologia (M)
 
 ### Checkpoint A: ontologia completa

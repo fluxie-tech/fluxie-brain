@@ -10,6 +10,9 @@ const examples: Record<string, { valid: Record<string, unknown>; badEnum?: Recor
   component: { valid: { path: 'src/api', criticality: 'high' }, badEnum: { criticality: 'extreme' } },
   dependency: { valid: { ecosystem: 'npm', version: '1.2.3' }, badEnum: { ecosystem: 'apt' } },
   spec: { valid: { location: 'SPEC-api.md' } },
+  decision: { valid: {} },
+  principle: { valid: { polarity: 'forbids' }, badEnum: { polarity: 'suggests' } },
+  invariant: { valid: { state: 'holds', guardRef: 'tests/api.test.ts' }, badEnum: { state: 'unknown' } },
 };
 
 type JsonSchema = { additionalProperties?: boolean; properties?: Record<string, { description?: string }> };
