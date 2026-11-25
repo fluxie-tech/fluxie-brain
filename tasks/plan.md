@@ -60,12 +60,32 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 
 ### Fase 4: Histórico e fechamento
 - [x] T9: Histórico e revert
-- [ ] T10: API pública e verificação final
+- [x] T10: API pública e verificação final
 
 ### Checkpoint final
-- [ ] Os 13 critérios do spec mapeados para testes verdes
-- [ ] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
+- [x] Os 13 critérios do spec mapeados para testes verdes
+- [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
 - [ ] Pronto para a fase Verify/Review
+
+## Rastreabilidade: critérios do spec → testes
+
+| # | Critério | Testes (`tests/core-graph/`) |
+|---|---|---|
+| 1 | Banco sobe do zero com `vector` | `database.test.ts` (extensão, DDL negado ao app) + fluxo `down -v → up → migrate → test` |
+| 2 | Tipo/metadata inválidos ou key com outro tipo → `OntologyError`, nada gravado | `entities.test.ts` (unknown type, invalid metadata, key with different type), `ontology.test.ts` |
+| 3 | Status padrão; mesmo key atualiza; outro space separa | `entities.test.ts` |
+| 4 | Edição de `approved` vira proposta; aceite, rejeição, desatualizada | `proposals.test.ts` |
+| 5 | `rejected`/`deprecated` voltam para `draft` | `status.test.ts` |
+| 6 | `content_hash` muda com title/content, não com metadata | `entities.test.ts`, `proposals.test.ts` |
+| 7 | Relação fora da ontologia/entre spaces recusada; idempotente | `relations.test.ts` |
+| 8 | Ids de outro space → `NotFoundError` | `status.test.ts`, `proposals.test.ts`, `relations.test.ts`, `neighbors.test.ts`, `history.test.ts` |
+| 9 | Uma linha de change_log por escrita; `recordUsage` sem log | `history.test.ts` (varredura completa), `status.test.ts` |
+| 10 | Revert restaura conteúdo, preserva key/type/status | `history.test.ts` |
+| 11 | `expectedVersion` desatualizado → `VersionConflictError` | `entities.test.ts` |
+| 12 | `neighbors` 1–2 saltos, sem duplicatas, termina em ciclos | `neighbors.test.ts` |
+| 13 | test, typecheck e lint verdes | verificação final da T10 |
+
+Superfície pública fixada por `public-api.test.ts`.
 
 ## Riscos e mitigações
 

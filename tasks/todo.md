@@ -247,12 +247,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **Rastreabilidade:** uma tabela no `tasks/plan.md` liga cada um dos 13 critérios aos seus testes.
 
 **Critérios de aceite:**
-- [ ] Nenhum teste importa arquivos internos, exceto os testes unitários de ontologia
-- [ ] Os 13 critérios aparecem mapeados para testes verdes
-- [ ] `docker compose down -v` seguido do fluxo completo (subir, migrar, testar) passa do zero
+- [x] Nenhum teste importa arquivos internos, exceto os testes unitários de ontologia
+- [x] Os 13 critérios aparecem mapeados para testes verdes
+- [x] `docker compose down -v` seguido do fluxo completo (subir, migrar, testar) passa do zero
 
 **Verificação:**
-- [ ] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test && pnpm typecheck && pnpm lint`
+- [x] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test && pnpm typecheck && pnpm lint`
 
 **Dependências:** T8, T9
 

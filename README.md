@@ -28,6 +28,35 @@ pnpm lint                         # biome check
 - **Roles:** `fluxie_migrator` é dono do schema e roda as migrações; `fluxie_app` só tem DML (sem DDL) e é o usado pela aplicação.
 - **Segurança:** autenticação `scram-sha-256` e porta publicada só em `127.0.0.1`. As senhas ficam apenas no `.env`, fora do git.
 
+## Módulo core-graph
+
+API TypeScript em `src/core-graph/index.ts`. Outros módulos usam só esse ponto de entrada.
+
+```ts
+import { z } from 'zod';
+import { acceptProposal, createSpace, linkEntities, neighbors, registerOntology, upsertEntity } from './src/core-graph/index.ts';
+
+registerOntology('development-graph', {
+  entityTypes: {
+    project: { metadata: z.object({}), defaultStatus: 'approved' },
+    learning: { metadata: z.object({ cause: z.string().optional() }), defaultStatus: 'draft' },
+  },
+  relationTypes: { learned_from: { from: ['learning'], to: ['project'] } },
+});
+
+const space = await createSpace({ slug: 'dev', name: 'Dev graph', preset: 'development-graph' });
+const { entity: project } = await upsertEntity(space.id, { type: 'project', key: 'fluxie', title: 'fluxie-brain', content: '' }, 'human:owner');
+const { entity: learning } = await upsertEntity(space.id, { type: 'learning', key: 'rrf', title: 'Use RRF', content: '...' }, 'agent:claude-code');
+await linkEntities(space.id, learning.id, project.id, 'learned_from', 'agent:claude-code');
+const slice = await neighbors(space.id, project.id, 2);
+```
+
+**Regras principais:**
+- **Status:** entidades nascem com o status padrão do tipo e só mudam de status via `setStatus`.
+- **Proposta:** editar uma entidade `approved` cria uma proposta pendente, que é aplicada por `acceptProposal` ou descartada por `rejectProposal`.
+- **Histórico:** toda escrita fica no `change_log` com o `actor`, e `revertEntity` restaura o conteúdo a partir dele.
+- **Isolamento:** ids de outro space se comportam como inexistentes.
+
 ## Licença
 
 MIT

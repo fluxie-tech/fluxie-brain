@@ -126,12 +126,13 @@ rejectProposal(spaceId, proposalId, actor): Promise<Proposal>
 linkEntities(spaceId, fromId, toId, type, actor, opts?: { weight?; metadata? }): Promise<Relation>   // idempotente
 unlink(spaceId, relationId, actor): Promise<void>
 neighbors(spaceId, entityId, depth: 1 | 2, opts?: { relationTypes?; statuses? }): Promise<GraphSlice>
+  // GraphSlice = { entities: (Entity & { depth })[]; relations: Relation[] }  (sem a entidade raiz)
 
-history(spaceId, entityId): Promise<ChangeLogEntry[]>
+history(spaceId, entityId): Promise<ChangeLogEntry[]>      // inclui as entradas das propostas da entidade
 revertEntity(spaceId, entityId, changeId, actor): Promise<Entity>
 ```
 
-Erros são tipados (`OntologyError`, `VersionConflictError`, `NotFoundError`) e carregam uma mensagem legível para o agente.
+Erros são tipados (`OntologyError`, `VersionConflictError`, `NotFoundError` e `ConflictError`, este para slug duplicado e proposta já decidida), todos derivados de `CoreGraphError`, e carregam uma mensagem legível para o agente.
 
 ## Comandos
 
