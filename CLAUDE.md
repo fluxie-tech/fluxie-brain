@@ -5,6 +5,14 @@
 - Sempre faça perguntas pela ferramenta interativa de perguntas (AskUserQuestion), com opções clicáveis e a opção recomendada primeiro, marcada "(Recommended)". Não peça ao usuário para escrever respostas longas em texto livre.
 - Agrupe até 4 perguntas por rodada. Cada pergunta deve fazer sentido sozinha, com o contexto e as trocas de cada opção na descrição.
 
+## Qualidade
+
+Leia `CONSTRAINTS.md` antes de escrever código. Não o enfraqueça para uma mudança passar: corrija o código ou registre uma exceção com dono e validade.
+
+- Depois de editar: `pnpm check:fast`.
+- Antes de dar uma tarefa por concluída: `pnpm check:task`.
+- Na fase Review: `pnpm check:full`.
+
 ## Workflow: agent-skills (addyosmani/agent-skills)
 
 O plugin `agent-skills@addy-agent-skills` está instalado no escopo deste projeto (`.claude/settings.json`).

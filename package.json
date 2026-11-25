@@ -15,7 +15,15 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "test:coverage": "vitest run --coverage",
+    "check:arch": "depcruise --validate .dependency-cruiser.cjs src",
+    "check:fast": "pnpm typecheck && pnpm lint && gitleaks git --pre-commit --redact --no-banner && node scripts/floor-guard.mjs",
+    "check:task": "pnpm check:fast && pnpm check:arch && pnpm test:coverage && node scripts/changed-coverage.ts",
+    "check:secrets": "gitleaks git --redact --no-banner",
+    "check:deps": "docker run --rm -v .:/src ghcr.io/google/osv-scanner:v2.7.1 scan source -r /src",
+    "check:sast": "docker run --rm -v .:/src -w /src semgrep/semgrep:1.186.0 semgrep scan --config p/default --config p/owasp-top-ten --severity ERROR --error --metrics=off --quiet src scripts docker",
+    "check:full": "pnpm check:task && pnpm check:secrets && pnpm check:deps && pnpm check:sast"
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",
@@ -24,8 +32,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
+    "@swc/core": "1.16.22",
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
+    "@vitest/coverage-v8": "5.1.1",
+    "dependency-cruiser": "18.9.0",
     "drizzle-kit": "0.31.11",
     "typescript": "7.0.2",
     "vitest": "5.1.1"

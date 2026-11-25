@@ -1,0 +1,3 @@
+# Paths exempt from scripts/floor-guard.mjs (one glob per line). Each entry needs a reason.
+# The guard itself contains the suppression/skip patterns it searches for.
+scripts/floor-guard.mjs
