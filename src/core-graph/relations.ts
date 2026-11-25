@@ -1,7 +1,7 @@
 import { and, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 import { db } from './db.ts';
 import { type Entity, entityColumns, findEntityOrThrow } from './entities.ts';
-import { NotFoundError, OntologyError } from './errors.ts';
+import { NotFoundError } from './errors.ts';
 import { logChange } from './history.ts';
 import { type EntityStatus, getOntology, validateRelation } from './ontology.ts';
 import { entities, relations } from './schema.ts';
@@ -25,9 +25,8 @@ export async function linkEntities(
   return db.transaction(async (tx) => {
     const space = await findSpaceOrThrow(tx, spaceId);
     const from = await findEntityOrThrow(tx, spaceId, fromId);
-    const [to] = isUuid(toId) ? await tx.select().from(entities).where(eq(entities.id, toId)) : [];
-    if (!to) throw new NotFoundError(`Entity ${toId} not found.`);
-    if (to.spaceId !== spaceId) throw new OntologyError('Relations between different spaces are not allowed.');
+    // Both endpoints must be in this space; v1 has no cross-space links, so a foreign id is just missing.
+    const to = await findEntityOrThrow(tx, spaceId, toId);
     validateRelation(getOntology(space.preset), type, from.type, to.type);
 
     const [created] = await tx

@@ -54,10 +54,10 @@ describe('relations', () => {
     await expect(linkEntities(space.id, rule.id, project.id, 'learned_from', agent)).rejects.toThrow(OntologyError);
   });
 
-  it('rejects a relation to an entity of another space', async () => {
+  it('treats a relation target from another space as missing', async () => {
     const foreign = (await upsertEntity(otherSpace.id, { type: 'project', key: 'p9', title: 'F', content: '' }, agent))
       .entity;
-    await expect(linkEntities(space.id, learning.id, foreign.id, 'learned_from', agent)).rejects.toThrow(OntologyError);
+    await expect(linkEntities(space.id, learning.id, foreign.id, 'learned_from', agent)).rejects.toThrow(NotFoundError);
   });
 
   it('is idempotent: linking twice returns the same relation and writes once', async () => {
