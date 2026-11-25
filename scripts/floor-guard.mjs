@@ -160,7 +160,8 @@ const MAX_BEFORE = /(<=|<|≤|at most|maximum|\bmax\b|no more than|under|below|n
 const MIN_AFTER = /^\s*\S*\s*(or more|or higher|must not fall|must not drop|ou mais|não pode cair|não pode descer)/;
 const MAX_AFTER = /^\s*\S*\s*(or less|or lower|must not grow|must not exceed|ou menos|não pode subir|não pode crescer)/;
 // Local adaptation: a table row whose direction cell says "não pode cair" (or the English twin) gives that
-// direction to every number in the row that has none of its own, e.g. "| Linhas | 97,1% | 96,6 | não pode cair |".
+// direction to the numbers that fill a cell on their own, e.g. "| Linhas | 97,1% | 96,6 | não pode cair |".
+// A number inside text ("tolerância 0,5", "timeout 60 s") is not the row's threshold, so it stays undirected.
 const ROW_MIN = /must not fall|must not drop|não pode cair|não pode descer/;
 const ROW_MAX = /must not grow|must not exceed|não pode subir|não pode crescer/;
 const rowDirection = (t) => {
@@ -173,8 +174,16 @@ const rowDirection = (t) => {
 const thresholds = (t) => {
   const out = [];
   const rowDir = rowDirection(t);
-  // Local adaptation: "96,6" (Portuguese decimal comma) is one number, not 96 and 6.
-  for (const m of t.matchAll(/\d+(?:[.,]\d+)?/g)) {
+  // Local adaptation: "96,6" (Portuguese decimal comma) is one number, not 96 and 6. A grouped number
+  // ("1,000", "3.000", "1,500,000") could be thousands or decimals, so it never gets a direction: any change is reported.
+  for (const m of t.matchAll(/\d+(?:[.,]\d+)*/g)) {
+    if (/[.,]\d{3}(?!\d)|[.,]\d+[.,]/.test(m[0])) {
+      out.push({ n: m[0], dir: null });
+      continue;
+    }
+    const lo = t.lastIndexOf('|', m.index),
+      hi = t.indexOf('|', m.index);
+    const ownCell = lo > -1 && hi > -1 && /^\d+(?:[.,]\d+)?\s*(?:%|[a-z]{1,3})?$/i.test(t.slice(lo + 1, hi).trim());
     const before = t.slice(Math.max(0, m.index - 24), m.index).toLowerCase();
     const after = t.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
     const dir =
@@ -182,7 +191,9 @@ const thresholds = (t) => {
         ? 'min'
         : MAX_BEFORE.test(before) || MAX_AFTER.test(after)
           ? 'max'
-          : rowDir;
+          : ownCell
+            ? rowDir
+            : null;
     out.push({ n: Number(m[0].replace(',', '.')), dir });
   }
   return out;
