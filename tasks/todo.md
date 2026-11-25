@@ -98,7 +98,7 @@ Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{ind
 
 - [x] 10 tipos e 12 relações, coerentes, com descrição e instrução.
 - [x] `pnpm check:task` verde.
-- [x] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
+- [ ] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
 
 ## Fase 3: Corpus e fechamento
 
@@ -130,10 +130,10 @@ O helper `load.ts` carrega o corpus num space pelo core-graph e devolve um mapa 
 **Descrição:** fecha o módulo. Fixa a superfície pública por teste e adiciona a linha de créditos ao omnigraph-cookbooks no README. Preenche a tabela de rastreabilidade em `tasks/plan.md` e confere que o core-graph não mudou.
 
 **Critérios de aceite:**
-- [ ] `public-api.test.ts` fixa os exports: `DEVELOPMENT_GRAPH`, `developmentGraph`, `registerPresets`, `listPresets`, `getPreset`. Testa também `getPreset('x')` → `undefined` e que `listPresets()` contém o Development Graph.
-- [ ] O README credita o omnigraph-cookbooks (MIT, link).
-- [ ] `git diff main -- src/core-graph tests/core-graph` vazio.
-- [ ] A tabela de rastreabilidade liga os 10 critérios do spec a testes.
+- [x] `public-api.test.ts` fixa os exports: `DEVELOPMENT_GRAPH`, `developmentGraph`, `registerPresets`, `listPresets`, `getPreset`. Testa também `getPreset('x')` → `undefined` e que `listPresets()` contém o Development Graph.
+- [x] O README credita o omnigraph-cookbooks (MIT, link).
+- [x] `git diff main -- src/core-graph tests/core-graph` vazio.
+- [x] A tabela de rastreabilidade liga os 10 critérios do spec a testes.
 
 **Verificação:** `pnpm check:task`.
 

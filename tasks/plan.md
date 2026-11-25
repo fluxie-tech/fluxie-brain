@@ -50,7 +50,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Fase 3: Corpus e fechamento
 - [x] T4: corpus fictício PT/EN e prova multiprojeto (M)
-- [ ] T5: API pública, créditos e rastreabilidade (S)
+- [x] T5: API pública, créditos e rastreabilidade (S)
 
 ### Checkpoint B: completo
 - [ ] Os 10 critérios de sucesso do spec ligados a testes (tabela abaixo, preenchida na T5)
@@ -59,20 +59,20 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ## Rastreabilidade: critérios do spec → testes
 
-Preenchida na T5.
-
-| # | Critério | Testes |
+| # | Critério | Testes e verificações (`tests/presets/`) |
 |---|---|---|
-| 1 | `registerPresets` + `createSpace` + idempotência | |
-| 2 | 10 tipos e 12 relações, status e campos, pontas existentes | |
-| 3 | `description` e `instruction` com convenção de key | |
-| 4 | Metadata estrito, JSON Schema, `OntologyError` legível | |
-| 5 | Corpus completo, status padrão, separação por stack, âncoras | |
-| 6 | Relação fora de `from × to` e tipo fora do preset recusados sem escrita | |
-| 7 | `presets` só importa `core-graph/index.ts` (`check:arch`) | |
-| 8 | API pública fixada; core-graph intacto | |
-| 9 | Créditos ao omnigraph-cookbooks | |
-| 10 | `pnpm check:task` verde | |
+| 1 | `registerPresets` + `createSpace` + idempotência | `integration.test.ts` (`registerPresets` chamado duas vezes; space com `development-graph`) |
+| 2 | 10 tipos e 12 relações, status e campos, pontas existentes | `development-graph.test.ts` ("exactly the entity types…", "exactly the relations…", "only links entity types that exist"); campos por tipo nos exemplos válidos |
+| 3 | `description` e `instruction` com convenção de key | `development-graph.test.ts` ("describes every…", "teaches the key convention…") |
+| 4 | Metadata estrito, JSON Schema, `OntologyError` legível | `development-graph.test.ts` (JSON Schema fechado com descrição por campo; chave desconhecida e enum inválido recusados); `integration.test.ts` (`Invalid metadata for "repo"`, nada gravado) |
+| 5 | Corpus completo, status padrão, separação por stack, âncoras | `corpus.test.ts` (cobertura de tipos, relações e idiomas; âncoras; status padrão; separação pebble × quarry nos dois sentidos) |
+| 6 | Relação fora de `from × to` e tipo fora do preset recusados sem escrita | `integration.test.ts` (tipo `issue`; `part_of` invertida; `establishes` de principle; `about` para invariant) |
+| 7 | `presets` só importa `core-graph/index.ts` | `pnpm check:arch` (dependency-cruiser, regras do `CAPABILITY-MAP.md`) |
+| 8 | API pública fixada; core-graph intacto | `public-api.test.ts`; `git diff main -- src/core-graph tests/core-graph` vazio |
+| 9 | Créditos ao omnigraph-cookbooks | cabeçalho de `src/presets/development-graph/index.ts` e seção "Créditos" do README |
+| 10 | `pnpm check:task` verde | rodado no fim da T5: 148 testes, cobertura das linhas alteradas ok |
+
+**Desvios do plano:** `public-api.test.ts` entrou na T1, porque o ratchet de cobertura exigiu. O preset foi dividido em pasta já na T3. `applies_to` ganhou `dependency` como destino, para a regra de âncora valer (spec atualizado). O corpus ganhou a anotação `project`.
 
 ## Riscos e mitigações
 
