@@ -133,6 +133,35 @@ for (const [file, delta] of assertionDelta) {
   if (delta < 0) flag('assertion-removed', file, `${-delta} more assertion line(s) removed than added`);
 }
 
+// 2c. Local adaptation: the coverage floors are enforced from vitest.config.ts, so lowering or dropping one there
+// loosens the bar even when CONSTRAINTS.md is untouched.
+const isVitestConfig = (f) => /(^|\/)vitest\.config\.[cm]?[jt]s$/.test(f);
+const coverageFloors = (lines) => {
+  const floors = new Map();
+  for (const { file, text } of lines) {
+    if (!isVitestConfig(file)) continue;
+    for (const m of text.matchAll(/\b(lines|statements|functions|branches):\s*(\d+(?:\.\d+)?)/g)) {
+      floors.set(m[1], { n: Number(m[2]), file });
+    }
+  }
+  return floors;
+};
+const floorsAfter = coverageFloors(added);
+for (const [key, was] of coverageFloors(removed)) {
+  const now = floorsAfter.get(key);
+  if (!now) flag('threshold-removed', was.file, `coverage ${key}: ${was.n} removed`);
+  else if (now.n < was.n) flag('threshold-loosened', was.file, `coverage ${key}: ${was.n} -> ${now.n}`);
+}
+
+// 2d. Local adaptation: a new .constraintsignore entry exempts paths from every check, so adding one is itself a
+// finding. It is recorded directly, not through flag(): the new glob must not be able to hide its own finding.
+for (const { file, text } of added) {
+  const entry = text.trim();
+  if (file === '.constraintsignore' && entry && !entry.startsWith('#')) {
+    findings.push({ rule: 'new-exemption', file, text: entry.slice(0, 120) });
+  }
+}
+
 // 1b/2c. A rule in CONSTRAINTS.md weakened or removed. A rule is a floor bullet or a table row,
 // identified by the bullet's text before its first colon or by the row's first cell. Each number
 // carries a direction read from the words around it: a minimum (>=, at least, must not fall) is
