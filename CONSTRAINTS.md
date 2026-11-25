@@ -12,7 +12,7 @@ Este arquivo é a régua de qualidade do fluxie-brain. Toda checagem **bloqueia*
 - Nenhum segredo no código; senhas só no `.env`, que fica fora do git.
 - Este arquivo não é enfraquecido para uma mudança passar.
 
-Verificado por `node scripts/floor-guard.mjs [--base <ref>]`, que olha só o diff (padrão: trabalho não commitado). Caminhos isentos ficam em `.constraintsignore`, com motivo.
+Verificado por `node scripts/floor-guard.mjs [--base <ref>]`, que olha só o diff (padrão: trabalho não commitado). Caminhos isentos ficam em `.constraintsignore`, com motivo. O guard também acusa piso de cobertura baixado ou removido no `vitest.config.ts` e qualquer entrada nova no `.constraintsignore`, que precisa passar pela tabela de exceções.
 
 ## Enforced with numbers
 

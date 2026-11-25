@@ -7,18 +7,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 const guard = path.resolve('scripts/floor-guard.mjs');
 const dirs: string[] = [];
 
-/** Commits `before` as CONSTRAINTS.md in a fresh repo, writes `after`, and runs the guard on the change. */
-function runGuard(before: string, after: string): { status: number | null; output: string } {
+/** Commits `before` as `file` in a fresh repo, writes `after`, and runs the guard on the change. */
+function runGuard(before: string, after: string, file = 'CONSTRAINTS.md'): { status: number | null; output: string } {
   const dir = mkdtempSync(path.join(tmpdir(), 'floor-guard-'));
   dirs.push(dir);
   // Hermetic: the developer's global hooks or commit signing must not run in, or break, the temp repo.
   const config = ['user.name=t', 'user.email=t@example.com', 'core.hooksPath=', 'commit.gpgsign=false'];
   const git = (...args: string[]) => execFileSync('git', [...config.flatMap((c) => ['-c', c]), ...args], { cwd: dir });
   git('init', '-q');
-  writeFileSync(path.join(dir, 'CONSTRAINTS.md'), `${before}\n`);
+  writeFileSync(path.join(dir, file), `${before}\n`);
   git('add', '.');
   git('commit', '-q', '-m', 'base');
-  writeFileSync(path.join(dir, 'CONSTRAINTS.md'), `${after}\n`);
+  writeFileSync(path.join(dir, file), `${after}\n`);
   const run = spawnSync('node', [guard], { cwd: dir, encoding: 'utf8' });
   return { status: run.status, output: `${run.stdout}${run.stderr}` };
 }
@@ -93,5 +93,45 @@ describe('floor-guard does not guess a direction it cannot see', () => {
     ['a dot thousands separator', '| Tamanho | ≤ 300 linhas |', '| Tamanho | ≤ 3.000 linhas |'],
   ])('flags a change to %s', (_case, before, after) => {
     expect(runGuard(before, after).status).toBe(1);
+  });
+});
+
+describe('floor-guard watches the files that enforce the floor', () => {
+  const vitest = (floors: string) => `export default { test: { coverage: { thresholds: { ${floors} } } } };`;
+
+  it('flags a coverage floor lowered in vitest.config.ts', () => {
+    const result = runGuard(
+      vitest('lines: 96.8, branches: 87.3'),
+      vitest('lines: 90, branches: 87.3'),
+      'vitest.config.ts',
+    );
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('threshold-loosened');
+  });
+
+  it('flags a coverage floor dropped from vitest.config.ts', () => {
+    const result = runGuard(vitest('lines: 96.8, branches: 87.3'), vitest('lines: 96.8'), 'vitest.config.ts');
+    expect(result.output).toContain('threshold-removed');
+  });
+
+  it('accepts raising a coverage floor in vitest.config.ts', () => {
+    const result = runGuard(
+      vitest('lines: 96.8, branches: 87.3'),
+      vitest('lines: 97, branches: 87.5'),
+      'vitest.config.ts',
+    );
+    expect(result).toMatchObject({ status: 0 });
+  });
+
+  it('flags a new exemption in .constraintsignore, even one that would exempt itself', () => {
+    const result = runGuard('# exemptions', '# exemptions\n.constraintsignore', '.constraintsignore');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('new-exemption');
+  });
+
+  it('accepts a comment added to .constraintsignore', () => {
+    expect(runGuard('# exemptions', '# exemptions\n# why each entry exists', '.constraintsignore')).toMatchObject({
+      status: 0,
+    });
   });
 });

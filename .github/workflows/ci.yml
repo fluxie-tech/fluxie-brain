@@ -57,9 +57,12 @@ jobs:
 
       - name: Floor guard and changed-lines coverage (pull requests)
         if: github.event_name == 'pull_request'
+        # Pass the branch name through env, never interpolate it into the script (shell injection).
+        env:
+          BASE: origin/${{ github.base_ref }}
         run: |
-          node scripts/floor-guard.mjs --base "origin/${{ github.base_ref }}"
-          node scripts/changed-coverage.ts --base "origin/${{ github.base_ref }}"
+          node scripts/floor-guard.mjs --base "$BASE"
+          node scripts/changed-coverage.ts --base "$BASE"
 
       - name: Secrets (full history)
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact --no-banner /repo
