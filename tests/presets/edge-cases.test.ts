@@ -15,29 +15,39 @@ import { queryRows, truncateAll } from '../setup/db.ts';
 
 const agent = 'agent:test';
 
-/** Required metadata fields per type, as the SPEC-presets.md table lists them (fields without `?`). */
-const SPEC_REQUIRED: Record<string, string[]> = {
-  repo: [],
-  component: [],
-  dependency: ['ecosystem'],
-  spec: ['location'],
-  decision: [],
-  principle: ['polarity'],
-  invariant: ['state'],
-  assumption: ['kind', 'state'],
-  gap: ['state'],
-  learning: ['kind'],
+/** Metadata fields per type, as the SPEC-presets.md table lists them (optional ones carry `?` there). */
+const SPEC_FIELDS: Record<string, { required: string[]; optional: string[] }> = {
+  repo: { required: [], optional: ['host', 'ref', 'defaultBranch', 'visibility'] },
+  component: { required: [], optional: ['path', 'criticality'] },
+  dependency: { required: ['ecosystem'], optional: ['version'] },
+  spec: { required: ['location'], optional: [] },
+  decision: { required: [], optional: [] },
+  principle: { required: ['polarity'], optional: [] },
+  invariant: { required: ['state'], optional: ['guardRef'] },
+  assumption: { required: ['kind', 'state'], optional: ['guardRef'] },
+  gap: { required: ['state'], optional: ['upstreamUrl', 'pinnedVersion', 'shippedInVersion'] },
+  learning: { required: ['kind'], optional: [] },
 };
 
 describe('presets edge cases', () => {
-  it('exports JSON Schemas whose required fields match the spec', () => {
-    const required = Object.fromEntries(
+  it('exports JSON Schemas with exactly the required and optional fields of the spec', () => {
+    const fields = Object.fromEntries(
       Object.entries(developmentGraph.ontology.entityTypes).map(([type, def]) => {
-        const schema = z.toJSONSchema(def.metadata) as { required?: string[] };
-        return [type, [...(schema.required ?? [])].sort()];
+        const schema = z.toJSONSchema(def.metadata) as { required?: string[]; properties?: object };
+        const required = [...(schema.required ?? [])].sort();
+        const optional = Object.keys(schema.properties ?? {})
+          .filter((field) => !required.includes(field))
+          .sort();
+        return [type, { required, optional }];
       }),
     );
-    expect(required).toEqual(SPEC_REQUIRED);
+    const sorted = Object.fromEntries(
+      Object.entries(SPEC_FIELDS).map(([type, f]) => [
+        type,
+        { required: [...f.required].sort(), optional: [...f.optional].sort() },
+      ]),
+    );
+    expect(fields).toEqual(sorted);
   });
 
   it('keeps every corpus key in the <type>: convention the instructions teach', () => {

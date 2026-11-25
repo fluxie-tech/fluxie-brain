@@ -224,7 +224,9 @@ src/presets/
   index.ts               → registerPresets, listPresets, getPreset, DEVELOPMENT_GRAPH, tipos
 tests/presets/
   development-graph.test.ts   → unitário: coerência da ontologia, schemas, JSON Schema
-  integration.test.ts         → corpus inteiro pelo core-graph real
+  integration.test.ts         → cada grupo de tipos e relações pelo core-graph real
+  corpus.test.ts              → corpus inteiro: cobertura, âncoras, separação por stack
+  edge-cases.test.ts          → campos exatos do spec, campo obrigatório ausente, proposta, prova de mutação
   public-api.test.ts          → superfície pública fixada
 tests/fixtures/development-graph/
   corpus.json, load.ts
