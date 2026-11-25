@@ -8,6 +8,7 @@ export {
   upsertEntity,
 } from './entities.ts';
 export { ConflictError, CoreGraphError, NotFoundError, OntologyError, VersionConflictError } from './errors.ts';
+export { type ChangeLogEntry, history, revertEntity } from './history.ts';
 export { type EntityStatus, type Ontology, registerOntology } from './ontology.ts';
 export { acceptProposal, listProposals, type Proposal, rejectProposal } from './proposals.ts';
 export { type GraphSlice, linkEntities, neighbors, type Relation, unlink } from './relations.ts';

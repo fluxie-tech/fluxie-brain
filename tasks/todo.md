@@ -224,12 +224,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **`revertEntity`:** restaura `title`, `content`, `metadata` e `confidence` a partir do `after` da mudança escolhida. Preserva `key`, `type` e `status`, sobe `version` e registra a ação `revert`.
 
 **Critérios de aceite:**
-- [ ] Critério 10 completo
-- [ ] Critério 9 completo: um teste percorre create, update, status, propose, accept, reject, unlink e revert e confere exatamente 1 linha por escrita, com `actor`, `before` e `after`
-- [ ] Revert com `changeId` de outra entidade ou de outro space dá `NotFoundError`
+- [x] Critério 10 completo
+- [x] Critério 9 completo: um teste percorre create, update, status, propose, accept, reject, unlink e revert e confere exatamente 1 linha por escrita, com `actor`, `before` e `after`
+- [x] Revert com `changeId` de outra entidade ou de outro space dá `NotFoundError`
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/history`
+- [x] `pnpm test tests/core-graph/history`
 
 **Dependências:** T6, T7
 

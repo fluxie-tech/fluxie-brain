@@ -59,7 +59,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [ ] Revisão humana
 
 ### Fase 4: Histórico e fechamento
-- [ ] T9: Histórico e revert
+- [x] T9: Histórico e revert
 - [ ] T10: API pública e verificação final
 
 ### Checkpoint final
