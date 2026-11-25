@@ -20,14 +20,14 @@ Plano: `tasks/plan.md` · Spec: `SPEC-presets.md`.
 Cada tipo tem `description`, `instruction` (com a convenção de key) e schema `z.strictObject` com `.meta({ description })` nos campos. O cabeçalho do arquivo credita o omnigraph-cookbooks (MIT, link e copyright).
 
 **Critérios de aceite:**
-- [ ] `developmentGraph.ontology` é passado a `registerOntology` sem cast, e o `typecheck` passa. É o risco principal: se falhar, parar e perguntar.
-- [ ] Teste unitário de coerência:
+- [x] `developmentGraph.ontology` é passado a `registerOntology` sem cast, e o `typecheck` passa. É o risco principal: se falhar, parar e perguntar.
+- [x] Teste unitário de coerência:
   - toda ponta de relação existe;
   - toda `description` está preenchida;
   - toda `instruction` cita o prefixo `<tipo>:`;
   - todo schema converte com `z.toJSONSchema()` com `additionalProperties: false`;
   - todo schema recusa chave desconhecida, e os com enum recusam valor fora dele.
-- [ ] Integração:
+- [x] Integração:
   - `registerPresets()` (duas vezes, sem efeito diferente) + `createSpace({ preset: 'development-graph' })`;
   - um `repo`, um `component` e uma `dependency` nascem `approved`;
   - `part_of` e `depends_on` são aceitas;
@@ -38,6 +38,8 @@ Cada tipo tem `description`, `instruction` (com a convenção de key) e schema `
 **Dependências:** nenhuma.
 
 **Arquivos:** `src/presets/types.ts`, `src/presets/development-graph.ts`, `src/presets/index.ts`, `tests/presets/development-graph.test.ts`, `tests/presets/integration.test.ts`.
+
+**Feito:** `tests/presets/public-api.test.ts` foi antecipado da T5, porque o ratchet de cobertura exige teste para `listPresets` e `getPreset`.
 
 **Escopo:** M (5 arquivos pequenos).
 

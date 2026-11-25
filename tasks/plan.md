@@ -37,7 +37,7 @@ T1 base: tipos genéricos + registro + estrutura (repo, component, dependency, s
 Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Fase 1: Base
-- [ ] T1: tipos genéricos, registro e tipos estruturais (S/M)
+- [x] T1: tipos genéricos, registro e tipos estruturais (S/M)
 
 ### Fase 2: Ontologia completa
 - [ ] T2: decision, principle e invariant (S)
