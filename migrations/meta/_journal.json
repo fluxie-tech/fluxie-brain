@@ -29,6 +29,13 @@
       "when": 1795611399223,
       "tag": "0003_entity_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795611494272,
+      "tag": "0004_relations",
+      "breakpoints": true
     }
   ]
 }

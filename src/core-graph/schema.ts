@@ -86,6 +86,26 @@ export const entityProposals = pgTable(
   (t) => [index().on(t.entityId, t.status)],
 );
 
+// No space_id: the space comes from the endpoints, so allowing cross-space links later needs no migration.
+export const relations = pgTable(
+  'relations',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    fromId: uuid()
+      .notNull()
+      .references(() => entities.id),
+    toId: uuid()
+      .notNull()
+      .references(() => entities.id),
+    type: text().notNull(),
+    weight: real().notNull().default(1),
+    metadata: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique().on(t.fromId, t.toId, t.type), index().on(t.fromId), index().on(t.toId)],
+);
+
 export const targetKind = pgEnum('target_kind', ['entity', 'relation', 'proposal']);
 export const changeAction = pgEnum('change_action', [
   'create',

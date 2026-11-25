@@ -23,6 +23,20 @@ export function getOntology(preset: string): Ontology {
   return ontology;
 }
 
+/** Validates that the ontology allows `type` between entities of these types. */
+export function validateRelation(ontology: Ontology, type: string, fromType: string, toType: string): void {
+  const def = ontology.relationTypes[type];
+  if (!def) {
+    const allowed = Object.keys(ontology.relationTypes).join(', ');
+    throw new OntologyError(`Relation type "${type}" is not defined. Allowed types: ${allowed}.`);
+  }
+  if (!def.from.includes(fromType) || !def.to.includes(toType)) {
+    throw new OntologyError(
+      `Relation "${type}" goes from [${def.from.join(', ')}] to [${def.to.join(', ')}], not from "${fromType}" to "${toType}".`,
+    );
+  }
+}
+
 /** Validates an entity type and its metadata; returns the parsed metadata and the type's default status. */
 export function validateEntity(
   ontology: Ontology,

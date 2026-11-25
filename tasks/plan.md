@@ -51,7 +51,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 
 ### Fase 3: Curadoria e grafo
 - [x] T6: Propostas sobre entidades aprovadas
-- [ ] T7: Relações (link e unlink)
+- [x] T7: Relações (link e unlink)
 - [ ] T8: Vizinhança até 2 saltos
 
 ### Checkpoint C: Curadoria e grafo

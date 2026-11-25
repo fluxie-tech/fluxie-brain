@@ -174,12 +174,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **`getEntity`:** passa a incluir as relações.
 
 **Critérios de aceite:**
-- [ ] Critério 7: relação fora da ontologia é recusada; relação entre spaces é recusada; repetir a ligação não duplica
-- [ ] `unlink` gera 1 linha no change_log com `before` preenchido e `after` nulo
-- [ ] Ids de outro space dão `NotFoundError`
+- [x] Critério 7: relação fora da ontologia é recusada; relação entre spaces é recusada; repetir a ligação não duplica
+- [x] `unlink` gera 1 linha no change_log com `before` preenchido e `after` nulo
+- [x] Ids de outro space dão `NotFoundError`
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/relations`
+- [x] `pnpm test tests/core-graph/relations`
 
 **Dependências:** T4 (pode correr em paralelo com T5 e T6)
 

@@ -4,6 +4,7 @@ import { isUniqueViolation, NotFoundError, OntologyError, VersionConflictError }
 import { logChange } from './history.ts';
 import { type EntityStatus, getOntology, validateEntity } from './ontology.ts';
 import { createProposal, type Proposal, pendingProposalsFor } from './proposals.ts';
+import { type Relation, relationsOf } from './relations.ts';
 import { entities } from './schema.ts';
 import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
@@ -180,9 +181,9 @@ export async function recordUsage(spaceId: string, entityIds: string[]): Promise
   });
 }
 
-export type EntityDetail = Entity & { pendingProposals: Proposal[] };
+export type EntityDetail = Entity & { relations: Relation[]; pendingProposals: Proposal[] };
 
-/** Returns the entity with this key in the space (with its pending proposals), or null. */
+/** Returns the entity with this key in the space (with its relations and pending proposals), or null. */
 export async function getEntity(spaceId: string, key: string): Promise<EntityDetail | null> {
   await findSpaceOrThrow(db, spaceId);
   const [entity] = await db
@@ -190,5 +191,9 @@ export async function getEntity(spaceId: string, key: string): Promise<EntityDet
     .from(entities)
     .where(and(eq(entities.spaceId, spaceId), eq(entities.key, key)));
   if (!entity) return null;
-  return { ...entity, pendingProposals: await pendingProposalsFor(entity.id) };
+  return {
+    ...entity,
+    relations: await relationsOf(entity.id),
+    pendingProposals: await pendingProposalsFor(entity.id),
+  };
 }
