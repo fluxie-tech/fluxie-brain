@@ -57,8 +57,7 @@ type ScopeRule = { containment: string[]; usage: string[] };
 Mesma regra dos outros módulos: versão estável mais recente, fixada com número exato e conferida no dia da implementação, respeitando o `minimumReleaseAge` do pnpm (e, por analogia, uma imagem Docker publicada há pelo menos 1 dia). Estado em 25/11/2026:
 
 - **Ollama:** imagem `ollama/ollama`. A última estável é a 0.40.18, de 24/11; a 0.40.17, de ~20/11, é a mais nova que já passou do prazo hoje. A tag é fixada no build.
-  - **Local:** com GPU (RTX 3060 6 GB), pelo arquivo `docker-compose.gpu.yml`, que reserva a GPU NVIDIA.
-  - **VPS:** só CPU. O `docker-compose.yml` base não pede GPU e sobe em qualquer máquina.
+  - **Só CPU, em todo lugar:** localmente no Docker Desktop, sem GPU, e igual na VPS. Assim o ambiente local é igual ao de produção e os números do benchmark valem para o deploy. A GPU local (RTX 3060) não é usada, e o compose não reserva GPU.
 - **Candidatos do benchmark**, ambos só de texto e com tamanho parecido:
   - `qwen3-embedding:0.6b`: 639 MB, 1024 dims, 32K de contexto, Apache 2.0;
   - `embeddinggemma-2:570m`: ~0,95 GB, 768 dims (truncável para 512/256/128), 8K de contexto pelo model card, Apache 2.0. Lançado em 06/10/2026.
@@ -149,7 +148,7 @@ Se algo falhar, nada é gravado.
 - **Sem âncora:** o idioma está amarrado ao projeto no corpus (pebble todo em EN, quarry todo em PT), e com âncora o filtro faria o trabalho do modelo.
 - **Medidas por modelo:**
   - MRR@10 e recall@5, no total e por grupo, para cada perna isolada (só vetor, só texto) e para a híbrida. A perna só de texto avalia o `tsv 'simple'` (pergunta em aberto 1 do spec do core-graph);
-  - latência p50/p95 para embutir uma consulta, em CPU (compose sem GPU) e em GPU;
+  - latência p50/p95 para embutir uma consulta, em CPU (Docker Desktop local, sem GPU);
   - tempo para embutir o corpus inteiro;
   - verificação de que nenhum vetor tem NaN.
 - **Regra de escolha:**
@@ -162,8 +161,7 @@ Se algo falhar, nada é gravado.
 
 ```
 docker compose up -d --wait db                                      # testes (não precisam do Ollama)
-docker compose up -d --wait                                         # db + ollama, só CPU (VPS)
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --wait   # local com GPU
+docker compose up -d --wait                                         # db + ollama, só CPU (local e VPS)
 pnpm db:migrate
 pnpm bench:embeddings                                               # node scripts/bench-embeddings.ts
 pnpm check:fast | check:task | check:full                           # como no CONSTRAINTS.md
@@ -187,7 +185,7 @@ migrations/      → 0006_entity_embeddings.sql (tabela + GIN em tsv), gerada pe
 scripts/bench-embeddings.ts
 tests/embeddings/                  → integração com um stub HTTP do provedor (node:http)
 tests/fixtures/embeddings/         → queries.json, distractors.json
-docker-compose.yml (+ serviço ollama), docker-compose.gpu.yml
+docker-compose.yml (+ serviço ollama, só CPU)
 drizzle.config.ts                  → schema passa a ser a lista dos dois schema.ts
 ```
 
@@ -239,7 +237,7 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 
 ## Critérios de sucesso
 
-1. `docker compose up -d --wait` sobe o `db` e o `ollama` só em CPU e baixa o modelo padrão. Com o `docker-compose.gpu.yml`, o mesmo acontece usando a GPU local. Nos dois casos, `POST /v1/embeddings` responde.
+1. `docker compose up -d --wait` sobe o `db` e o `ollama` só em CPU no Docker Desktop local, sem GPU, baixa o modelo padrão, e `POST /v1/embeddings` responde.
 2. `pnpm db:migrate` cria a `entity_embeddings` e o GIN em `entities.tsv`, e o `fluxie_app` consegue ler e escrever na tabela nova.
 3. `syncEmbeddings` gera vetores para todas as entidades do space e devolve `remaining: 0`. Uma segunda chamada não faz nada. Depois de mudar `title` ou `content` (update, aceite ou revert), só aquela entidade é regenerada; depois de mudar só `metadata`, nenhuma.
 4. Uma resposta inválida do provedor (contagem, dimensão, NaN, HTTP de erro, rede) lança `EmbeddingProviderError` e não grava nada. Um modelo fora do catálogo lança `EmbeddingConfigError`.
@@ -248,7 +246,7 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 7. Com âncora e a regra do Development Graph, no corpus: nenhuma entidade do outro projeto aparece em `hits` nem em `context`, a partir de `repo:fictora/pebble-web`, de `repo:fictora/quarry-api` e de um component; os itens `shared` aparecem nos dois; as lições sobre dependências de componentes aparecem.
 8. Com o provedor fora do ar, `search` responde só pelo texto, com `vector: 'unavailable'`.
 9. O `context` traz os vizinhos dos `hits` até `depth`, sem repetir `hits`, respeitando o escopo e os status.
-10. O benchmark roda para os dois modelos e imprime MRR@10 e recall@5 (total e por grupo de idioma, por perna) e latência p50/p95 em CPU e GPU. O resultado e o modelo escolhido pela regra estão registrados neste spec.
+10. O benchmark roda para os dois modelos e imprime MRR@10 e recall@5 (total e por grupo de idioma, por perna) e latência p50/p95 em CPU. O resultado e o modelo escolhido pela regra estão registrados neste spec.
 11. O `Preset` tem o campo opcional `scope`; o Development Graph declara `{ containment: ['part_of'], usage: ['depends_on'] }`; o core-graph exporta `db`, `entities` e `relations`, e nada mais muda nele.
 12. O embeddings só importa `src/core-graph/index.ts` (`pnpm check:arch`), e o `pnpm check:task` passa.
 
@@ -261,7 +259,7 @@ Nenhuma bloqueia o plano. Todas são conferidas no build:
 3. **Truncamento:** como o `/v1/embeddings` do Ollama trata textos acima do contexto. Nos dois modelos, o contexto é muito maior que as entidades típicas.
 4. **Tag do Ollama:** a que tiver mais de 1 dia no dia do build (hoje, 0.40.17).
 5. **Drizzle:** se o tipo `vector` aceita coluna sem dimensão; se não aceitar, `customType`.
-6. **CPU como referência:** a latência em CPU é medida na máquina local, como aproximação da VPS, que ainda não foi escolhida. Se a VPS for bem mais fraca, o corte de 300 ms é medido de novo lá antes do deploy.
+6. **CPU como referência:** a latência é medida em CPU no Docker Desktop local (limitado pelos recursos que o WSL2 dá ao Docker), como aproximação da VPS, que ainda não foi escolhida. Se a VPS for bem mais fraca, o corte de 300 ms é medido de novo lá antes do deploy.
 
 ## Resultado do benchmark
 
