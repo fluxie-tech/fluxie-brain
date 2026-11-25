@@ -15,6 +15,13 @@
       "when": 1795611068721,
       "tag": "0001_spaces",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795611214497,
+      "tag": "0002_entities_and_change_log",
+      "breakpoints": true
     }
   ]
 }

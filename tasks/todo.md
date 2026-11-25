@@ -93,13 +93,13 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **`getEntity`:** versão básica, sem relações e sem propostas.
 
 **Critérios de aceite:**
-- [ ] Critério 2: inválido, `OntologyError` e nada gravado, nem no change_log
-- [ ] Critério 3: nasce com `defaultStatus`; mesmo `key` atualiza e sobe `version`; o mesmo `key` em outro space cria outra entidade
-- [ ] Critérios 6 e 11: `content_hash` muda com `title`/`content` e não com `metadata`; `expectedVersion` desatualizado dá `VersionConflictError`
+- [x] Critério 2: inválido, `OntologyError` e nada gravado, nem no change_log
+- [x] Critério 3: nasce com `defaultStatus`; mesmo `key` atualiza e sobe `version`; o mesmo `key` em outro space cria outra entidade
+- [x] Critérios 6 e 11: `content_hash` muda com `title`/`content` e não com `metadata`; `expectedVersion` desatualizado dá `VersionConflictError`
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/entities`
-- [ ] Migração gerada por `pnpm db:generate` e revisada
+- [x] `pnpm test tests/core-graph/entities`
+- [x] Migração gerada por `pnpm db:generate` e revisada
 
 **Dependências:** T3
 

@@ -42,7 +42,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 
 ### Fase 2: Entidades
 - [x] T3: Ontologia e spaces
-- [ ] T4: Criar e atualizar entidades, com change_log
+- [x] T4: Criar e atualizar entidades, com change_log
 - [ ] T5: Status, uso e isolamento por space
 
 ### Checkpoint B: Entidades

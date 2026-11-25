@@ -31,3 +31,14 @@ export async function truncateAll(): Promise<void> {
     await client.end();
   }
 }
+
+/** Runs a read query on the test DB as the app role and returns the rows. */
+export async function queryRows<T extends Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
+  const client = appClient();
+  await client.connect();
+  try {
+    return (await client.query<T>(text, params)).rows;
+  } finally {
+    await client.end();
+  }
+}
