@@ -1,119 +1,115 @@
-# Implementation Plan: presets
+# Implementation Plan: embeddings
 
-Spec: `SPEC-presets.md`. Mapa: `CAPABILITY-MAP.md`. Tarefas detalhadas: `tasks/todo.md`.
-Plano anterior (concluído): `tasks/core-graph/`.
+Spec: `SPEC-embeddings.md`. Mapa: `CAPABILITY-MAP.md`. Tarefas detalhadas: `tasks/todo.md`.
+Planos anteriores (concluídos): `tasks/core-graph/` e `tasks/presets/`.
 
 ## Visão geral
 
-Criar o módulo `src/presets` com o tipo genérico `Preset`, o registro (`registerPresets`, `listPresets`, `getPreset`) e o Development Graph: 10 tipos de entidade e 12 relações adaptados do dev-graph do omnigraph-cookbooks. A entrega fecha com um corpus fictício PT/EN, carregado pelo core-graph real, que prova a separação por stack entre dois projetos no mesmo space. O core-graph não muda.
+Criar o módulo `src/embeddings`. Ele mantém vetores das entidades gerados pelo Ollama (CPU, API compatível com a OpenAI) numa tabela própria e oferece a busca híbrida: vetor + texto, fundidos por RRF, com filtro pelo escopo da âncora e vizinhos de contexto. O presets ganha o campo `scope`, e o core-graph passa a exportar `db`, `entities` e `relations`. Um benchmark manual escolhe entre `qwen3-embedding:0.6b` e `embeddinggemma-2:570m`.
 
 ## Grafo de dependências
 
 ```
-T1 base: tipos genéricos + registro + estrutura (repo, component, dependency, spec)
- └─ T2 conhecimento de governança: decision, principle, invariant
-     └─ T3 conhecimento externo e lições: assumption, gap, learning (ontologia completa)
-         └─ T4 corpus fictício + prova multiprojeto e âncoras
-             └─ T5 API pública fixada, créditos, rastreabilidade, check:task
+T1 Ollama no compose + spike (fecha as perguntas em aberto do spec)
+ └─ T2 provedor: catálogo, cliente /v1/embeddings, erros, stub de teste
+     └─ T3 tabela entity_embeddings + GIN + exports do core-graph
+         └─ T4 syncEmbeddings
+             └─ T5 busca híbrida sem âncora (vetor + texto + RRF)
+                 ├─ T6 campo scope no presets ─┐
+                 └──────────────────────────────┴─ T7 filtro pelo escopo da âncora
+                                                    └─ T8 vizinhos de contexto
+T9 fixtures do benchmark + métricas      (depende só do corpus; pode correr ao lado de T5–T8)
+T10 script do benchmark + execução + escolha do modelo   (depende de T8 e T9)
+T11 fechamento: rastreabilidade, pendências, check:task
 ```
-
-É uma cadeia, sem paralelismo útil: cada relação só entra quando os tipos das duas pontas existem, porque o teste de coerência exige isso.
 
 ## Decisões de arquitetura
 
-- **Fatias por grupo de tipos:** cada tarefa entrega tipos, relações, descrições e instruções, com teste unitário e de integração, e deixa o projeto verde. Não há uma tarefa só para "todos os schemas" e outra só para "todos os testes".
-- **Risco cedo (T1):** a T1 confere três coisas no `typecheck` e no primeiro teste:
-  - que `Preset['ontology']` é aceito por `registerOntology` sem cast;
-  - que `satisfies Preset` preserva as chaves literais;
-  - que `z.toJSONSchema()` converte `z.strictObject` com `.meta()`.
-  Se o tipo não for atribuível, o plano para e pergunta antes de mexer na API do core-graph.
-- **Testes de unidade sem banco, integração com banco:** a coerência da ontologia e os schemas são testados como lógica pura. O caminho pelo core-graph real usa o harness existente (`tests/setup/db.ts`, `truncateAll`, `fileParallelism: false`).
-- **Arquivo do preset:** começa em `src/presets/development-graph.ts`. Quando passar de 300 linhas (provável na T3, por causa das instruções), vira `src/presets/development-graph/{index,entities,relations}.ts`. Só `src/presets/index.ts` é importado de fora.
-- **Corpus em JSON** (`tests/fixtures/development-graph/corpus.json`): o `embeddings` e scripts de benchmark podem lê-lo sem TypeScript. O Biome formata JSON, então o arquivo segue o formatter.
-- **Commits:** um por tarefa, no branch `spec/presets`, com o e-mail noreply. O PR sai na fase Ship.
+- **O risco vem primeiro (T1):** a T1 é um spike sem código de produção. Ela mede o que o catálogo e o schema precisam e registra os achados abaixo:
+  - a dimensão real dos dois modelos;
+  - se o Ollama aplica prefixo próprio;
+  - como ele trunca textos acima do contexto;
+  - se a coluna `vector` sem dimensão funciona no pgvector 0.8.7;
+  - se o `docker compose up -d --wait` aceita um serviço de pull que termina com 0;
+  - quantas CPUs o WSL2 libera para o Docker.
+
+  Se algum achado contradisser o spec, o plano para e volta à fase 1.
+- **Fatias verticais:** cada tarefa entrega um comportamento testável de ponta a ponta (gerar vetores, buscar, filtrar, expandir) e deixa o projeto verde. O `index.ts` do embeddings e o `public-api.test.ts` nascem na T2, porque o ratchet de cobertura exigiu isso no presets.
+- **Configuração explícita por dentro:** as funções internas recebem `{ baseUrl, model, apiKey }`, e só a API pública lê o ambiente, a cada chamada. É isso que deixa os testes apontarem para o stub em porta dinâmica e o benchmark trocar de modelo no mesmo processo.
+- **Stub HTTP nos testes** (`node:http`, em `tests/embeddings/stub-provider.ts`): por padrão, um saco de palavras com hash; para o caso "sem palavra em comum", um mapa texto → vetor definido no teste. Ele também simula falhas (HTTP 500, conexão recusada, NaN, dimensão errada, contagem errada).
+- **Reuso:** o contexto usa o `neighbors` do core-graph por hit, filtrado pelo conjunto do escopo, e as colunas de `Entity` saem do `getTableColumns(entities)` sem o `tsv`, como no `rows.ts` do core-graph. Nada novo é exportado do core-graph além do que o spec lista.
+- **Migrações:**
+  - a tabela é gerada pelo `drizzle-kit` a partir de `src/embeddings/schema.ts` (o `drizzle.config.ts` passa a listar os dois schemas);
+  - o GIN em `entities.tsv` vai numa migração custom;
+  - o `fluxie_app` recebe DML pelos default privileges.
+- **Commits:** um por tarefa, no branch `spec/embeddings`, com o e-mail noreply. O PR sai na fase Ship.
 
 ## Tarefas
 
 Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
-### Fase 1: Base
-- [x] T1: tipos genéricos, registro e tipos estruturais (S/M)
+### Fase 1: Vetores
+- [ ] T1: Ollama no compose + spike (S)
+- [ ] T2: provedor, catálogo e erros (M)
+- [ ] T3: tabela, GIN e exports do core-graph (M)
+- [ ] T4: syncEmbeddings (S)
 
-### Fase 2: Ontologia completa
-- [x] T2: decision, principle e invariant (S)
-- [x] T3: assumption, gap e learning, fechando a ontologia (M)
+### Checkpoint A: vetores gerados
+- [ ] Critérios 1–4 do spec com teste ou verificação manual registrada
+- [ ] `pnpm check:task` verde
+- [ ] Achados do spike revisados pelo dono
 
-### Checkpoint A: ontologia completa
-- [x] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução
-- [x] `pnpm check:task` verde
-- [x] Revisão humana das descrições e instruções, que são o que o agente vai ler (aprovada em 2026-11-25)
+### Fase 2: Busca
+- [ ] T5: busca híbrida sem âncora (M)
+- [ ] T6: campo `scope` no presets (XS)
+- [ ] T7: filtro pelo escopo da âncora (M)
+- [ ] T8: vizinhos de contexto (S)
 
-### Fase 3: Corpus e fechamento
-- [x] T4: corpus fictício PT/EN e prova multiprojeto (M)
-- [x] T5: API pública, créditos e rastreabilidade (S)
+### Checkpoint B: busca completa
+- [ ] Critérios 5–9 e 11 do spec com teste
+- [ ] `pnpm check:task` verde
 
-### Checkpoint B: completo
-- [x] Os 10 critérios de sucesso do spec ligados a testes (tabela abaixo, preenchida na T5)
-- [x] `pnpm check:task` verde, com o banco no ar (`docker compose up -d --wait db`)
-- [x] Pronto para a fase Verify
+### Fase 3: Benchmark e fechamento
+- [ ] T9: fixtures do benchmark e métricas (M)
+- [ ] T10: script do benchmark, execução e escolha do modelo (M)
+- [ ] T11: fechamento (S)
+
+### Checkpoint C: completo
+- [ ] Resultado do benchmark no spec e modelo padrão aprovado pelo dono
+- [ ] Os 12 critérios do spec ligados a testes (tabela abaixo, preenchida na T11)
+- [ ] `pnpm check:task` verde; pronto para a fase Verify
+
+## Achados do spike (T1)
+
+Preenchido na T1.
 
 ## Rastreabilidade: critérios do spec → testes
 
-| # | Critério | Testes e verificações (`tests/presets/`) |
+Preenchida na T11.
+
+## Pendências herdadas do presets
+
+A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para módulos seguintes".
+
+| # | Pendência | Situação |
 |---|---|---|
-| 1 | `registerPresets` + `createSpace` + idempotência | `integration.test.ts` (`registerPresets` chamado duas vezes; space com `development-graph`) |
-| 2 | 10 tipos e 12 relações, status e campos, pontas existentes | `development-graph.test.ts` ("exactly the entity types…", "exactly the relations…", "only links entity types that exist"); campos por tipo nos exemplos válidos |
-| 3 | `description` e `instruction` com convenção de key | `development-graph.test.ts` ("describes every…", "teaches the key convention…") |
-| 4 | Metadata estrito, JSON Schema, `OntologyError` legível | `development-graph.test.ts` (JSON Schema fechado com descrição por campo; chave desconhecida e enum inválido recusados); `integration.test.ts` (`Invalid metadata for "repo"`, nada gravado) |
-| 5 | Corpus completo, status padrão, separação por stack, âncoras | `corpus.test.ts` (cobertura de tipos, relações e idiomas; âncoras; status padrão; separação pebble × quarry nos dois sentidos) |
-| 6 | Relação fora de `from × to` e tipo fora do preset recusados sem escrita | `integration.test.ts` (tipo `issue`; `part_of` invertida; `establishes` de principle; `about` para invariant) |
-| 7 | `presets` só importa `core-graph/index.ts` | `pnpm check:arch` (dependency-cruiser, regras do `CAPABILITY-MAP.md`) |
-| 8 | API pública fixada; core-graph intacto | `public-api.test.ts`; `git diff main -- src/core-graph tests/core-graph` vazio |
-| 9 | Créditos ao omnigraph-cookbooks | cabeçalho de `src/presets/development-graph/index.ts` e seção "Créditos" do README |
-| 10 | `pnpm check:task` verde | rodado no fim da T5 e de novo no Ship: 199 testes, `check:full` verde |
-
-**Desvios do plano:** `public-api.test.ts` entrou na T1, porque o ratchet de cobertura exigiu. O preset foi dividido em pasta já na T3. `applies_to` ganhou `dependency` como destino, para a regra de âncora valer (spec atualizado). O corpus ganhou a anotação `project`.
-
-**Verify (fase 4):** `edge-cases.test.ts` prova cinco coisas:
-- os campos obrigatórios do JSON Schema batem com a tabela do spec;
-- metadata obrigatório ausente vira `OntologyError` com o nome do campo, sem escrita;
-- uma edição de agente numa entidade estrutural aprovada vira proposta pendente;
-- toda key do corpus segue a convenção `<tipo>:`;
-- um teste que documenta o limite do modelo: uma lição ancorada por engano numa dependência compartilhada vaza para o outro repo. A separação vale só enquanto as âncoras estão certas.
-
-**Ship (fase 6):** três revisores em paralelo (código, segurança, testes). Nenhum achado crítico ou alto. Corrigido antes do PR:
-- o floor-guard deixava passar afrouxamentos em texto misto e em números com separador de milhar;
-- os testes não fixavam enums, tipos nem as instruções exigidas pelo spec, e mutações sobreviviam;
-- faltava o `supersedes` de mesmo tipo nas instruções de `principle` e `spec`;
-- o teste de âncoras do corpus aceitava qualquer relação;
-- `gap.upstreamUrl` aceitava `javascript:`;
-- keys de `component`/`spec` sem o dono, e faltava o desempate de linguagem;
-- faltava a regra de privacidade nas instruções.
-
-## Pendências para módulos seguintes
-
-Achados de revisão fora do escopo do presets, decididos pelo dono em 2026-11-25 como pendências:
-
-| # | Achado | Dono |
-|---|---|---|
-| 1 | Importar `src/presets/index.ts` exige `DATABASE_URL`, porque o `src/core-graph/db.ts` cria o pool na importação. Ferramentas offline que só leem o vocabulário esbarram nisso. | specs do `embeddings` e do `mcp-server`: pool preguiçoso ou importar o preset direto |
-| 2 | Busca a partir de uma dependência compartilhada (ex.: Postgres) chega a 2 saltos às regras do outro repo, porque `neighbors` anda para trás pelo `depends_on`. A 2 saltos de um repo, o conhecimento sobre dependências dos seus componentes fica a 3 saltos e não aparece. | specs do `embeddings`/`mcp-server`: regra de direção na busca ou filtro pelo repo atual |
-| 3 | O metadata de relações não é validado (`src/core-graph/relations.ts` grava `link.metadata` direto) e o `RelationTypeDef` não tem schema. | `mcp-server` (recusar metadata de relação) ou mudança planejada no core-graph |
-| 4 | Textos livres aceitam caracteres de controle e bidi, e `title`/`content` escritos por agentes são superfície de prompt injection para outros agentes. | `mcp-server` (limites, sanitização, conteúdo tratado como não confiável) |
-| 5 | O `getPreset` devolve o mesmo objeto registrado no core-graph; alterá-lo muda a validação de todos. | `mcp-server`: tratar como somente leitura |
-| 6 | O floor-guard não confere os pisos do `vitest.config.ts` nem entradas novas no `.constraintsignore`; o CI interpola `github.base_ref` dentro do shell. | ✅ resolvido em 2026-11-25 (PR de qualidade após o presets) |
+| 1 | Importar `src/presets/index.ts` exige `DATABASE_URL` | Fechada no `SPEC-embeddings.md`, sem código. Scripts importam o preset direto. |
+| 2 | A busca a partir de uma dependência compartilhada chega ao outro repo | Resolvida pela regra `scope` (T6, T7, T8) |
+| 3–5 | Metadata de relação, prompt injection, `getPreset` somente leitura | Continuam com o `mcp-server` |
 
 ## Riscos e mitigações
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| `Preset['ontology']` não é atribuível ao `Ontology` do core-graph | Médio | Testado na T1 pelo `typecheck`. Se falhar, pergunto antes de mudar a API do core-graph (fronteira "perguntar antes"). |
-| `z.toJSONSchema` falha em algum schema | Baixo | Teste unitário por tipo desde a T1; o spec já proíbe `Date`, `transform` e `refine`. |
-| Instruções vagas fazem o agente confundir invariant, assumption e learning | Médio | A T3 escreve as três juntas, com critério de escolha explícito em cada uma. O Checkpoint A tem revisão humana. A validação real vem no dogfood do `agent-loop`. |
-| O corpus vaza conhecimento entre stacks pelo grafo (ex.: o repo B aparece a 2 saltos do repo A via dependência compartilhada) | Baixo | O critério é sobre conhecimento: só `learning`, `decision` etc. específicos do B não podem aparecer. O repo B em si pode. O teste verifica exatamente isso. |
-| Cobertura das linhas alteradas abaixo de 80% | Baixo | O preset é quase todo dado, coberto pela importação. As funções do registro têm teste direto. |
-| Arquivos acima de 300 linhas (src) ou 400 (tests) | Baixo | Divisão prevista do preset; testes por grupo de tipos. O corpus é JSON, fora dessa regra. |
+| O Ollama já aplica prefixo, ou o template do Qwen3 é outro | Médio: comparação injusta | Medido na T1, com um teste de similaridade (prefixo dobrado × único); catálogo ajustado antes da T2 |
+| `--wait` falha com o serviço de pull que termina | Baixo | Plano B na T1: o pull roda no entrypoint do próprio `ollama` antes do healthcheck ficar verde |
+| O WSL2 dá menos de 4 CPUs ao Docker | Médio: latência pessimista ou otimista | A T1 confere (`docker info`) e registra; ajuste no `.wslconfig` é do dono |
+| O benchmark não separa os modelos (corpus pequeno) | Médio | Distratores e consultas parafraseadas (T9); o relatório mostra o tamanho da diferença, e a regra de desempate cobre o empate |
+| Consultas escritas olhando os dados ficam lexicais demais | Médio | Campo `kind: 'paraphrase'`; um teste da T9 garante que essas consultas não dividem palavras de conteúdo com o título esperado |
+| O escopo vaza por uma relação esquecida | Alto | Teste no corpus nos dois sentidos, em `hits` e em `context` (entidades e relações); protótipo já confirmado com a redação do spec |
+| Arquivo acima de 300 linhas (`search.ts`) | Baixo | Fusão e tsquery em `fusion.ts`, escopo em `scope.ts`, contexto em `context.ts` se passar |
+| Cobertura das linhas alteradas abaixo de 80% | Baixo | O stub cobre os caminhos de erro do provedor; o script do benchmark fica fora de `src`, e as métricas dele têm teste |
 
 ## Perguntas em aberto
 
-- Nenhuma bloqueante. As duas do spec (`supersedes` entre tipos e a fronteira invariant × assumption × learning) são tratadas por instrução e revistas no Checkpoint A.
+- Nenhuma bloqueante. As do spec são fechadas pelo spike da T1.

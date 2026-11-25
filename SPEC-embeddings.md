@@ -22,7 +22,7 @@ Encontrar o conhecimento certo para o trabalho atual, em português ou inglês, 
 **Fora do escopo deste módulo:**
 - quando chamar o `syncEmbeddings` (depois de cada escrita, em lote ou num worker): decisão do `mcp-server`;
 - `recordUsage` dos resultados, porque só o agente sabe o que usou: `mcp-server`;
-- limites de entrada para agentes, autenticação e tratamento do conteúdo como não confiável (pendências 3 a 5 do `tasks/plan.md`): `mcp-server`;
+- limites de entrada para agentes, autenticação e tratamento do conteúdo como não confiável (pendências 3 a 5 do `tasks/presets/plan.md`): `mcp-server`;
 - dedupe e detecção de contradição por similaridade: `curation`, que vai reaproveitar este módulo;
 - embeddings de imagem e reranker;
 - índice HNSW (ver "Decisões");
@@ -76,9 +76,10 @@ entity_embeddings                      (migração do embeddings)
   updated_at timestamptz
   primary key (entity_id, model)
 
-índice GIN em entities(tsv)            (migração do embeddings; o spec do core-graph já previa)
+índice GIN em entities(tsv)            (migração SQL custom do embeddings; o spec do core-graph já previa)
 ```
 
+- **GIN sem mexer no core-graph:** o Drizzle declara índices dentro da tabela, e a tabela `entities` é do `src/core-graph/schema.ts`. Por isso o GIN entra numa migração SQL custom (`drizzle-kit generate --custom`), como a `0000_enable_pgvector.sql`. O `drizzle-kit` compara só snapshots do schema, então gerações futuras não tentam remover o índice.
 - **Desatualizado:** um vetor está desatualizado quando `source_hash` difere de `entities.content_hash`. Isso cobre update, aceite de proposta e revert, e uma mudança só no metadata não gera vetor novo, porque o hash cobre só `title` e `content`.
 - **Vários modelos convivem:** a busca compara só linhas do modelo ativo (`model = $1`), então a dimensão sempre bate. Trocar de modelo não exige migração.
 - **Permissões:** o `fluxie_app` recebe DML na tabela nova pelos default privileges do `init-db.sh`. O `truncateAll` dos testes já pega todas as tabelas do schema.
@@ -103,7 +104,8 @@ search(spaceId, query: string, opts?: {
 
 type SearchResult = {
   hits: { entity: Entity; score: number; ranks: { vector?: number; text?: number } }[];
-  context: GraphSlice;            // vizinhos dos hits, sem repetir hits, no mesmo escopo e status
+  context: GraphSlice;            // vizinhos dos hits, sem repetir hits, no mesmo escopo e status;
+                                  // as relações também: só as que ligam duas entidades do resultado
   vector: 'ok' | 'unavailable';   // 'unavailable': o provedor falhou e a busca usou só o texto
 };
 ```
@@ -117,7 +119,7 @@ type SearchResult = {
 6. **Contexto:** vizinhos dos `hits` até `depth`, com o mesmo escopo e os mesmos status, e as relações entre eles.
 7. **Provedor fora do ar:** a perna vetorial é pulada, o resultado sai só do texto e vem com `vector: 'unavailable'`. A busca não falha por causa do Ollama.
 
-**Configuração** (lida na primeira chamada, nunca na importação):
+**Configuração** (lida do ambiente a cada chamada pública, o que é barato; nunca na importação nem guardada em cache). Por dentro, as funções recebem um objeto de configuração explícito: os testes apontam para o stub numa porta qualquer, e o benchmark troca de modelo no mesmo processo.
 - `EMBEDDINGS_BASE_URL`: padrão `http://127.0.0.1:11434/v1`;
 - `EMBEDDINGS_MODEL`: padrão é o vencedor do benchmark;
 - `EMBEDDINGS_API_KEY`: opcional, enviada como `Bearer` (provedor remoto).
@@ -142,6 +144,9 @@ Se algo falhar, nada é gravado.
 ## Benchmark
 
 `scripts/bench-embeddings.ts`, rodado à mão com o Ollama no ar. Não roda no CI.
+
+- **Banco:** o de testes (`fluxie_brain_test`, pelas variáveis `TEST_*`), esvaziado no início pelo mesmo `truncateAll`, que recusa qualquer banco sem o sufixo `_test`. Nunca o `fluxie_brain`: o `fluxie_app` não apaga entidades, e o benchmark deixaria dados para sempre. Não roda junto com os testes.
+- **Pernas isoladas:** o `search` público devolve só os hits fundidos. O script importa por dentro as funções de cada perna (`src/embeddings/search.ts`), com configuração explícita. Scripts podem fazer isso; a regra de importar só pelo `index.ts` vale dentro de `src`.
 
 - **Dados:**
   - o corpus do presets (32 entidades), sem alterações;
@@ -209,7 +214,7 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 
 ## Estratégia de testes
 
-- **CI sem Ollama:** os testes usam um stub HTTP local que implementa `/v1/embeddings` com vetores determinísticos (um saco de palavras com hash, que deixa textos parecidos próximos de verdade). Nenhum teste é pulado por falta de Ollama; o modelo real é exercitado pelo benchmark.
+- **CI sem Ollama:** os testes usam um stub HTTP local que implementa `/v1/embeddings` com vetores determinísticos. Por padrão é um saco de palavras com hash, que deixa próximos os textos que dividem palavras. Para o caso "acha pelo vetor sem nenhuma palavra em comum", o stub aceita um mapa texto → vetor, que o teste define, porque um saco de palavras não consegue aproximar textos sem palavras em comum. Nenhum teste é pulado por falta de Ollama; o modelo real é exercitado pelo benchmark.
 - **Unitário:** RRF, montagem da tsquery com OU (incluindo caracteres especiais e consulta só com símbolos), templates do catálogo e validação da resposta do provedor (contagem, dimensão, NaN, JSON inválido).
 - **Integração** (banco do compose, harness existente):
   - **sync:** gera o que falta; regenera depois de mudar `content`, aceitar proposta ou fazer revert; não regenera depois de mudar só `metadata`; é idempotente; um modelo não toca nos vetores do outro;
