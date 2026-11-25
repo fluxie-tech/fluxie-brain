@@ -49,6 +49,10 @@ export async function upsertEntity(
   input: EntityInput,
   actor: Actor,
 ): Promise<{ entity: Entity; proposal?: Proposal }> {
+  // `!(x >= 0 && x <= 1)` also rejects NaN, which a range comparison alone would let through.
+  if (input.confidence !== undefined && !(input.confidence >= 0 && input.confidence <= 1)) {
+    throw new OntologyError(`Confidence must be between 0 and 1, got ${input.confidence}.`);
+  }
   try {
     return await db.transaction(async (tx) => {
       const space = await findSpaceOrThrow(tx, spaceId);

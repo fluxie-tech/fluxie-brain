@@ -88,6 +88,8 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 
 Superfície pública fixada por `public-api.test.ts`.
 
+**Verify (fase 4):** `edge-cases.test.ts` cobre corridas de create e de aceite, `confidence` fora de 0..1 (bug encontrado e corrigido), ids repetidos em `recordUsage` e `spaceId` malformado.
+
 ## Riscos e mitigações
 
 | Risco | Impacto | Mitigação |
