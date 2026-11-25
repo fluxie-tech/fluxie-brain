@@ -59,6 +59,33 @@ export const entities = pgTable(
   ],
 );
 
+export type ProposedChange = {
+  title: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  confidence: number;
+};
+
+export const proposalStatus = pgEnum('proposal_status', ['pending', 'accepted', 'rejected']);
+
+export const entityProposals = pgTable(
+  'entity_proposals',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    entityId: uuid()
+      .notNull()
+      .references(() => entities.id),
+    baseVersion: integer().notNull(),
+    proposed: jsonb().$type<ProposedChange>().notNull(),
+    status: proposalStatus().notNull().default('pending'),
+    proposedBy: text().notNull(),
+    decidedBy: text(),
+    createdAt: createdAt(),
+    decidedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [index().on(t.entityId, t.status)],
+);
+
 export const targetKind = pgEnum('target_kind', ['entity', 'relation', 'proposal']);
 export const changeAction = pgEnum('change_action', [
   'create',

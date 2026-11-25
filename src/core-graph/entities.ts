@@ -3,6 +3,7 @@ import { type Db, db, type Tx } from './db.ts';
 import { isUniqueViolation, NotFoundError, OntologyError, VersionConflictError } from './errors.ts';
 import { logChange } from './history.ts';
 import { type EntityStatus, getOntology, validateEntity } from './ontology.ts';
+import { createProposal, type Proposal, pendingProposalsFor } from './proposals.ts';
 import { entities } from './schema.ts';
 import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
@@ -41,7 +42,11 @@ export type EntityInput = {
  * Creates or updates an entity by (space, key). Status is never taken from input:
  * new entities get the type's default status; status changes go through setStatus.
  */
-export async function upsertEntity(spaceId: string, input: EntityInput, actor: Actor): Promise<{ entity: Entity }> {
+export async function upsertEntity(
+  spaceId: string,
+  input: EntityInput,
+  actor: Actor,
+): Promise<{ entity: Entity; proposal?: Proposal }> {
   try {
     return await db.transaction(async (tx) => {
       const space = await findSpaceOrThrow(tx, spaceId);
@@ -90,8 +95,19 @@ export async function upsertEntity(spaceId: string, input: EntityInput, actor: A
         );
       }
       if (existing.status === 'approved') {
-        // Proposal flow for approved entities is added in T6.
-        throw new Error('Updating an approved entity is not implemented yet.');
+        // Approved knowledge never changes without review: the edit becomes a pending proposal.
+        const proposal = await createProposal(
+          tx,
+          existing,
+          {
+            title: input.title,
+            content: input.content,
+            metadata,
+            confidence: input.confidence ?? existing.confidence,
+          },
+          actor,
+        );
+        return { entity: existing, proposal };
       }
 
       const [updated] = await tx
@@ -164,12 +180,15 @@ export async function recordUsage(spaceId: string, entityIds: string[]): Promise
   });
 }
 
-/** Returns the entity with this key in the space, or null. */
-export async function getEntity(spaceId: string, key: string): Promise<Entity | null> {
+export type EntityDetail = Entity & { pendingProposals: Proposal[] };
+
+/** Returns the entity with this key in the space (with its pending proposals), or null. */
+export async function getEntity(spaceId: string, key: string): Promise<EntityDetail | null> {
   await findSpaceOrThrow(db, spaceId);
   const [entity] = await db
     .select(entityColumns)
     .from(entities)
     .where(and(eq(entities.spaceId, spaceId), eq(entities.key, key)));
-  return entity ?? null;
+  if (!entity) return null;
+  return { ...entity, pendingProposals: await pendingProposalsFor(entity.id) };
 }

@@ -150,12 +150,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **`getEntity`:** passa a incluir as propostas pendentes.
 
 **Critérios de aceite:**
-- [ ] Critério 4 completo: proposta criada; aceite aplica; rejeição descarta; os dois ficam registrados com `actor`; proposta desatualizada dá `VersionConflictError`
-- [ ] Aceitar uma proposta que muda `content` altera o `content_hash`
-- [ ] Ids de proposta de outro space dão `NotFoundError`
+- [x] Critério 4 completo: proposta criada; aceite aplica; rejeição descarta; os dois ficam registrados com `actor`; proposta desatualizada dá `VersionConflictError`
+- [x] Aceitar uma proposta que muda `content` altera o `content_hash`
+- [x] Ids de proposta de outro space dão `NotFoundError`
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/proposals`
+- [x] `pnpm test tests/core-graph/proposals`
 
 **Dependências:** T5
 

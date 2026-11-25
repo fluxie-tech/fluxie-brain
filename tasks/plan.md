@@ -50,7 +50,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [ ] Revisão humana
 
 ### Fase 3: Curadoria e grafo
-- [ ] T6: Propostas sobre entidades aprovadas
+- [x] T6: Propostas sobre entidades aprovadas
 - [ ] T7: Relações (link e unlink)
 - [ ] T8: Vizinhança até 2 saltos
 
