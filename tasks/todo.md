@@ -145,6 +145,6 @@ O helper `load.ts` carrega o corpus num space pelo core-graph e devolve um mapa 
 
 ## Checkpoint B: completo
 
-- [ ] Os 10 critérios do spec ligados a testes que passam.
-- [ ] `pnpm check:task` verde.
-- [ ] Resumo para o dono e aprovação antes da fase 4 do lifecycle (Verify).
+- [x] Os 10 critérios do spec ligados a testes que passam.
+- [x] `pnpm check:task` verde.
+- [x] Resumo para o dono e aprovação antes da fase 4 do lifecycle (Verify).

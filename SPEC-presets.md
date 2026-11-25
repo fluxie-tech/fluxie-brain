@@ -232,7 +232,7 @@ tests/presets/
   development-graph.test.ts   → unitário: coerência da ontologia, schemas, JSON Schema
   integration.test.ts         → cada grupo de tipos e relações pelo core-graph real
   corpus.test.ts              → corpus inteiro: cobertura, âncoras, separação por stack
-  edge-cases.test.ts          → campos exatos do spec, campo obrigatório ausente, proposta, prova de mutação
+  edge-cases.test.ts          → campos exatos do spec, campo obrigatório ausente, proposta, limite da separação por âncoras
   public-api.test.ts          → superfície pública fixada
 tests/fixtures/development-graph/
   corpus.json, load.ts

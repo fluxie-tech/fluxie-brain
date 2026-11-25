@@ -44,8 +44,8 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T3: assumption, gap e learning, fechando a ontologia (M)
 
 ### Checkpoint A: ontologia completa
-- [ ] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução
-- [ ] `pnpm check:task` verde
+- [x] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução
+- [x] `pnpm check:task` verde
 - [x] Revisão humana das descrições e instruções, que são o que o agente vai ler (aprovada em 2026-11-25)
 
 ### Fase 3: Corpus e fechamento
@@ -53,9 +53,9 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T5: API pública, créditos e rastreabilidade (S)
 
 ### Checkpoint B: completo
-- [ ] Os 10 critérios de sucesso do spec ligados a testes (tabela abaixo, preenchida na T5)
-- [ ] `pnpm check:task` verde, com o banco no ar (`docker compose up -d --wait db`)
-- [ ] Pronto para a fase Verify
+- [x] Os 10 critérios de sucesso do spec ligados a testes (tabela abaixo, preenchida na T5)
+- [x] `pnpm check:task` verde, com o banco no ar (`docker compose up -d --wait db`)
+- [x] Pronto para a fase Verify
 
 ## Rastreabilidade: critérios do spec → testes
 
@@ -70,7 +70,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 | 7 | `presets` só importa `core-graph/index.ts` | `pnpm check:arch` (dependency-cruiser, regras do `CAPABILITY-MAP.md`) |
 | 8 | API pública fixada; core-graph intacto | `public-api.test.ts`; `git diff main -- src/core-graph tests/core-graph` vazio |
 | 9 | Créditos ao omnigraph-cookbooks | cabeçalho de `src/presets/development-graph/index.ts` e seção "Créditos" do README |
-| 10 | `pnpm check:task` verde | rodado no fim da T5: 148 testes, cobertura das linhas alteradas ok |
+| 10 | `pnpm check:task` verde | rodado no fim da T5 e de novo no Ship: 199 testes, `check:full` verde |
 
 **Desvios do plano:** `public-api.test.ts` entrou na T1, porque o ratchet de cobertura exigiu. O preset foi dividido em pasta já na T3. `applies_to` ganhou `dependency` como destino, para a regra de âncora valer (spec atualizado). O corpus ganhou a anotação `project`.
 
