@@ -74,6 +74,15 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 **Desvios do plano:** `public-api.test.ts` entrou na T1, porque o ratchet de cobertura exigiu. O preset foi dividido em pasta já na T3. `applies_to` ganhou `dependency` como destino, para a regra de âncora valer (spec atualizado). O corpus ganhou a anotação `project`.
 
+**Verify (fase 4):** `edge-cases.test.ts` prova cinco coisas:
+- os campos obrigatórios do JSON Schema batem com a tabela do spec;
+- metadata obrigatório ausente vira `OntologyError` com o nome do campo, sem escrita;
+- uma edição de agente numa entidade estrutural aprovada vira proposta pendente;
+- toda key do corpus segue a convenção `<tipo>:`;
+- uma prova de mutação: uma lição ancorada por engano numa dependência compartilhada vaza para o outro repo. A separação depende das âncoras, e o teste de separação pega o vazamento.
+
+**Achado para módulos seguintes:** importar `src/presets/index.ts` exige `DATABASE_URL`, porque o `src/core-graph/db.ts` cria o pool na importação. Ferramentas offline que só leem o vocabulário (benchmark do `embeddings`, geração de descrições do `mcp-server`) vão esbarrar nisso. Decidir nesses specs: pool preguiçoso no core-graph ou importar o preset direto.
+
 ## Riscos e mitigações
 
 | Risco | Impacto | Mitigação |
