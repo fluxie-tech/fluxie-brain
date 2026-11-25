@@ -1,108 +1,90 @@
-# Implementation Plan: core-graph
+# Implementation Plan: presets
 
-Spec: `SPEC-core-graph.md`. Mapa: `CAPABILITY-MAP.md`. Tarefas detalhadas: `tasks/todo.md`.
+Spec: `SPEC-presets.md`. Mapa: `CAPABILITY-MAP.md`. Tarefas detalhadas: `tasks/todo.md`.
+Plano anterior (concluído): `tasks/core-graph/`.
 
 ## Visão geral
 
-Construir o núcleo de armazenamento do fluxie-brain: spaces, entidades, propostas, relações e histórico, em Postgres via Drizzle. Toda escrita é validada pela ontologia do space e registrada no change_log. Ao final, os 13 critérios de sucesso do spec passam em testes de integração.
+Criar o módulo `src/presets` com o tipo genérico `Preset`, o registro (`registerPresets`, `listPresets`, `getPreset`) e o Development Graph: 10 tipos de entidade e 12 relações adaptados do dev-graph do omnigraph-cookbooks. A entrega fecha com um corpus fictício PT/EN, carregado pelo core-graph real, que prova a separação por stack entre dois projetos no mesmo space. O core-graph não muda.
 
 ## Grafo de dependências
 
 ```
-T1 scaffold (Node, pnpm, Biome, Vitest, git)
- └─ T2 banco + migrações + harness de teste (compose, roles, extensão vector)
-     └─ T3 ontologia + spaces
-         └─ T4 entidades: upsert/get + change_log
-             ├─ T5 setStatus, recordUsage, escopo por space
-             │   └─ T6 propostas (precisa do status approved)
-             ├─ T7 relações: link/unlink
-             │   └─ T8 neighbors (BFS de 2 níveis)
-             └─ T9 history + revert (precisa do change_log; testa com propostas)
-                 └─ T10 API pública + varredura final dos 13 critérios
+T1 base: tipos genéricos + registro + estrutura (repo, component, dependency, spec)
+ └─ T2 conhecimento de governança: decision, principle, invariant
+     └─ T3 conhecimento externo e lições: assumption, gap, learning (ontologia completa)
+         └─ T4 corpus fictício + prova multiprojeto e âncoras
+             └─ T5 API pública fixada, créditos, rastreabilidade, check:task
 ```
+
+É uma cadeia, sem paralelismo útil: cada relação só entra quando os tipos das duas pontas existem, porque o teste de coerência exige isso.
 
 ## Decisões de arquitetura
 
-- **Fatias verticais por capacidade da API:** cada tarefa entrega schema, função, testes e export juntos, e deixa o projeto verde.
-- **Migrações incrementais:** cada tarefa que mexe no schema gera sua migração com `drizzle-kit generate`. Como nada foi aplicado fora do ambiente local, pode-se consolidar tudo numa migração inicial antes da v1, se ficar mais limpo.
-- **Dois roles no Postgres:** `fluxie_migrator` é dono do schema e roda as migrações; `fluxie_app` só tem DML e é usado pela API e pelos testes. A truncagem entre testes usa a conexão do migrator no setup.
-- **Risco cedo:** T1 e T2 validam primeiro a combinação de versões (Node 26 + drizzle-kit + Vitest + PG19/pgvector), antes de qualquer lógica.
-- **Repositório:** `git init` local na T1, um commit por tarefa. Criar o repositório público `fluxie-tech/fluxie-brain` e dar push é ação externa e fica para a fase Ship, com confirmação.
+- **Fatias por grupo de tipos:** cada tarefa entrega tipos, relações, descrições e instruções, com teste unitário e de integração, e deixa o projeto verde. Não há uma tarefa só para "todos os schemas" e outra só para "todos os testes".
+- **Risco cedo (T1):** a T1 confere três coisas no `typecheck` e no primeiro teste:
+  - que `Preset['ontology']` é aceito por `registerOntology` sem cast;
+  - que `satisfies Preset` preserva as chaves literais;
+  - que `z.toJSONSchema()` converte `z.strictObject` com `.meta()`.
+  Se o tipo não for atribuível, o plano para e pergunta antes de mexer na API do core-graph.
+- **Testes de unidade sem banco, integração com banco:** a coerência da ontologia e os schemas são testados como lógica pura. O caminho pelo core-graph real usa o harness existente (`tests/setup/db.ts`, `truncateAll`, `fileParallelism: false`).
+- **Arquivo do preset:** começa em `src/presets/development-graph.ts`. Quando passar de 300 linhas (provável na T3, por causa das instruções), vira `src/presets/development-graph/{index,entities,relations}.ts`. Só `src/presets/index.ts` é importado de fora.
+- **Corpus em JSON** (`tests/fixtures/development-graph/corpus.json`): o `embeddings` e scripts de benchmark podem lê-lo sem TypeScript. O Biome formata JSON, então o arquivo segue o formatter.
+- **Commits:** um por tarefa, no branch `spec/presets`, com o e-mail noreply. O PR sai na fase Ship.
 
-## Lista de tarefas
+## Tarefas
 
-### Fase 1: Fundação
-- [x] T1: Scaffold do projeto e tooling
-- [x] T2: Banco, migrações e harness de testes
+Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
-### Checkpoint A: Fundação
-- [x] `docker compose up -d db && pnpm db:migrate` do zero, com a extensão `vector` ativa (critério 1)
-- [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
-- [x] Versões escolhidas registradas (PG19 ou PG18), revisão humana
+### Fase 1: Base
+- [ ] T1: tipos genéricos, registro e tipos estruturais (S/M)
 
-### Fase 2: Entidades
-- [x] T3: Ontologia e spaces
-- [x] T4: Criar e atualizar entidades, com change_log
-- [x] T5: Status, uso e isolamento por space
+### Fase 2: Ontologia completa
+- [ ] T2: decision, principle e invariant (S)
+- [ ] T3: assumption, gap e learning, fechando a ontologia (M)
 
-### Checkpoint B: Entidades
-- [x] Critérios 2, 3, 5, 6, 8, 9 e 11 cobertos por testes verdes
-- [x] Revisão humana
+### Checkpoint A: ontologia completa
+- [ ] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução
+- [ ] `pnpm check:task` verde
+- [ ] Revisão humana das descrições e instruções, que são o que o agente vai ler
 
-### Fase 3: Curadoria e grafo
-- [x] T6: Propostas sobre entidades aprovadas
-- [x] T7: Relações (link e unlink)
-- [x] T8: Vizinhança até 2 saltos
+### Fase 3: Corpus e fechamento
+- [ ] T4: corpus fictício PT/EN e prova multiprojeto (M)
+- [ ] T5: API pública, créditos e rastreabilidade (S)
 
-### Checkpoint C: Curadoria e grafo
-- [x] Critérios 4, 7 e 12 cobertos por testes verdes
-- [x] Revisão humana
-
-### Fase 4: Histórico e fechamento
-- [x] T9: Histórico e revert
-- [x] T10: API pública e verificação final
-
-### Checkpoint final
-- [x] Os 14 critérios do spec mapeados para testes verdes
-- [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
-- [x] Pronto para a fase Verify/Review
+### Checkpoint B: completo
+- [ ] Os 10 critérios de sucesso do spec ligados a testes (tabela abaixo, preenchida na T5)
+- [ ] `pnpm check:task` verde, com o banco no ar (`docker compose up -d --wait db`)
+- [ ] Pronto para a fase Verify
 
 ## Rastreabilidade: critérios do spec → testes
 
-| # | Critério | Testes (`tests/core-graph/`) |
+Preenchida na T5.
+
+| # | Critério | Testes |
 |---|---|---|
-| 1 | Banco sobe do zero com `vector` | `database.test.ts` (extensão, DDL negado ao app) + fluxo `down -v → up → migrate → test` |
-| 2 | Tipo/metadata inválidos ou key com outro tipo → `OntologyError`, nada gravado | `entities.test.ts` (unknown type, invalid metadata, key with different type), `ontology.test.ts` |
-| 3 | Status padrão; mesmo key atualiza; outro space separa | `entities.test.ts` |
-| 4 | Edição de `approved` vira proposta; aceite, rejeição, desatualizada | `proposals.test.ts` |
-| 5 | `rejected`/`deprecated` voltam para `draft` | `status.test.ts` |
-| 6 | `content_hash` muda com title/content, não com metadata | `entities.test.ts`, `proposals.test.ts` |
-| 7 | Relação fora da ontologia/entre spaces recusada; idempotente | `relations.test.ts` |
-| 8 | Ids de outro space → `NotFoundError` | `status.test.ts`, `proposals.test.ts`, `relations.test.ts`, `neighbors.test.ts`, `history.test.ts` |
-| 9 | Uma linha de change_log por escrita; `recordUsage` sem log | `history.test.ts` (varredura completa), `status.test.ts` |
-| 10 | Revert restaura conteúdo, preserva key/type/status | `history.test.ts` |
-| 11 | `expectedVersion` desatualizado → `VersionConflictError` | `entities.test.ts` |
-| 12 | `neighbors` 1–2 saltos, sem duplicatas, termina em ciclos | `neighbors.test.ts` |
-| 13 | test, typecheck e lint verdes | verificação final da T10 |
-| 14 | Upsert sem mudança não grava; metadata omitida preservada; proposta idêntica não duplica | `entities.test.ts`, `proposals.test.ts`, `status.test.ts` |
-
-Superfície pública fixada por `public-api.test.ts`.
-
-**Verify (fase 4):** `edge-cases.test.ts` cobre corridas de create e de aceite, `confidence` fora de 0..1 (bug encontrado e corrigido), ids repetidos em `recordUsage` e `spaceId` malformado.
+| 1 | `registerPresets` + `createSpace` + idempotência | |
+| 2 | 10 tipos e 12 relações, status e campos, pontas existentes | |
+| 3 | `description` e `instruction` com convenção de key | |
+| 4 | Metadata estrito, JSON Schema, `OntologyError` legível | |
+| 5 | Corpus completo, status padrão, separação por stack, âncoras | |
+| 6 | Relação fora de `from × to` e tipo fora do preset recusados sem escrita | |
+| 7 | `presets` só importa `core-graph/index.ts` (`check:arch`) | |
+| 8 | API pública fixada; core-graph intacto | |
+| 9 | Créditos ao omnigraph-cookbooks | |
+| 10 | `pnpm check:task` verde | |
 
 ## Riscos e mitigações
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| Não há imagem `pgvector/pgvector:pg19` nem pgvector estável para PG19 | Médio | Regra do spec: cair para PG18 na última minor. Decidido na T2 e registrado. |
-| drizzle-kit ou Vitest com problema no Node 26 | Médio | Detectado na T1/T2 antes de qualquer lógica. Fallback: Node 24 LTS, perguntando antes. |
-| Drizzle sem tipo nativo para `tsvector` ou colunas geradas com expressão | Baixo | `customType` para `tsvector` e `generatedAlwaysAs(sql...)`. Se não der, SQL na migração custom. |
-| `neighbors` entra em loop em ciclos | Médio | BFS com conjunto de visitados e teste com ciclo explícito (T8). |
-| Docker Desktop no Windows: volumes e portas | Baixo | Volume nomeado (não bind mount) e porta só em `127.0.0.1` localmente. |
-| Truncagem entre testes deixa estado residual com testes em paralelo | Baixo | Testes de banco em série (`fileParallelism: false`) até isso virar gargalo. |
+| `Preset['ontology']` não é atribuível ao `Ontology` do core-graph | Médio | Testado na T1 pelo `typecheck`. Se falhar, pergunto antes de mudar a API do core-graph (fronteira "perguntar antes"). |
+| `z.toJSONSchema` falha em algum schema | Baixo | Teste unitário por tipo desde a T1; o spec já proíbe `Date`, `transform` e `refine`. |
+| Instruções vagas fazem o agente confundir invariant, assumption e learning | Médio | A T3 escreve as três juntas, com critério de escolha explícito em cada uma. O Checkpoint A tem revisão humana. A validação real vem no dogfood do `agent-loop`. |
+| O corpus vaza conhecimento entre stacks pelo grafo (ex.: o repo B aparece a 2 saltos do repo A via dependência compartilhada) | Baixo | O critério é sobre conhecimento: só `learning`, `decision` etc. específicos do B não podem aparecer. O repo B em si pode. O teste verifica exatamente isso. |
+| Cobertura das linhas alteradas abaixo de 80% | Baixo | O preset é quase todo dado, coberto pela importação. As funções do registro têm teste direto. |
+| Arquivos acima de 300 linhas (src) ou 400 (tests) | Baixo | Divisão prevista do preset; testes por grupo de tipos. O corpus é JSON, fora dessa regra. |
 
 ## Perguntas em aberto
 
-- Nenhuma bloqueante. A versão do Postgres é decidida na T2 pela regra do spec.
-
-> Revisões humanas dos checkpoints A, B e C aceitas pelo owner em 2026-11-25, com base nas revisões automáticas das fases Review e Ship (revisor de código, auditor de segurança, engenheiro de testes) e no CI verde.
+- Nenhuma bloqueante. As duas do spec (`supersedes` entre tipos e a fronteira invariant × assumption × learning) são tratadas por instrução e revistas no Checkpoint A.

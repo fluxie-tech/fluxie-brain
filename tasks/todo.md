@@ -1,269 +1,148 @@
-# Tarefas: core-graph
+# Tarefas: presets
 
-Plano: `tasks/plan.md` · Spec: `SPEC-core-graph.md`.
+Plano: `tasks/plan.md` · Spec: `SPEC-presets.md`.
 
-Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um commit local ao final.
+**Definição de pronto para toda tarefa:**
+- `pnpm check:fast` verde depois de cada edição (o hook roda);
+- `pnpm check:task` verde antes de marcar a tarefa, com o banco no ar (`docker compose up -d --wait db`);
+- um commit por tarefa no branch `spec/presets`, com o e-mail noreply;
+- nada no `CONSTRAINTS.md` enfraquecido.
 
----
+## Fase 1: Base
 
-## Fase 1: Fundação
+### T1: tipos genéricos, registro e tipos estruturais
 
-### T1: Scaffold do projeto e tooling
+**Descrição:** cria o módulo `src/presets` com:
+- `Preset`, `EntityTypeDef` e `RelationTypeDef`;
+- `DEVELOPMENT_GRAPH`, `developmentGraph`, `registerPresets()`, `listPresets()` e `getPreset(id)`;
+- o Development Graph só com os tipos estruturais (`repo`, `component`, `dependency`, `spec`), todos `approved`, e as relações cujas pontas já existem (`part_of`, `depends_on`, `describes`, `relates_to` entre estruturais).
 
-**Descrição:** Criar o esqueleto do repositório com as versões estáveis mais recentes, conferidas no dia: Node 26 LTS, TypeScript strict/ESM, pnpm, Biome e Vitest, além de `git init`, licença MIT e `.gitignore`.
-
-**Critérios de aceite:**
-- [x] `package.json` com versões exatas, `engines.node` em 26 e os scripts `test`, `typecheck`, `lint`, `db:generate`, `db:migrate`
-- [x] Um teste trivial roda com `pnpm test`; `pnpm typecheck` e `pnpm lint` passam
-- [x] `.gitignore` cobre `.env`, `node_modules` e saídas de build; `.env.example` sem segredos
-
-**Verificação:**
-- [x] `pnpm install && pnpm test && pnpm typecheck && pnpm lint`
-- [x] `git status` limpo após o commit, sem `.env`
-
-**Dependências:** nenhuma
-
-**Arquivos:** `package.json`, `tsconfig.json`, `biome.json`, `vitest.config.ts`, `.gitignore`, `.env.example`, `LICENSE`, `README.md`
-
-**Escopo:** M (só configuração)
-
----
-
-### T2: Banco, migrações e harness de testes
-
-**Descrição:**
-- **Versão do Postgres:** decidir PG19 ou PG18 pela regra do spec e fixar a tag.
-- **Compose:** `docker-compose.yml` com `scram-sha-256`, volume nomeado, porta só em `127.0.0.1` e script de init que cria os roles `fluxie_migrator` e `fluxie_app` e o banco de teste.
-- **Drizzle:** `drizzle.config.ts` apontando para `src/core-graph/schema.ts`, e uma migração custom que roda `CREATE EXTENSION vector`.
-- **Testes:** um `globalSetup` do Vitest que migra o banco de teste, mais um helper de truncagem.
+Cada tipo tem `description`, `instruction` (com a convenção de key) e schema `z.strictObject` com `.meta({ description })` nos campos. O cabeçalho do arquivo credita o omnigraph-cookbooks (MIT, link e copyright).
 
 **Critérios de aceite:**
-- [x] `docker compose up -d db && pnpm db:migrate` funciona do zero e `vector` aparece em `pg_extension` (critério 1)
-- [x] `fluxie_app` consegue fazer DML, mas não DDL (teste comprova que `CREATE TABLE` falha)
-- [x] A versão do Postgres escolhida e o motivo estão registrados no `README.md`
+- [ ] `developmentGraph.ontology` é passado a `registerOntology` sem cast, e o `typecheck` passa. É o risco principal: se falhar, parar e perguntar.
+- [ ] Teste unitário de coerência:
+  - toda ponta de relação existe;
+  - toda `description` está preenchida;
+  - toda `instruction` cita o prefixo `<tipo>:`;
+  - todo schema converte com `z.toJSONSchema()` com `additionalProperties: false`;
+  - todo schema recusa chave desconhecida, e os com enum recusam valor fora dele.
+- [ ] Integração:
+  - `registerPresets()` (duas vezes, sem efeito diferente) + `createSpace({ preset: 'development-graph' })`;
+  - um `repo`, um `component` e uma `dependency` nascem `approved`;
+  - `part_of` e `depends_on` são aceitas;
+  - tipo fora do preset e `metadata` com chave extra falham com `OntologyError`, sem linha em `entities` nem em `change_log`.
 
-**Verificação:**
-- [x] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test`
+**Verificação:** `pnpm test tests/presets` · `pnpm check:task` (inclui `check:arch`: presets → só `core-graph/index.ts`).
 
-**Dependências:** T1
+**Dependências:** nenhuma.
 
-**Arquivos:** `docker-compose.yml`, `docker/init-db.sql`, `drizzle.config.ts`, `migrations/0000_*.sql`, `tests/setup/global-setup.ts`, `tests/setup/db.ts`
+**Arquivos:** `src/presets/types.ts`, `src/presets/development-graph.ts`, `src/presets/index.ts`, `tests/presets/development-graph.test.ts`, `tests/presets/integration.test.ts`.
 
-**Escopo:** M
+**Escopo:** M (5 arquivos pequenos).
 
----
+## Fase 2: Ontologia completa
 
-### Checkpoint A: Fundação
-- [x] Critério 1 verde; test, typecheck e lint verdes
-- [x] Versões registradas; revisão humana antes de seguir
+### T2: decision, principle e invariant
 
----
+**Descrição:** acrescenta os tipos de governança interna, todos `draft`:
+- `decision`: metadata vazio estrito; a instrução pede contexto, decisão, consequências e alternativas no `content`, e manda corrigir com nova decision + `supersedes` em vez de editar uma aprovada;
+- `principle`: `polarity`;
+- `invariant`: `state`, `guardRef?`.
 
-## Fase 2: Entidades
-
-### T3: Ontologia e spaces
-
-**Descrição:**
-- **Ontologia:** tipo `Ontology`, `registerOntology` e validação de tipo e `metadata` com Zod.
-- **Erros:** os tipados `OntologyError`, `NotFoundError` e `VersionConflictError`.
-- **Spaces:** tabela `spaces` e `createSpace`, que falha se o preset não estiver registrado.
-- **Fixture:** a ontologia fictícia `project`, `learning` (draft) e `rule` (approved).
-
-**Critérios de aceite:**
-- [x] `createSpace` com preset não registrado falha com `OntologyError`; com preset registrado, cria o space
-- [x] Os testes unitários da validação cobrem tipo inexistente, `metadata` inválido e `metadata` válido
-- [x] `slug` duplicado é recusado
-
-**Verificação:**
-- [x] `pnpm test tests/core-graph/ontology tests/core-graph/spaces`
-
-**Dependências:** T2
-
-**Arquivos:** `src/core-graph/ontology.ts`, `src/core-graph/errors.ts`, `src/core-graph/schema.ts`, `src/core-graph/spaces.ts`, `tests/fixtures/ontology.ts`, testes
-
-**Escopo:** M
-
----
-
-### T4: Criar e atualizar entidades, com change_log
-
-**Descrição:**
-- **Tabelas:** `entities` (com `content_hash` e `tsv` gerados) e `change_log`, mais o helper `logChange`.
-- **`upsertEntity`:** caminhos de criação e de atualização de draft, recusa de `key` com outro `type` e checagem de `expectedVersion`. Cada escrita grava no change_log na mesma transação.
-- **`getEntity`:** versão básica, sem relações e sem propostas.
+Também acrescenta as relações `applies_to`, `establishes`, `relaxes` e `supersedes`. As instruções exigem âncora (`repo`, `component` ou `dependency`).
 
 **Critérios de aceite:**
-- [x] Critério 2: inválido, `OntologyError` e nada gravado, nem no change_log
-- [x] Critério 3: nasce com `defaultStatus`; mesmo `key` atualiza e sobe `version`; o mesmo `key` em outro space cria outra entidade
-- [x] Critérios 6 e 11: `content_hash` muda com `title`/`content` e não com `metadata`; `expectedVersion` desatualizado dá `VersionConflictError`
+- [ ] Os testes de coerência da T1 cobrem os novos tipos sem mudança no teste: ele percorre a ontologia.
+- [ ] Integração: os três nascem `draft`; `applies_to`, `establishes`, `relaxes` e `supersedes` são aceitas entre as pontas do spec, e `establishes` de `principle` para `repo` é recusada.
+- [ ] Exemplo válido e inválido por tipo; `polarity` e `state` fora do enum são recusados.
 
-**Verificação:**
-- [x] `pnpm test tests/core-graph/entities`
-- [x] Migração gerada por `pnpm db:generate` e revisada
+**Verificação:** `pnpm test tests/presets` · `pnpm check:task`.
 
-**Dependências:** T3
+**Dependências:** T1.
 
-**Arquivos:** `src/core-graph/schema.ts`, `src/core-graph/entities.ts`, `src/core-graph/history.ts` (só `logChange`), `migrations/*`, `tests/core-graph/entities.test.ts`
+**Arquivos:** `src/presets/development-graph.ts`, `tests/presets/development-graph.test.ts`, `tests/presets/integration.test.ts`.
 
-**Escopo:** M
+**Escopo:** S.
 
----
+### T3: assumption, gap e learning (ontologia completa)
 
-### T5: Status, uso e isolamento por space
+**Descrição:** acrescenta os tipos restantes, todos `draft`:
+- `assumption`: `kind`, `state`, `guardRef?`;
+- `gap`: `state`, `upstreamUrl?`, `pinnedVersion?`, `shippedInVersion?`;
+- `learning`: `kind`.
 
-**Descrição:**
-- **`setStatus`:** muda o status com log no change_log.
-- **`recordUsage`:** incrementa uso sem subir `version` e sem log.
-- **Upsert sobre `rejected` ou `deprecated`:** aplica a mudança e volta para `draft`.
-- **Escopo:** um helper comum que garante que todo id pertence ao `spaceId` informado.
+Também acrescenta as relações `about`, `references`, `undermines` e `waits_for`, e estende `relates_to` a todos os tipos. As instruções de `invariant`, `assumption` e `learning` trazem o critério de escolha:
+- interno e checável → `invariant`;
+- sistema externo → `assumption`;
+- lição sem garantia checável → `learning`.
 
-**Critérios de aceite:**
-- [x] Critério 5: upsert em entidade `rejected` ou `deprecated` aplica e volta para `draft`
-- [x] Critério 8: `getEntity`, `setStatus` e `recordUsage` com id de outro space dão `NotFoundError`
-- [x] Critério 9 (parcial): `setStatus` gera exatamente 1 linha com `before` e `after`; `recordUsage` não altera `version` nem o change_log
-
-**Verificação:**
-- [x] `pnpm test tests/core-graph/status`
-
-**Dependências:** T4
-
-**Arquivos:** `src/core-graph/entities.ts`, `src/core-graph/scope.ts`, `tests/core-graph/status.test.ts`
-
-**Escopo:** S
-
----
-
-### Checkpoint B: Entidades
-- [x] Critérios 2, 3, 5, 6, 8, 9 (parcial) e 11 verdes
-- [x] Revisão humana
-
----
-
-## Fase 3: Curadoria e grafo
-
-### T6: Propostas sobre entidades aprovadas
-
-**Descrição:**
-- **Tabela:** `entity_proposals`.
-- **Upsert sobre `approved`:** cria uma proposta `pending` e não altera a entidade.
-- **Funções:** `listProposals`, `acceptProposal` (aplica a proposta, falhando se `base_version` estiver desatualizado) e `rejectProposal`, todas com log no change_log.
-- **`getEntity`:** passa a incluir as propostas pendentes.
+Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{index,entities,relations}.ts`.
 
 **Critérios de aceite:**
-- [x] Critério 4 completo: proposta criada; aceite aplica; rejeição descarta; os dois ficam registrados com `actor`; proposta desatualizada dá `VersionConflictError`
-- [x] Aceitar uma proposta que muda `content` altera o `content_hash`
-- [x] Ids de proposta de outro space dão `NotFoundError`
+- [ ] A ontologia bate com o spec: 10 tipos e 12 relações com as pontas da tabela. Um teste confere os nomes e o `defaultStatus` de cada tipo contra a lista do spec.
+- [ ] Integração: os três nascem `draft`; `about`, `references`, `undermines` e `waits_for` são aceitas, e uma relação fora de `from × to` falha com `OntologyError` sem escrita.
+- [ ] Nenhum arquivo de `src` passa de 300 linhas.
 
-**Verificação:**
-- [x] `pnpm test tests/core-graph/proposals`
+**Verificação:** `pnpm test tests/presets` · `pnpm check:task`.
 
-**Dependências:** T5
+**Dependências:** T2.
 
-**Arquivos:** `src/core-graph/schema.ts`, `src/core-graph/proposals.ts`, `src/core-graph/entities.ts`, `migrations/*`, `tests/core-graph/proposals.test.ts`
+**Arquivos:** `src/presets/development-graph.ts` (ou a pasta dividida), `tests/presets/development-graph.test.ts`, `tests/presets/integration.test.ts`.
 
-**Escopo:** M
+**Escopo:** M.
 
----
+## Checkpoint A: ontologia completa
 
-### T7: Relações (link e unlink)
+- [ ] 10 tipos e 12 relações, coerentes, com descrição e instrução.
+- [ ] `pnpm check:task` verde.
+- [ ] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
 
-**Descrição:**
-- **Tabela:** `relations`.
-- **`linkEntities`:** valida o tipo de relação contra a ontologia, recusa ligação entre spaces diferentes e é idempotente.
-- **`unlink`:** remove com o estado anterior gravado no change_log.
-- **`getEntity`:** passa a incluir as relações.
+## Fase 3: Corpus e fechamento
 
-**Critérios de aceite:**
-- [x] Critério 7: relação fora da ontologia é recusada; relação entre spaces é recusada; repetir a ligação não duplica
-- [x] `unlink` gera 1 linha no change_log com `before` preenchido e `after` nulo
-- [x] Ids de outro space dão `NotFoundError`
+### T4: corpus fictício PT/EN e prova multiprojeto
 
-**Verificação:**
-- [x] `pnpm test tests/core-graph/relations`
+**Descrição:** escreve `tests/fixtures/development-graph/corpus.json`, com 30 ou mais entidades fictícias (12 ou mais em PT, 12 ou mais em EN, campo `lang`) e relações por `key`:
+- dois repositórios com stacks diferentes (ex.: TypeScript/React e PHP/Laravel) no mesmo space;
+- conhecimento específico de cada stack;
+- uma `dependency` compartilhada (ex.: Postgres) com uma `learning` sobre ela;
+- todo tipo e toda relação aparecem ao menos uma vez.
 
-**Dependências:** T4 (pode correr em paralelo com T5 e T6)
-
-**Arquivos:** `src/core-graph/schema.ts`, `src/core-graph/relations.ts`, `src/core-graph/entities.ts`, `migrations/*`, `tests/core-graph/relations.test.ts`
-
-**Escopo:** M
-
----
-
-### T8: Vizinhança até 2 saltos
-
-**Descrição:** `neighbors(spaceId, entityId, depth, opts)` com busca em largura (BFS) de até 2 níveis em TypeScript. Percorre os dois sentidos, controla os nós já visitados e aceita filtro por tipo de relação e por status.
+O helper `load.ts` carrega o corpus num space pelo core-graph e devolve um mapa `key → Entity`.
 
 **Critérios de aceite:**
-- [x] Critério 12: os saltos 1 e 2 são retornados sem duplicatas
-- [x] Um grafo com ciclo (A→B→C→A) termina e não repete nós
-- [x] Os filtros `relationTypes` e `statuses` funcionam
+- [ ] O corpus carrega inteiro sem erro, e cada entidade tem o `defaultStatus` do seu tipo.
+- [ ] `neighbors(repoA, 2)` inclui a `learning` da dependência compartilhada e não inclui conhecimento específico da stack do B (e vice-versa).
+- [ ] Toda entidade de conhecimento do corpus tem ao menos uma ligação a `repo`, `component` ou `dependency`. Um teste confere, e confere também a cobertura de tipos, relações e idiomas.
 
-**Verificação:**
-- [x] `pnpm test tests/core-graph/neighbors`
+**Verificação:** `pnpm test tests/presets` · `pnpm check:task` · revisão manual de que nenhum nome ou dado do corpus é real.
 
-**Dependências:** T7
+**Dependências:** T3.
 
-**Arquivos:** `src/core-graph/relations.ts`, `tests/core-graph/neighbors.test.ts`
+**Arquivos:** `tests/fixtures/development-graph/corpus.json`, `tests/fixtures/development-graph/load.ts`, `tests/presets/corpus.test.ts`.
 
-**Escopo:** S
+**Escopo:** M (o volume está no conteúdo do JSON, não no código).
 
----
+### T5: API pública, créditos e rastreabilidade
 
-### Checkpoint C: Curadoria e grafo
-- [x] Critérios 4, 7 e 12 verdes
-- [x] Revisão humana
-
----
-
-## Fase 4: Histórico e fechamento
-
-### T9: Histórico e revert
-
-**Descrição:**
-- **`history`:** devolve as entradas do change_log da entidade, em ordem.
-- **`revertEntity`:** restaura `title`, `content`, `metadata` e `confidence` a partir do `after` da mudança escolhida. Preserva `key`, `type` e `status`, sobe `version` e registra a ação `revert`.
+**Descrição:** fecha o módulo. Fixa a superfície pública por teste e adiciona a linha de créditos ao omnigraph-cookbooks no README. Preenche a tabela de rastreabilidade em `tasks/plan.md` e confere que o core-graph não mudou.
 
 **Critérios de aceite:**
-- [x] Critério 10 completo
-- [x] Critério 9 completo: um teste percorre create, update, status, propose, accept, reject, unlink e revert e confere exatamente 1 linha por escrita, com `actor`, `before` e `after`
-- [x] Revert com `changeId` de outra entidade ou de outro space dá `NotFoundError`
+- [ ] `public-api.test.ts` fixa os exports: `DEVELOPMENT_GRAPH`, `developmentGraph`, `registerPresets`, `listPresets`, `getPreset`. Testa também `getPreset('x')` → `undefined` e que `listPresets()` contém o Development Graph.
+- [ ] O README credita o omnigraph-cookbooks (MIT, link).
+- [ ] `git diff main -- src/core-graph tests/core-graph` vazio.
+- [ ] A tabela de rastreabilidade liga os 10 critérios do spec a testes.
 
-**Verificação:**
-- [x] `pnpm test tests/core-graph/history`
+**Verificação:** `pnpm check:task`.
 
-**Dependências:** T6, T7
+**Dependências:** T4.
 
-**Arquivos:** `src/core-graph/history.ts`, `tests/core-graph/history.test.ts`
+**Arquivos:** `tests/presets/public-api.test.ts`, `README.md`, `tasks/plan.md`.
 
-**Escopo:** S
+**Escopo:** S.
 
----
+## Checkpoint B: completo
 
-### T10: API pública e verificação final
-
-**Descrição:**
-- **`index.ts`:** exporta somente a API pública do spec. Um teste importa tudo só por `src/core-graph/index.ts`.
-- **README:** seção de uso do módulo.
-- **Rastreabilidade:** uma tabela no `tasks/plan.md` liga cada um dos 13 critérios aos seus testes.
-
-**Critérios de aceite:**
-- [x] Nenhum teste importa arquivos internos, exceto os testes unitários de ontologia
-- [x] Os 13 critérios aparecem mapeados para testes verdes
-- [x] `docker compose down -v` seguido do fluxo completo (subir, migrar, testar) passa do zero
-
-**Verificação:**
-- [x] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test && pnpm typecheck && pnpm lint`
-
-**Dependências:** T8, T9
-
-**Arquivos:** `src/core-graph/index.ts`, `README.md`, `tasks/plan.md`, `tests/core-graph/public-api.test.ts`
-
-**Escopo:** S
-
----
-
-### Checkpoint final
-- [x] Os 14 critérios verdes; tudo verde a partir de um banco zerado
-- [x] Pronto para a fase 4 do lifecycle (`agent-skills:test`) e depois a Review
-
-> Revisões humanas dos checkpoints A, B e C aceitas pelo owner em 2026-11-25, com base nas revisões automáticas das fases Review e Ship (revisor de código, auditor de segurança, engenheiro de testes) e no CI verde.
+- [ ] Os 10 critérios do spec ligados a testes que passam.
+- [ ] `pnpm check:task` verde.
+- [ ] Resumo para o dono e aprovação antes da fase 4 do lifecycle (Verify).
