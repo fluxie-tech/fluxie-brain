@@ -84,6 +84,8 @@ Os vetores não ficam em `entities`: o módulo `embeddings` tem tabela própria 
 **Decisões do modelo:**
 - **Ontologia por registro:** core-graph mantém um registro em memória `preset → Ontology`, preenchido por `presets` na inicialização (`registerOntology`). Cada escrita busca a ontologia por `spaces.preset`. Os schemas Zod não são persistidos; quando a web-ui passar a editar tipos, a ontologia vai para o banco em formato serializável, numa mudança planejada nesse momento.
 - **Status só via `setStatus` e decisões de proposta:** `upsertEntity` nunca recebe status. Uma entidade nova nasce com o `defaultStatus` do tipo.
+- **Metadata omitida:** um upsert sem `metadata` preserva a atual; para limpar, envia-se `{}`.
+- **Sem mudança, sem escrita:** um upsert cujos `title`, `content`, `metadata` e `confidence` são iguais aos atuais não grava nada, em qualquer status. Uma proposta pendente idêntica, sobre a mesma versão, é devolvida em vez de duplicada. Isso evita trabalho de curadoria com agentes que se repetem.
 - **Upsert conforme o estado atual:**
   - `draft`: aplica direto.
   - `approved`: cria uma proposta `pending` e não altera a entidade.
@@ -227,6 +229,7 @@ export async function setStatus(spaceId: string, entityId: string, status: Entit
 11. `upsertEntity` com `expectedVersion` desatualizado falha com `VersionConflictError`.
 12. `neighbors(spaceId, id, 2)` retorna vizinhos a 1 e 2 saltos, sem repetição e sem entrar em loop em ciclos.
 13. `pnpm test`, `pnpm typecheck` e `pnpm lint` passam.
+14. Upsert sem mudança efetiva não grava nada (nem versão, nem change_log, nem proposta); metadata omitida preserva a atual; proposta pendente idêntica não duplica.
 
 ## Perguntas em aberto
 

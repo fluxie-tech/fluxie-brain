@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { type Db, db, type Tx } from './db.ts';
 import { isUniqueViolation, NotFoundError, OntologyError, VersionConflictError } from './errors.ts';
@@ -5,7 +6,7 @@ import { logChange } from './history.ts';
 import { type EntityStatus, getOntology, validateEntity } from './ontology.ts';
 import { createProposal, type Proposal, pendingProposalsFor } from './proposals.ts';
 import { type Relation, relationsOf } from './relations.ts';
-import { entities } from './schema.ts';
+import { entities, type ProposedChange } from './schema.ts';
 import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
 
@@ -51,13 +52,18 @@ export async function upsertEntity(
   try {
     return await db.transaction(async (tx) => {
       const space = await findSpaceOrThrow(tx, spaceId);
-      const { metadata, defaultStatus } = validateEntity(getOntology(space.preset), input.type, input.metadata);
-
       const [existing] = await tx
         .select(entityColumns)
         .from(entities)
         .where(and(eq(entities.spaceId, spaceId), eq(entities.key, input.key)))
         .for('update');
+
+      // Omitted metadata keeps the current one; send {} explicitly to clear it.
+      const { metadata, defaultStatus } = validateEntity(
+        getOntology(space.preset),
+        input.type,
+        input.metadata ?? existing?.metadata,
+      );
 
       if (!existing) {
         const [created] = await tx
@@ -95,29 +101,24 @@ export async function upsertEntity(
           `Entity "${input.key}" is at version ${existing.version}, expected ${input.expectedVersion}.`,
         );
       }
+      const next: ProposedChange = {
+        title: input.title,
+        content: input.content,
+        metadata,
+        confidence: input.confidence ?? existing.confidence,
+      };
+      // Agents repeat themselves; an upsert that changes nothing must not create curation work.
+      if (sameContent(existing, next)) return { entity: existing };
+
       if (existing.status === 'approved') {
         // Approved knowledge never changes without review: the edit becomes a pending proposal.
-        const proposal = await createProposal(
-          tx,
-          existing,
-          {
-            title: input.title,
-            content: input.content,
-            metadata,
-            confidence: input.confidence ?? existing.confidence,
-          },
-          actor,
-        );
-        return { entity: existing, proposal };
+        return { entity: existing, proposal: await createProposal(tx, existing, next, actor) };
       }
 
       const [updated] = await tx
         .update(entities)
         .set({
-          title: input.title,
-          content: input.content,
-          metadata,
-          confidence: input.confidence ?? existing.confidence,
+          ...next,
           // Rejected or deprecated knowledge that is proposed again goes back to review.
           status: 'draft',
           version: sql`${entities.version} + 1`,
@@ -143,6 +144,16 @@ export async function upsertEntity(
       throw new VersionConflictError(`Entity "${input.key}" was created concurrently; retry.`);
     throw err;
   }
+}
+
+/** True when applying `next` would leave the entity's content fields unchanged. */
+export function sameContent(current: ProposedChange, next: ProposedChange): boolean {
+  return (
+    current.title === next.title &&
+    current.content === next.content &&
+    current.confidence === next.confidence &&
+    isDeepStrictEqual(current.metadata, next.metadata)
+  );
 }
 
 /** Changes an entity's status (the only way status changes); logged as a curation decision. */

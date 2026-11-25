@@ -119,6 +119,31 @@ describe('upsertEntity', () => {
   });
 });
 
+describe('upsertEntity without effective changes', () => {
+  let space: Space;
+
+  beforeAll(() => registerOntology(TEST_PRESET, testOntology));
+  beforeEach(async () => {
+    await truncateAll();
+    space = await createSpace({ slug: 'dev', name: 'Dev', preset: TEST_PRESET });
+  });
+
+  it('keeps the existing metadata when an update omits it', async () => {
+    const base = { type: 'learning', key: 'l1', title: 'T', content: 'C' };
+    await upsertEntity(space.id, { ...base, metadata: { cause: 'timeout' } }, agent);
+    const { entity } = await upsertEntity(space.id, { ...base, content: 'C2' }, agent);
+    expect(entity).toMatchObject({ content: 'C2', metadata: { cause: 'timeout' } });
+  });
+
+  it('writes nothing for an upsert identical to the current draft', async () => {
+    const input = { type: 'learning', key: 'l1', title: 'T', content: 'C', metadata: { cause: 'x' }, confidence: 0.25 };
+    await upsertEntity(space.id, input, agent);
+    const { entity } = await upsertEntity(space.id, input, agent);
+    expect(entity.version).toBe(1);
+    expect(await queryRows('select id from change_log')).toHaveLength(1);
+  });
+});
+
 describe('getEntity', () => {
   beforeAll(() => registerOntology(TEST_PRESET, testOntology));
   beforeEach(() => truncateAll());

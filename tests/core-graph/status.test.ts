@@ -85,6 +85,13 @@ describe('status, usage and space isolation', () => {
     );
   });
 
+  it('leaves a rejected entity rejected when an identical upsert re-proposes it', async () => {
+    const draft = await newLearning();
+    await setStatus(space.id, draft.id, 'rejected', curator);
+    const { entity } = await upsertEntity(space.id, { type: 'learning', key: 'l1', title: 'T', content: 'C' }, agent);
+    expect(entity.status).toBe('rejected');
+  });
+
   it('does not find an entity by key from another space', async () => {
     await newLearning();
     expect(await getEntity(otherSpace.id, 'l1')).toBeNull();

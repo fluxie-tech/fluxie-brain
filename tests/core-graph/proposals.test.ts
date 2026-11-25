@@ -89,6 +89,19 @@ describe('proposals on approved entities', () => {
     expect(await hash()).not.toEqual(before);
   });
 
+  it('creates no proposal for an upsert identical to the approved entity', async () => {
+    const { proposal } = await edit('Original');
+    expect(proposal).toBeUndefined();
+    expect(await listProposals(space.id)).toEqual([]);
+  });
+
+  it('returns the existing pending proposal instead of duplicating an identical one', async () => {
+    const first = (await edit('Edited')).proposal;
+    const second = (await edit('Edited')).proposal;
+    expect(second?.id).toBe(first?.id);
+    expect(await listProposals(space.id)).toHaveLength(1);
+  });
+
   it('treats a proposal id from another space as missing', async () => {
     const { proposal } = await edit('Edited');
     await expect(acceptProposal(otherSpace.id, proposal?.id ?? '', curator)).rejects.toThrow(NotFoundError);

@@ -84,6 +84,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 | 11 | `expectedVersion` desatualizado → `VersionConflictError` | `entities.test.ts` |
 | 12 | `neighbors` 1–2 saltos, sem duplicatas, termina em ciclos | `neighbors.test.ts` |
 | 13 | test, typecheck e lint verdes | verificação final da T10 |
+| 14 | Upsert sem mudança não grava; metadata omitida preservada; proposta idêntica não duplica | `entities.test.ts`, `proposals.test.ts`, `status.test.ts` |
 
 Superfície pública fixada por `public-api.test.ts`.
 

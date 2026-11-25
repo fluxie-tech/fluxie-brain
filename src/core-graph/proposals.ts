@@ -1,6 +1,6 @@
 import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import { db, type Tx } from './db.ts';
-import { type Entity, entityColumns, findEntityOrThrow } from './entities.ts';
+import { type Entity, entityColumns, findEntityOrThrow, sameContent } from './entities.ts';
 import { ConflictError, NotFoundError, VersionConflictError } from './errors.ts';
 import { logChange } from './history.ts';
 import { entities, entityProposals, type ProposedChange } from './schema.ts';
@@ -12,13 +12,29 @@ type ProposalStatus = Proposal['status'];
 
 const proposalColumns = getTableColumns(entityProposals);
 
-/** Records an agent's edit of an approved entity as a pending proposal (called inside upsertEntity). */
+/**
+ * Records an agent's edit of an approved entity as a pending proposal (called inside upsertEntity).
+ * An identical pending proposal on the same version is returned instead of duplicated.
+ */
 export async function createProposal(
   tx: Tx,
   entity: Entity,
   proposed: ProposedChange,
   actor: Actor,
 ): Promise<Proposal> {
+  const pending = await tx
+    .select()
+    .from(entityProposals)
+    .where(
+      and(
+        eq(entityProposals.entityId, entity.id),
+        eq(entityProposals.status, 'pending'),
+        eq(entityProposals.baseVersion, entity.version),
+      ),
+    );
+  const duplicate = pending.find((p) => sameContent(p.proposed, proposed));
+  if (duplicate) return duplicate;
+
   const [proposal] = await tx
     .insert(entityProposals)
     .values({ entityId: entity.id, baseVersion: entity.version, proposed, proposedBy: actor })
