@@ -13,13 +13,13 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 **Descrição:** Criar o esqueleto do repositório com as versões estáveis mais recentes, conferidas no dia: Node 26 LTS, TypeScript strict/ESM, pnpm, Biome e Vitest, além de `git init`, licença MIT e `.gitignore`.
 
 **Critérios de aceite:**
-- [ ] `package.json` com versões exatas, `engines.node` em 26 e os scripts `test`, `typecheck`, `lint`, `db:generate`, `db:migrate`
-- [ ] Um teste trivial roda com `pnpm test`; `pnpm typecheck` e `pnpm lint` passam
-- [ ] `.gitignore` cobre `.env`, `node_modules` e saídas de build; `.env.example` sem segredos
+- [x] `package.json` com versões exatas, `engines.node` em 26 e os scripts `test`, `typecheck`, `lint`, `db:generate`, `db:migrate`
+- [x] Um teste trivial roda com `pnpm test`; `pnpm typecheck` e `pnpm lint` passam
+- [x] `.gitignore` cobre `.env`, `node_modules` e saídas de build; `.env.example` sem segredos
 
 **Verificação:**
-- [ ] `pnpm install && pnpm test && pnpm typecheck && pnpm lint`
-- [ ] `git status` limpo após o commit, sem `.env`
+- [x] `pnpm install && pnpm test && pnpm typecheck && pnpm lint`
+- [x] `git status` limpo após o commit, sem `.env`
 
 **Dependências:** nenhuma
 
@@ -38,12 +38,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **Testes:** um `globalSetup` do Vitest que migra o banco de teste, mais um helper de truncagem.
 
 **Critérios de aceite:**
-- [ ] `docker compose up -d db && pnpm db:migrate` funciona do zero e `vector` aparece em `pg_extension` (critério 1)
-- [ ] `fluxie_app` consegue fazer DML, mas não DDL (teste comprova que `CREATE TABLE` falha)
-- [ ] A versão do Postgres escolhida e o motivo estão registrados no `README.md`
+- [x] `docker compose up -d db && pnpm db:migrate` funciona do zero e `vector` aparece em `pg_extension` (critério 1)
+- [x] `fluxie_app` consegue fazer DML, mas não DDL (teste comprova que `CREATE TABLE` falha)
+- [x] A versão do Postgres escolhida e o motivo estão registrados no `README.md`
 
 **Verificação:**
-- [ ] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test`
+- [x] `docker compose down -v && docker compose up -d db && pnpm db:migrate && pnpm test`
 
 **Dependências:** T1
 

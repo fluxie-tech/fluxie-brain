@@ -32,8 +32,8 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 ## Lista de tarefas
 
 ### Fase 1: Fundação
-- [ ] T1: Scaffold do projeto e tooling
-- [ ] T2: Banco, migrações e harness de testes
+- [x] T1: Scaffold do projeto e tooling
+- [x] T2: Banco, migrações e harness de testes
 
 ### Checkpoint A: Fundação
 - [ ] `docker compose up -d db && pnpm db:migrate` do zero, com a extensão `vector` ativa (critério 1)
