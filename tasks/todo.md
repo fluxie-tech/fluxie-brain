@@ -18,13 +18,13 @@ Plano: `tasks/plan.md` · Spec: `SPEC-embeddings.md`.
 - volume para os modelos;
 - `cpus: 4`, `mem_limit: 3g` e `OLLAMA_KEEP_ALIVE=-1`;
 - healthcheck;
-- o serviço de uma execução só `ollama-pull`.
+- o pull do modelo no entrypoint do `ollama`, com o healthcheck só verde com o modelo presente (achado 9 do spike).
 
 Depois, roda o spike que fecha as perguntas em aberto do spec e registra os achados em `tasks/plan.md`. Não há código de produção.
 
 **Critérios de aceite:**
-- [ ] `docker compose up -d --wait` sobe `db` e `ollama`, baixa o modelo e `curl 127.0.0.1:11434/v1/embeddings` responde para os dois candidatos. `docker compose up -d --wait db` continua subindo só o banco, como no CI.
-- [ ] Achados registrados:
+- [x] `docker compose up -d --wait` sobe `db` e `ollama`, baixa o modelo e `curl 127.0.0.1:11434/v1/embeddings` responde para os dois candidatos. `docker compose up -d --wait db` continua subindo só o banco, como no CI.
+- [x] Achados registrados:
   - dimensão real de cada modelo;
   - template de consulta do Qwen3 no model card;
   - se o Ollama aplica prefixo próprio (similaridade com prefixo dobrado × único);
@@ -33,7 +33,7 @@ Depois, roda o spike que fecha as perguntas em aberto do spec e registra os acha
   - se o Drizzle tem o tipo ou se vai precisar de `customType`;
   - `--wait` com o pull que termina;
   - CPUs e memória que o Docker Desktop enxerga.
-- [ ] Se algum achado contradisser o spec, parar e voltar à fase 1.
+- [x] Se algum achado contradisser o spec, parar e voltar à fase 1.
 
 **Verificação:** comandos e saídas no registro do spike; `pnpm check:task` verde, porque nada de `src` muda.
 
@@ -242,7 +242,7 @@ Depois, roda nos dois modelos, aplica a regra de escolha e registra o resultado 
   - MRR@10 e recall@5, no total e por grupo;
   - os mesmos números para só vetor, só texto e híbrida;
   - p50/p95 em CPU, carga a frio, memória e tempo do corpus.
-- [ ] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O vencedor sai pela regra, e o padrão de `EMBEDDINGS_MODEL` e o `ollama-pull` passam a usá-lo.
+- [ ] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O vencedor sai pela regra, e o padrão de `EMBEDDINGS_MODEL` (compose, `.env.example` e catálogo) passa a ser ele.
 - [ ] Revisão humana do resultado antes de seguir (Checkpoint C).
 
 **Verificação:** saída do script colada no spec; `pnpm check:task`.

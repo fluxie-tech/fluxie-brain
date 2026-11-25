@@ -56,13 +56,13 @@ type ScopeRule = { containment: string[]; usage: string[] };
 
 Mesma regra dos outros módulos: versão estável mais recente, fixada com número exato e conferida no dia da implementação, respeitando o `minimumReleaseAge` do pnpm (e, por analogia, uma imagem Docker publicada há pelo menos 1 dia). Estado em 25/11/2026:
 
-- **Ollama:** imagem `ollama/ollama`. A última estável é a 0.40.18, de 24/11; a 0.40.17, de ~20/11, é a mais nova que já passou do prazo hoje. A tag é fixada no build.
+- **Ollama:** imagem `ollama/ollama:0.40.18`, publicada em 24/11/2026, mais de 1 dia antes do build.
   - **Só CPU, em todo lugar:** localmente no Docker Desktop, sem GPU, e igual na VPS. Assim o ambiente local é igual ao de produção e os números do benchmark valem para o deploy. A GPU local (RTX 3060) não é usada, e o compose não reserva GPU.
   - **VPS alvo:** 4 vCPU, 10 GB de RAM e 100 GB de disco, para tudo junto: Postgres, Ollama e, depois, o `mcp-server`. Para a máquina local reproduzir a VPS, o compose limita o `ollama` a `cpus: 4` e `mem_limit: 3g`. A memória é um orçamento a confirmar no build: um modelo de ~0,6 B mais o runtime cabem com folga, e sobram ~7 GB para o resto. Os modelos ocupam ~1–2 GB do disco.
   - **Modelo sempre carregado:** `OLLAMA_KEEP_ALIVE=-1`. Com o padrão do Ollama, o modelo sai da memória depois de 5 minutos parado, e a primeira busca seguinte paga o carregamento.
 - **Candidatos do benchmark**, ambos só de texto e com tamanho parecido:
   - `qwen3-embedding:0.6b`: 639 MB, 1024 dims, 32K de contexto, Apache 2.0;
-  - `embeddinggemma-2:570m`: ~0,95 GB, 768 dims (truncável para 512/256/128), 8K de contexto pelo model card, Apache 2.0. Lançado em 06/10/2026.
+  - `embeddinggemma-2:270m`: ~0,5 GB carregado, 768 dims (truncável para 512/256/128), Apache 2.0, lançado em 06/10/2026. É a tag só de texto. A `570m` é o mesmo modelo de texto mais um codificador de áudio, e os vetores de texto das duas são idênticos (spike da T1).
 - **Cliente do provedor:** o `fetch` nativo do Node 26 contra `POST {base}/embeddings`, com a resposta validada por Zod. Não entra SDK; o Ollama aceita `input` em lote, `dimensions` e `encoding_format`.
 - **pgvector 0.8.7** (já no compose). Coluna `vector` sem dimensão fixa. Os dois modelos ficam bem abaixo do limite de 2000 dims do HNSW, que continua possível depois.
 - **Nenhuma dependência npm nova prevista.** Se o Drizzle não aceitar `vector` sem dimensão, usa-se um `customType`, como o `tsvector` do core-graph.
@@ -126,7 +126,8 @@ type SearchResult = {
 
 **Catálogo de modelos** (em código): para cada id, a dimensão, o template de documento e o template de consulta.
 - EmbeddingGemma 2: documento `title: {title} | text: {content}`; consulta `task: search result | query: {q}`.
-- Qwen3: documento sem instrução; consulta `Instruct: {tarefa}\nQuery: {q}`.
+- Qwen3: documento sem instrução; consulta `Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:{q}`. Sem espaço depois de `Query:`, e a instrução em inglês, como recomenda o model card.
+- O Ollama não aplica prefixo nenhum (`TEMPLATE {{ .Prompt }}`; conferido no spike), então os templates do catálogo são os únicos.
 - Um modelo fora do catálogo é erro de configuração. Mudar um template exige um id novo no catálogo, para os vetores antigos não se misturarem com os novos.
 
 **Erros:** `EmbeddingProviderError` (rede, status HTTP, resposta inválida) e `EmbeddingConfigError` (modelo desconhecido), os dois derivados de `CoreGraphError`, para o `mcp-server` tratar todos os erros do domínio de um jeito só. A resposta do provedor é validada antes de qualquer escrita:
@@ -175,7 +176,7 @@ pnpm bench:embeddings                                               # node scrip
 pnpm check:fast | check:task | check:full                           # como no CONSTRAINTS.md
 ```
 
-No compose, o serviço `ollama` publica a porta só em `127.0.0.1`, guarda os modelos num volume, tem healthcheck e roda com os limites da VPS (`cpus: 4`, `mem_limit: 3g`, `OLLAMA_KEEP_ALIVE=-1`). Um serviço de uma execução só (`ollama-pull`) baixa o modelo configurado depois que o `ollama` está saudável.
+No compose, o serviço `ollama` publica a porta só em `127.0.0.1`, guarda os modelos num volume, tem healthcheck e roda com os limites da VPS (`cpus: 4`, `mem_limit: 3g`, `OLLAMA_KEEP_ALIVE=-1`, `OLLAMA_MAX_LOADED_MODELS=1`). O entrypoint baixa o modelo de `EMBEDDINGS_MODEL`, se ele ainda não estiver no volume, e o healthcheck só fica verde com o modelo presente; assim o `up --wait` espera o download. Um serviço de pull à parte contava como pronto ainda baixando.
 
 ## Estrutura do projeto
 
@@ -260,14 +261,14 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 
 ## Perguntas em aberto
 
-Nenhuma bloqueia o plano. Todas são conferidas no build:
+As perguntas do spec foram fechadas pelo spike da T1. A tabela completa está em `tasks/plan.md`, seção "Achados do spike":
+- dimensões 1024 e 768;
+- templates exatos, e o Ollama não aplica prefixo;
+- tag 0.40.18;
+- `customType` para o `vector` sem dimensão;
+- **truncamento silencioso:** o Ollama corta o Qwen3 em 4096 tokens e o Gemma em 2048, sem erro. Entidades típicas ficam muito abaixo disso; o limite de tamanho do `content` fica com o `mcp-server` (pendência 4).
 
-1. **Qwen3-Embedding-0.6B:** a dimensão (1024) e o texto exato da instrução de consulta, que as páginas lidas não traziam. Conferir no model card oficial.
-2. **Templates do Ollama:** se o Ollama já aplica algum prefixo por conta própria nesses modelos. Um prefixo dobrado ou ausente tornaria a comparação injusta. Conferir com um teste de similaridade.
-3. **Truncamento:** como o `/v1/embeddings` do Ollama trata textos acima do contexto. Nos dois modelos, o contexto é muito maior que as entidades típicas.
-4. **Tag do Ollama:** a que tiver mais de 1 dia no dia do build (hoje, 0.40.17).
-5. **Drizzle:** se o tipo `vector` aceita coluna sem dimensão; se não aceitar, `customType`.
-6. **CPU como referência:** a latência é medida no Docker Desktop local com os limites da VPS (4 CPUs, 3 GB para o `ollama`). Um vCPU de VPS costuma ser mais lento que um núcleo de desktop, então o corte de 300 ms é medido de novo na VPS antes do deploy. Conferir também se o WSL2 libera pelo menos 4 CPUs para o Docker.
+Fica uma, que não bloqueia: a latência em CPU é medida no Docker Desktop local com os limites da VPS. Um vCPU de VPS costuma ser mais lento que um núcleo de desktop, então o corte de 300 ms é medido de novo na VPS antes do deploy.
 
 ## Resultado do benchmark
 

@@ -21,5 +21,41 @@ services:
       timeout: 3s
       retries: 30
 
+  # Embeddings, CPU only everywhere (SPEC-embeddings.md). Limits mirror the target VPS share.
+  ollama:
+    image: ollama/ollama:0.40.18
+    restart: unless-stopped
+    cpus: 4
+    mem_limit: 3g
+    environment:
+      # Keep the model loaded; the default unloads it after 5 idle minutes and the next search pays the load.
+      OLLAMA_KEEP_ALIVE: "-1"
+      # Only one model is ever in use; without this, every model tried stays loaded and the 3 GB fills up.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-qwen3-embedding:0.6b}
+    # Pull the model inside the service so `up --wait` waits for it (a one-shot pull service counts as ready
+    # while still downloading). Skip the pull when the model is already in the volume, so restarts work offline.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        ollama serve & pid=$$!;
+        until ollama list >/dev/null 2>&1; do sleep 1; done;
+        ollama show "$$EMBEDDINGS_MODEL" >/dev/null 2>&1 || ollama pull "$$EMBEDDINGS_MODEL" || exit 1;
+        wait $$pid
+    ports:
+      # Bound to localhost only; Ollama has no authentication.
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      # Healthy only once the configured model is present.
+      test: ["CMD-SHELL", 'ollama show "$$EMBEDDINGS_MODEL" >/dev/null']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10m
+
 volumes:
   pgdata:
+  ollama-models:
