@@ -92,9 +92,9 @@ Inclui o stub HTTP de teste.
 **Descrição:** `syncEmbeddings(spaceId, { batchSize })` embute, em lotes, as entidades do space sem vetor do modelo ativo ou com `source_hash ≠ content_hash`, e faz upsert por `(entity_id, model)`.
 
 **Critérios de aceite:**
-- [ ] A primeira chamada gera tudo (`remaining: 0`), e a segunda não chama o provedor.
-- [ ] Mudar `content`, aceitar uma proposta ou fazer revert regenera só aquela entidade. Mudar só `metadata` não regenera.
-- [ ] Um modelo não toca nos vetores do outro. Duas chamadas concorrentes não duplicam. Se o provedor falha no meio, os lotes já gravados ficam, o lote que falhou não é gravado e o erro sobe.
+- [x] A primeira chamada gera tudo (`remaining: 0`), e a segunda não chama o provedor.
+- [x] Mudar `content`, aceitar uma proposta ou fazer revert regenera só aquela entidade. Mudar só `metadata` não regenera.
+- [x] Um modelo não toca nos vetores do outro. Duas chamadas concorrentes não duplicam. Se o provedor falha no meio, os lotes já gravados ficam, o lote que falhou não é gravado e o erro sobe.
 
 **Verificação:** `pnpm vitest run tests/embeddings/sync.test.ts`; `pnpm check:task`.
 
@@ -105,9 +105,9 @@ Inclui o stub HTTP de teste.
 **Tamanho:** S.
 
 ### Checkpoint A: vetores gerados
-- [ ] Critérios 1–4 do spec cobertos.
-- [ ] `pnpm check:task` verde.
-- [ ] Achados do spike revisados pelo dono.
+- [x] Critérios 1–4 do spec cobertos.
+- [x] `pnpm check:task` verde.
+- [x] Achados do spike revisados pelo dono.
 
 ## Fase 2: Busca
 

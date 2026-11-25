@@ -52,7 +52,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T1: Ollama no compose + spike (S)
 - [x] T2: provedor, catálogo e erros (M)
 - [x] T3: tabela, GIN e exports do core-graph (M)
-- [ ] T4: syncEmbeddings (S)
+- [x] T4: syncEmbeddings (S)
 
 ### Checkpoint A: vetores gerados
 - [ ] Critérios 1–4 do spec com teste ou verificação manual registrada
