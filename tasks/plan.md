@@ -51,7 +51,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 ### Fase 1: Vetores
 - [x] T1: Ollama no compose + spike (S)
 - [x] T2: provedor, catálogo e erros (M)
-- [ ] T3: tabela, GIN e exports do core-graph (M)
+- [x] T3: tabela, GIN e exports do core-graph (M)
 - [ ] T4: syncEmbeddings (S)
 
 ### Checkpoint A: vetores gerados

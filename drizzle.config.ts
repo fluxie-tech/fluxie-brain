@@ -8,7 +8,7 @@ try {
 
 export default defineConfig({
   dialect: 'postgresql',
-  schema: './src/core-graph/schema.ts',
+  schema: ['./src/core-graph/schema.ts', './src/embeddings/schema.ts'],
   out: './migrations',
   casing: 'snake_case',
   dbCredentials: { url: process.env.MIGRATOR_DATABASE_URL ?? '' },

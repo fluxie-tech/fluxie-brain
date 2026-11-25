@@ -75,9 +75,9 @@ Inclui o stub HTTP de teste.
 - o core-graph exporta `db`, `entities` e `relations`.
 
 **Critérios de aceite:**
-- [ ] `pnpm db:migrate` do zero cria a tabela e os dois índices. Um teste com o `fluxie_app` insere, lê, atualiza e apaga uma linha. O GIN aparece em `pg_indexes`.
-- [ ] `tests/core-graph/public-api.test.ts` passa a listar `db`, `entities` e `relations`, e `git diff main -- src/core-graph` mostra só o `index.ts`. O comentário de `tests/core-graph/db.test.ts` é atualizado.
-- [ ] `on delete cascade` e a PK `(entity_id, model)` conferidos no teste.
+- [x] `pnpm db:migrate` do zero cria a tabela e os dois índices. Um teste com o `fluxie_app` insere, lê, atualiza e apaga uma linha. O GIN aparece em `pg_indexes`.
+- [x] `tests/core-graph/public-api.test.ts` passa a listar `db`, `entities` e `relations`, e `git diff main -- src/core-graph` mostra só o `index.ts`. O comentário de `tests/core-graph/db.test.ts` é atualizado.
+- [x] `on delete cascade` e a PK `(entity_id, model)` conferidos no teste.
 
 **Verificação:** `pnpm vitest run tests/embeddings tests/core-graph`; `pnpm check:task`.
 

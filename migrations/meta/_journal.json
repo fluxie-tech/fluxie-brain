@@ -43,6 +43,20 @@
       "when": 1795616341214,
       "tag": "0005_restrict_app_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795640312384,
+      "tag": "0006_entity_embeddings",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795640323195,
+      "tag": "0007_entities_tsv_gin",
+      "breakpoints": true
     }
   ]
 }

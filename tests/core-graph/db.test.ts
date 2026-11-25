@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-// Internal import on purpose: the pool is infrastructure, not part of the public API.
+// Internal import on purpose: the pool is infrastructure; only the drizzle `db` handle is public (read-only use).
 import { pool } from '../../src/core-graph/db.ts';
 
 describe('database pool', () => {
