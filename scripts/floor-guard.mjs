@@ -157,11 +157,24 @@ const ruleKey = (t) => {
 const isException = (t) => /^\| *(W|E)\d+ *\|/.test(t.trim());
 const MIN_BEFORE = /(>=|>|≥|at least|minimum|\bmin\b|no less than|not fall|not drop)\s*$/;
 const MAX_BEFORE = /(<=|<|≤|at most|maximum|\bmax\b|no more than|under|below|not grow|not exceed)\s*$/;
-const MIN_AFTER = /^\s*\S*\s*(or more|or higher|must not fall|must not drop)/;
-const MAX_AFTER = /^\s*\S*\s*(or less|or lower|must not grow|must not exceed)/;
+const MIN_AFTER = /^\s*\S*\s*(or more|or higher|must not fall|must not drop|ou mais|não pode cair|não pode descer)/;
+const MAX_AFTER = /^\s*\S*\s*(or less|or lower|must not grow|must not exceed|ou menos|não pode subir|não pode crescer)/;
+// Local adaptation: a table row whose direction cell says "não pode cair" (or the English twin) gives that
+// direction to every number in the row that has none of its own, e.g. "| Linhas | 97,1% | 96,6 | não pode cair |".
+const ROW_MIN = /must not fall|must not drop|não pode cair|não pode descer/;
+const ROW_MAX = /must not grow|must not exceed|não pode subir|não pode crescer/;
+const rowDirection = (t) => {
+  const s = t.trim().toLowerCase();
+  if (!s.startsWith('|')) return null;
+  const min = ROW_MIN.test(s),
+    max = ROW_MAX.test(s);
+  return min === max ? null : min ? 'min' : 'max';
+};
 const thresholds = (t) => {
   const out = [];
-  for (const m of t.matchAll(/\d+(?:\.\d+)?/g)) {
+  const rowDir = rowDirection(t);
+  // Local adaptation: "96,6" (Portuguese decimal comma) is one number, not 96 and 6.
+  for (const m of t.matchAll(/\d+(?:[.,]\d+)?/g)) {
     const before = t.slice(Math.max(0, m.index - 24), m.index).toLowerCase();
     const after = t.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
     const dir =
@@ -169,8 +182,8 @@ const thresholds = (t) => {
         ? 'min'
         : MAX_BEFORE.test(before) || MAX_AFTER.test(after)
           ? 'max'
-          : null;
-    out.push({ n: Number(m[0]), dir });
+          : rowDir;
+    out.push({ n: Number(m[0].replace(',', '.')), dir });
   }
   return out;
 };
