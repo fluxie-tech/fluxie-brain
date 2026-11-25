@@ -184,7 +184,7 @@ export async function setStatus(spaceId: string, entityId: string, status: Entit
 - Funções exportadas, sem classes. Uma transação por operação pública.
 - Nomes em inglês no código; documentação em português.
 - Sem `any`. Erros tipados, nunca `throw new Error('...')` genérico na API pública.
-- SQL cru (`sql```) só onde o Drizzle não alcança, como a CTE recursiva de `neighbors`.
+- SQL cru (`sql```) só onde o Drizzle não alcança. `neighbors` usa busca em largura em TypeScript (2 níveis, conjunto de visitados) em vez de CTE recursiva: com profundidade máxima 2 é mais simples e igualmente correta em ciclos.
 
 ## Estratégia de testes
 

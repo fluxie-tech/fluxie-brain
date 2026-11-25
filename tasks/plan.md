@@ -16,7 +16,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
              ├─ T5 setStatus, recordUsage, escopo por space
              │   └─ T6 propostas (precisa do status approved)
              ├─ T7 relações: link/unlink
-             │   └─ T8 neighbors (CTE recursiva)
+             │   └─ T8 neighbors (BFS de 2 níveis)
              └─ T9 history + revert (precisa do change_log; testa com propostas)
                  └─ T10 API pública + varredura final dos 13 critérios
 ```
@@ -52,7 +52,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 ### Fase 3: Curadoria e grafo
 - [x] T6: Propostas sobre entidades aprovadas
 - [x] T7: Relações (link e unlink)
-- [ ] T8: Vizinhança até 2 saltos
+- [x] T8: Vizinhança até 2 saltos
 
 ### Checkpoint C: Curadoria e grafo
 - [ ] Critérios 4, 7 e 12 cobertos por testes verdes
@@ -74,7 +74,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 | Não há imagem `pgvector/pgvector:pg19` nem pgvector estável para PG19 | Médio | Regra do spec: cair para PG18 na última minor. Decidido na T2 e registrado. |
 | drizzle-kit ou Vitest com problema no Node 26 | Médio | Detectado na T1/T2 antes de qualquer lógica. Fallback: Node 24 LTS, perguntando antes. |
 | Drizzle sem tipo nativo para `tsvector` ou colunas geradas com expressão | Baixo | `customType` para `tsvector` e `generatedAlwaysAs(sql...)`. Se não der, SQL na migração custom. |
-| CTE recursiva de `neighbors` entra em loop em ciclos | Médio | Controle de caminho visitado na CTE e teste com ciclo explícito (T8). |
+| `neighbors` entra em loop em ciclos | Médio | BFS com conjunto de visitados e teste com ciclo explícito (T8). |
 | Docker Desktop no Windows: volumes e portas | Baixo | Volume nomeado (não bind mount) e porta só em `127.0.0.1` localmente. |
 | Truncagem entre testes deixa estado residual com testes em paralelo | Baixo | Testes de banco em série (`fileParallelism: false`) até isso virar gargalo. |
 

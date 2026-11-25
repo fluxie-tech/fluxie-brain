@@ -13,5 +13,6 @@ export const testOntology: Ontology = {
   relationTypes: {
     learned_from: { from: ['learning'], to: ['project'] },
     applies_to: { from: ['rule'], to: ['project'] },
+    relates_to: { from: ['learning', 'rule', 'project'], to: ['learning', 'rule', 'project'] },
   },
 };

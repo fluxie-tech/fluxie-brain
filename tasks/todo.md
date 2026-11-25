@@ -191,15 +191,15 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 
 ### T8: Vizinhança até 2 saltos
 
-**Descrição:** `neighbors(spaceId, entityId, depth, opts)` com CTE recursiva em SQL cru. Percorre os dois sentidos, controla os nós já visitados e aceita filtro por tipo de relação e por status.
+**Descrição:** `neighbors(spaceId, entityId, depth, opts)` com busca em largura (BFS) de até 2 níveis em TypeScript. Percorre os dois sentidos, controla os nós já visitados e aceita filtro por tipo de relação e por status.
 
 **Critérios de aceite:**
-- [ ] Critério 12: os saltos 1 e 2 são retornados sem duplicatas
-- [ ] Um grafo com ciclo (A→B→C→A) termina e não repete nós
-- [ ] Os filtros `relationTypes` e `statuses` funcionam
+- [x] Critério 12: os saltos 1 e 2 são retornados sem duplicatas
+- [x] Um grafo com ciclo (A→B→C→A) termina e não repete nós
+- [x] Os filtros `relationTypes` e `statuses` funcionam
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/neighbors`
+- [x] `pnpm test tests/core-graph/neighbors`
 
 **Dependências:** T7
 

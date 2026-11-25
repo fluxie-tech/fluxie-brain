@@ -1,9 +1,9 @@
-import { and, eq, getTableColumns, or } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 import { db } from './db.ts';
-import { findEntityOrThrow } from './entities.ts';
+import { type Entity, entityColumns, findEntityOrThrow } from './entities.ts';
 import { NotFoundError, OntologyError } from './errors.ts';
 import { logChange } from './history.ts';
-import { getOntology, validateRelation } from './ontology.ts';
+import { type EntityStatus, getOntology, validateRelation } from './ontology.ts';
 import { entities, relations } from './schema.ts';
 import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
@@ -79,6 +79,68 @@ export async function unlink(spaceId: string, relationId: string, actor: Actor):
       after: null,
     });
   });
+}
+
+export type GraphSlice = { entities: (Entity & { depth: number })[]; relations: Relation[] };
+
+/**
+ * Entities reachable from `entityId` within `depth` hops (either direction), plus the relations among them.
+ * Breadth-first with a visited set, so cycles terminate and each entity appears once at its shortest depth.
+ * Entities filtered out by `statuses` are neither returned nor traversed.
+ */
+export async function neighbors(
+  spaceId: string,
+  entityId: string,
+  depth: 1 | 2,
+  opts: { relationTypes?: string[]; statuses?: EntityStatus[] } = {},
+): Promise<GraphSlice> {
+  await findSpaceOrThrow(db, spaceId);
+  const [root] = isUuid(entityId)
+    ? await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.spaceId, spaceId), eq(entities.id, entityId)))
+    : [];
+  if (!root) throw new NotFoundError(`Entity ${entityId} not found in this space.`);
+
+  const visited = new Set([entityId]);
+  const found: GraphSlice['entities'] = [];
+  const edges = new Map<string, Relation>();
+  let frontier = [entityId];
+
+  for (let d = 1; d <= depth && frontier.length > 0; d++) {
+    const touching = await db
+      .select()
+      .from(relations)
+      .where(
+        and(
+          or(inArray(relations.fromId, frontier), inArray(relations.toId, frontier)),
+          opts.relationTypes ? inArray(relations.type, opts.relationTypes) : undefined,
+        ),
+      );
+    const candidates = [...new Set(touching.flatMap((r) => [r.fromId, r.toId]))].filter((id) => !visited.has(id));
+    const next =
+      candidates.length === 0
+        ? []
+        : await db
+            .select(entityColumns)
+            .from(entities)
+            .where(
+              and(
+                eq(entities.spaceId, spaceId),
+                inArray(entities.id, candidates),
+                opts.statuses ? inArray(entities.status, opts.statuses) : undefined,
+              ),
+            );
+    for (const e of next) {
+      visited.add(e.id);
+      found.push({ ...e, depth: d });
+    }
+    for (const r of touching) if (visited.has(r.fromId) && visited.has(r.toId)) edges.set(r.id, r);
+    frontier = next.map((e) => e.id);
+  }
+
+  return { entities: found, relations: [...edges.values()] };
 }
 
 /** All relations touching an entity, in either direction. */
