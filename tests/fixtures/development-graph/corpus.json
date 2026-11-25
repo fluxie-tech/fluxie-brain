@@ -13,7 +13,7 @@
       "lang": "en",
       "project": "pebble",
       "type": "component",
-      "key": "component:pebble-web/editor",
+      "key": "component:fictora/pebble-web/editor",
       "title": "Editor",
       "content": "Rich-text editor for notes. Renders the document model and turns keystrokes into document operations.",
       "metadata": { "path": "src/editor", "criticality": "high" }
@@ -22,7 +22,7 @@
       "lang": "en",
       "project": "pebble",
       "type": "component",
-      "key": "component:pebble-web/sync",
+      "key": "component:fictora/pebble-web/sync",
       "title": "Sync engine",
       "content": "Merges local and remote note changes and persists them through the sync service backed by Postgres.",
       "metadata": { "path": "src/sync", "criticality": "critical" }
@@ -58,7 +58,7 @@
       "lang": "en",
       "project": "pebble",
       "type": "spec",
-      "key": "spec:pebble-web/SPEC-sync.md",
+      "key": "spec:fictora/pebble-web/SPEC-sync.md",
       "title": "Offline sync specification",
       "content": "How notes are edited offline, merged on reconnect and stored, including conflict and attachment rules.",
       "metadata": { "location": "SPEC-sync.md" }
@@ -139,7 +139,7 @@
       "lang": "pt",
       "project": "quarry",
       "type": "component",
-      "key": "component:quarry-api/faturamento",
+      "key": "component:fictora/quarry-api/faturamento",
       "title": "Faturamento",
       "content": "Gera cobranças a partir dos pedidos fechados e controla o status de pagamento.",
       "metadata": { "path": "app/Billing", "criticality": "critical" }
@@ -148,7 +148,7 @@
       "lang": "pt",
       "project": "quarry",
       "type": "component",
-      "key": "component:quarry-api/emissor-nf",
+      "key": "component:fictora/quarry-api/emissor-nf",
       "title": "Emissor de notas fiscais",
       "content": "Parte do faturamento que monta e envia as notas fiscais para o serviço externo de emissão.",
       "metadata": { "path": "app/Billing/Invoices", "criticality": "high" }
@@ -175,7 +175,7 @@
       "lang": "pt",
       "project": "quarry",
       "type": "spec",
-      "key": "spec:quarry-api/SPEC-faturamento.md",
+      "key": "spec:fictora/quarry-api/docs/SPEC-faturamento.md",
       "title": "Especificação do faturamento",
       "content": "Regras de cobrança, reenvio de notas e conciliação com o banco.",
       "metadata": { "location": "docs/SPEC-faturamento.md" }
@@ -294,50 +294,70 @@
     }
   ],
   "relations": [
-    { "from": "component:pebble-web/editor", "to": "repo:fictora/pebble-web", "type": "part_of" },
-    { "from": "component:pebble-web/sync", "to": "repo:fictora/pebble-web", "type": "part_of" },
+    { "from": "component:fictora/pebble-web/editor", "to": "repo:fictora/pebble-web", "type": "part_of" },
+    { "from": "component:fictora/pebble-web/sync", "to": "repo:fictora/pebble-web", "type": "part_of" },
     { "from": "repo:fictora/pebble-web", "to": "dependency:language/typescript", "type": "depends_on" },
     { "from": "repo:fictora/pebble-web", "to": "dependency:docker/postgres", "type": "depends_on" },
-    { "from": "component:pebble-web/editor", "to": "dependency:npm/react", "type": "depends_on" },
-    { "from": "component:pebble-web/sync", "to": "dependency:npm/yjs", "type": "depends_on" },
-    { "from": "component:pebble-web/editor", "to": "component:pebble-web/sync", "type": "depends_on" },
-    { "from": "spec:pebble-web/SPEC-sync.md", "to": "component:pebble-web/sync", "type": "describes" },
-    { "from": "decision:pebble-crdt-sync", "to": "component:pebble-web/sync", "type": "applies_to" },
+    { "from": "component:fictora/pebble-web/editor", "to": "dependency:npm/react", "type": "depends_on" },
+    { "from": "component:fictora/pebble-web/sync", "to": "dependency:npm/yjs", "type": "depends_on" },
+    { "from": "component:fictora/pebble-web/editor", "to": "component:fictora/pebble-web/sync", "type": "depends_on" },
+    { "from": "spec:fictora/pebble-web/SPEC-sync.md", "to": "component:fictora/pebble-web/sync", "type": "describes" },
+    { "from": "decision:pebble-crdt-sync", "to": "component:fictora/pebble-web/sync", "type": "applies_to" },
     { "from": "decision:pebble-crdt-sync", "to": "invariant:pebble-sync-converges", "type": "establishes" },
-    { "from": "principle:pebble-no-direct-dom-in-editor", "to": "component:pebble-web/editor", "type": "applies_to" },
-    { "from": "invariant:pebble-sync-converges", "to": "component:pebble-web/sync", "type": "about" },
+    {
+      "from": "principle:pebble-no-direct-dom-in-editor",
+      "to": "component:fictora/pebble-web/editor",
+      "type": "applies_to"
+    },
+    { "from": "invariant:pebble-sync-converges", "to": "component:fictora/pebble-web/sync", "type": "about" },
     { "from": "assumption:yjs-updates-order-independent", "to": "dependency:npm/yjs", "type": "about" },
     { "from": "learning:react-strict-mode-double-effects", "to": "dependency:npm/react", "type": "about" },
-    { "from": "gap:pebble-offline-attachments", "to": "component:pebble-web/sync", "type": "about" },
-    { "from": "spec:pebble-web/SPEC-sync.md", "to": "decision:pebble-crdt-sync", "type": "references" },
-    { "from": "learning:pebble-crdt-migration-hindsight", "to": "component:pebble-web/sync", "type": "about" },
+    { "from": "gap:pebble-offline-attachments", "to": "component:fictora/pebble-web/sync", "type": "about" },
+    { "from": "spec:fictora/pebble-web/SPEC-sync.md", "to": "decision:pebble-crdt-sync", "type": "references" },
+    { "from": "learning:pebble-crdt-migration-hindsight", "to": "component:fictora/pebble-web/sync", "type": "about" },
     { "from": "learning:pebble-crdt-migration-hindsight", "to": "decision:pebble-crdt-sync", "type": "references" },
-    { "from": "gap:pebble-offline-attachments", "to": "spec:pebble-web/SPEC-sync.md", "type": "relates_to" },
+    { "from": "gap:pebble-offline-attachments", "to": "spec:fictora/pebble-web/SPEC-sync.md", "type": "relates_to" },
     { "from": "gap:pebble-offline-attachments", "to": "invariant:pebble-sync-converges", "type": "undermines" },
 
-    { "from": "component:quarry-api/faturamento", "to": "repo:fictora/quarry-api", "type": "part_of" },
-    { "from": "component:quarry-api/emissor-nf", "to": "component:quarry-api/faturamento", "type": "part_of" },
+    { "from": "component:fictora/quarry-api/faturamento", "to": "repo:fictora/quarry-api", "type": "part_of" },
+    {
+      "from": "component:fictora/quarry-api/emissor-nf",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "part_of"
+    },
     { "from": "repo:fictora/quarry-api", "to": "dependency:language/php", "type": "depends_on" },
     { "from": "repo:fictora/quarry-api", "to": "dependency:composer/laravel", "type": "depends_on" },
     { "from": "repo:fictora/quarry-api", "to": "dependency:docker/postgres", "type": "depends_on" },
-    { "from": "spec:quarry-api/SPEC-faturamento.md", "to": "component:quarry-api/faturamento", "type": "describes" },
-    { "from": "decision:quarry-notas-em-tabela", "to": "component:quarry-api/emissor-nf", "type": "applies_to" },
-    { "from": "decision:quarry-notas-em-fila", "to": "component:quarry-api/emissor-nf", "type": "applies_to" },
+    {
+      "from": "spec:fictora/quarry-api/docs/SPEC-faturamento.md",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "describes"
+    },
+    {
+      "from": "decision:quarry-notas-em-tabela",
+      "to": "component:fictora/quarry-api/emissor-nf",
+      "type": "applies_to"
+    },
+    { "from": "decision:quarry-notas-em-fila", "to": "component:fictora/quarry-api/emissor-nf", "type": "applies_to" },
     { "from": "decision:quarry-notas-em-fila", "to": "decision:quarry-notas-em-tabela", "type": "supersedes" },
     { "from": "decision:quarry-notas-em-fila", "to": "invariant:quarry-nota-idempotente", "type": "establishes" },
     { "from": "principle:quarry-sem-sql-cru-nos-controllers", "to": "repo:fictora/quarry-api", "type": "applies_to" },
-    { "from": "decision:quarry-sql-cru-em-relatorios", "to": "component:quarry-api/faturamento", "type": "applies_to" },
+    {
+      "from": "decision:quarry-sql-cru-em-relatorios",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "applies_to"
+    },
     {
       "from": "decision:quarry-sql-cru-em-relatorios",
       "to": "principle:quarry-sem-sql-cru-nos-controllers",
       "type": "relaxes"
     },
-    { "from": "invariant:quarry-nota-idempotente", "to": "component:quarry-api/emissor-nf", "type": "about" },
+    { "from": "invariant:quarry-nota-idempotente", "to": "component:fictora/quarry-api/emissor-nf", "type": "about" },
     { "from": "assumption:eloquent-chunk-mantem-ordem", "to": "dependency:composer/laravel", "type": "about" },
     { "from": "learning:laravel-config-cache-em-producao", "to": "dependency:composer/laravel", "type": "about" },
     { "from": "gap:quarry-upgrade-laravel-bloqueado", "to": "repo:fictora/quarry-api", "type": "about" },
     { "from": "gap:quarry-upgrade-laravel-bloqueado", "to": "dependency:composer/laravel", "type": "waits_for" },
-    { "from": "learning:quarry-retro-fila-de-notas", "to": "component:quarry-api/emissor-nf", "type": "about" },
+    { "from": "learning:quarry-retro-fila-de-notas", "to": "component:fictora/quarry-api/emissor-nf", "type": "about" },
     { "from": "learning:quarry-retro-fila-de-notas", "to": "decision:quarry-notas-em-fila", "type": "references" },
 
     { "from": "learning:postgres-advisory-locks-behind-pooler", "to": "dependency:docker/postgres", "type": "about" },

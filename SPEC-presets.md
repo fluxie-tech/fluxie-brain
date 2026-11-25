@@ -58,7 +58,7 @@ A separação acontece em três níveis. Cada um é de um módulo, e nenhum exig
   - **Específico fica no projeto; comum é compartilhado pela dependência.**
     - Uma pegadinha do Laravel liga-se a `dependency:composer/laravel`. Um projeto TypeScript, que não depende do Laravel, nunca chega a ela.
     - Uma pegadinha do Postgres, usada pelos dois projetos, aparece nos dois.
-  - **As `key`s seguem a mesma lógica.** Levam o repositório onde o item é do projeto (`component:<repo>/<nome>`) e são globais onde é compartilhável (`dependency:<ecossistema>/<nome>`).
+  - **As `key`s seguem a mesma lógica.** Levam o repositório onde o item é do projeto (`component:<dono>/<repo>/<nome>`) e são globais onde é compartilhável (`dependency:<ecossistema>/<nome>`).
 - **Requisito para o `embeddings` e o `mcp-server`:** a busca recebe o contexto de trabalho (o repo ou component atual). Ela prioriza ou filtra pela vizinhança dessa âncora, para a busca semântica não trazer conhecimento de outra stack.
 
 **Vários tipos de memória:** cada space escolhe o seu preset.
@@ -112,15 +112,21 @@ type Preset = {
     - rejeitado → `rejected`
   - Vira metadata só o que é fato do domínio, não decisão de curadoria: `state` de `invariant`/`assumption` (`holds|violated`) e de `gap` (`narrowing|widened|closed`).
 - **Decisão aprovada não se reescreve.** Editar uma `decision` `approved` já gera proposta no core-graph. A `instruction` orienta o agente a corrigir com uma nova `decision` + `supersedes`, como o ADR do omnigraph.
-- **Âncora obrigatória por instrução:** a `instruction` de todo tipo de conhecimento manda ligá-lo a um `repo`, `component` ou `dependency`. Ver "Relevância" acima.
-- **Convenção de `key`:** `<tipo>:<slug-kebab>`. Ela é documentada na `instruction` de cada tipo, não validada; o dedupe é papel do `curation`. Exemplos:
+- **Âncora obrigatória por instrução:** a `instruction` de todo tipo de conhecimento manda ligá-lo a um `repo`, `component` ou `dependency` por `about` ou `applies_to`. Ver "Relevância" acima.
+- **Nada secreto ou pessoal:** a `instruction` de todo tipo proíbe gravar credenciais, tokens, dados de clientes ou dados pessoais. A memória é compartilhada entre agentes e projetos.
+- **Links só http/https:** `gap.upstreamUrl` aceita apenas URL http(s), para uma futura web-ui não renderizar `javascript:`.
+- **Convenção de `key`:** `<tipo>:<slug-kebab>`. Ela é documentada na `instruction` de cada tipo, não validada; o dedupe é papel do `curation`.
+  - `component` e `spec` levam o dono e o repositório (`<dono>/<repo>/...`), como o `repo`, para dois repositórios de mesmo nome não colidirem.
+  - Uma linguagem é sempre `dependency:language/<nome>`, mesmo quando instalada por um gerenciador de pacotes; o resto usa o registry de onde é instalado.
+
+  Exemplos:
 
   | Tipo | Exemplo de key |
   |---|---|
   | `repo` | `repo:fluxie-tech/fluxie-brain` |
-  | `component` | `component:fluxie-brain/core-graph` |
+  | `component` | `component:fluxie-tech/fluxie-brain/core-graph` |
   | `dependency` | `dependency:npm/zod`, `dependency:docker/pgvector` |
-  | `spec` | `spec:fluxie-brain/SPEC-core-graph.md` |
+  | `spec` | `spec:fluxie-tech/fluxie-brain/SPEC-core-graph.md` |
   | conhecimento | `decision:postgres-two-roles` (e assim por diante) |
 
 - **Evolução só por adição.** O core-graph valida o metadata na escrita e revalida em `acceptProposal` e `revertEntity`. Por isso mudanças no preset precisam ser compatíveis:
@@ -142,7 +148,7 @@ type Preset = {
 | `principle` | Principle | draft | `polarity: prescribes\|forbids` | Regra de trabalho. Conteúdo: justificativa e, se `forbids`, a alternativa correta |
 | `invariant` | Invariant | draft | `state: holds\|violated`, `guardRef?` (teste ou check) | Propriedade interna checável; violação é bug |
 | `assumption` | Assumption | draft | `kind: compile\|runtime\|manual`, `state: holds\|violated`, `guardRef?` | Crença sobre o comportamento de um sistema **externo** |
-| `gap` | Gap (+ ExternalBlocker) | draft | `state: narrowing\|widened\|closed`, `upstreamUrl?`, `pinnedVersion?`, `shippedInVersion?` | Dívida técnica: invariante desejado ainda não garantido, ou trava que espera correção upstream. Conteúdo: comportamento atual × alvo e contorno |
+| `gap` | Gap (+ ExternalBlocker) | draft | `state: narrowing\|widened\|closed`, `upstreamUrl?` (URL http/https), `pinnedVersion?`, `shippedInVersion?` | Dívida técnica: invariante desejado ainda não garantido, ou trava que espera correção upstream. Conteúdo: comportamento atual × alvo e contorno |
 | `learning` | Learning | draft | `kind: gotcha\|hindsight\|retro\|incident_review` | Lição aprendida |
 
 **Relações** (verbos genéricos; o core-graph valida `from × to`):
@@ -167,7 +173,7 @@ type Preset = {
 | Memória de hoje | Tipo e ligação |
 |---|---|
 | "TS 7 não roda com o dependency-cruiser; usar parser swc" | `assumption` (`compile`, `violated`) `about` → `dependency:npm/dependency-cruiser` |
-| "confidence é float32; comparar com `Math.fround`" | `invariant` com `guardRef` `about` → `component:fluxie-brain/core-graph` |
+| "confidence é float32; comparar com `Math.fround`" | `invariant` com `guardRef` `about` → `component:fluxie-tech/fluxie-brain/core-graph` |
 | "Postgres com dois roles" | `decision` `applies_to` → `repo` |
 | "main só por PR com CI verde" | `principle` (`prescribes`) `applies_to` → `repo` |
 | exceção E1 (esbuild via drizzle-kit) | `gap` `waits_for` → `dependency:npm/drizzle-kit` |
@@ -248,7 +254,7 @@ export const developmentGraph = {
         description: 'Prescriptive working rule. Violation = rejected change.',
         instruction:
           'Title: the rule as one imperative sentence. Content: why it exists and, for forbids, the correct alternative. ' +
-          'Key: principle:<kebab-slug>. Link it with applies_to to the repo/component/spec it governs.',
+          'Key: principle:<kebab-slug>. Link it with applies_to to the repo, component, dependency or spec it governs.',
         defaultStatus: 'draft',
         metadata: z.strictObject({
           polarity: z.enum(['prescribes', 'forbids']).meta({ description: 'prescribes = always do; forbids = never do' }),
@@ -257,7 +263,7 @@ export const developmentGraph = {
       // ...
     },
     relationTypes: {
-      applies_to: { description: 'Scope a decision or principle governs.', from: ['decision', 'principle'], to: ['repo', 'component', 'spec'] },
+      applies_to: { description: 'Scope a decision or principle governs.', from: ['decision', 'principle'], to: ['repo', 'component', 'dependency', 'spec'] },
       // ...
     },
   },
@@ -325,5 +331,5 @@ export const developmentGraph = {
 
 ## Perguntas em aberto
 
-1. **`supersedes` entre tipos diferentes.** O core-graph valida `from × to`, então `decision supersedes spec` passaria. Fica aceito na v1, com a `instruction` pedindo o mesmo tipo dos dois lados. Se der problema, o caminho é uma regra opcional "mesmo tipo" na ontologia do core-graph (mudança de API, então perguntar antes).
+1. **`supersedes` entre tipos diferentes.** O core-graph valida `from × to`, então `decision supersedes spec` passaria. Fica aceito na v1; a `instruction` de `decision`, `principle` e `spec` pede o mesmo tipo dos dois lados, e um teste garante isso. Se der problema, o caminho é uma regra opcional "mesmo tipo" na ontologia do core-graph (mudança de API, então perguntar antes).
 2. **Ambiguidade invariant × assumption × learning.** As `instruction`s precisam deixar claro quando usar cada um: interno e checável → `invariant`; externo → `assumption`; lição sem garantia checável → `learning`. A qualidade disso só aparece no dogfood do `agent-loop`.

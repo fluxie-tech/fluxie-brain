@@ -20,12 +20,11 @@ describe('development graph corpus', () => {
     expect(new Set(corpus.relations.map((r) => r.type))).toEqual(new Set(Object.keys(relationTypes)));
   });
 
-  it('anchors every knowledge entity to a repo, component or dependency', () => {
+  it('anchors every knowledge entity to a repo, component or dependency with about or applies_to', () => {
     const anchored = new Set(
-      corpus.relations.flatMap(({ from, to }) => [
-        ANCHOR_TYPES.has(typeOf.get(to) ?? '') ? from : undefined,
-        ANCHOR_TYPES.has(typeOf.get(from) ?? '') ? to : undefined,
-      ]),
+      corpus.relations
+        .filter(({ to, type }) => ['about', 'applies_to'].includes(type) && ANCHOR_TYPES.has(typeOf.get(to) ?? ''))
+        .map(({ from }) => from),
     );
     const orphans = corpus.entities.filter((e) => KNOWLEDGE_TYPES.has(e.type) && !anchored.has(e.key));
     expect(orphans.map((e) => e.key)).toEqual([]);

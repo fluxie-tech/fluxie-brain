@@ -15,43 +15,76 @@ import { queryRows, truncateAll } from '../setup/db.ts';
 
 const agent = 'agent:test';
 
-/** Metadata fields per type, as the SPEC-presets.md table lists them (optional ones carry `?` there). */
-const SPEC_FIELDS: Record<string, { required: string[]; optional: string[] }> = {
-  repo: { required: [], optional: ['host', 'ref', 'defaultBranch', 'visibility'] },
-  component: { required: [], optional: ['path', 'criticality'] },
-  dependency: { required: ['ecosystem'], optional: ['version'] },
-  spec: { required: ['location'], optional: [] },
-  decision: { required: [], optional: [] },
-  principle: { required: ['polarity'], optional: [] },
-  invariant: { required: ['state'], optional: ['guardRef'] },
-  assumption: { required: ['kind', 'state'], optional: ['guardRef'] },
-  gap: { required: ['state'], optional: ['upstreamUrl', 'pinnedVersion', 'shippedInVersion'] },
-  learning: { required: ['kind'], optional: [] },
+const HOLDS = ['holds', 'violated'];
+const ECOSYSTEMS = ['language', 'npm', 'pypi', 'composer', 'cargo', 'go', 'maven', 'nuget', 'gem', 'docker'];
+/** Metadata per type as the SPEC-presets.md table defines it: 'string', 'url' (http/https) or the enum values. */
+const SPEC_SHAPES: Record<string, Record<string, string | string[]>> = {
+  repo: {
+    host: ['github', 'gitlab', 'other'],
+    ref: 'string',
+    defaultBranch: 'string',
+    visibility: ['public', 'private'],
+  },
+  component: { path: 'string', criticality: ['low', 'medium', 'high', 'critical'] },
+  dependency: { ecosystem: [...ECOSYSTEMS, 'service', 'tool', 'other'], version: 'string' },
+  spec: { location: 'string' },
+  decision: {},
+  principle: { polarity: ['prescribes', 'forbids'] },
+  invariant: { state: HOLDS, guardRef: 'string' },
+  assumption: { kind: ['compile', 'runtime', 'manual'], state: HOLDS, guardRef: 'string' },
+  gap: {
+    state: ['narrowing', 'widened', 'closed'],
+    upstreamUrl: 'url',
+    pinnedVersion: 'string',
+    shippedInVersion: 'string',
+  },
+  learning: { kind: ['gotcha', 'hindsight', 'retro', 'incident_review'] },
+};
+/** The fields without `?` in the spec table. */
+const SPEC_REQUIRED: Record<string, string[]> = {
+  dependency: ['ecosystem'],
+  spec: ['location'],
+  principle: ['polarity'],
+  invariant: ['state'],
+  assumption: ['kind', 'state'],
+  gap: ['state'],
+  learning: ['kind'],
+};
+
+type PropSchema = { type?: string; format?: string; enum?: string[] };
+const schemaOf = (type: string) => {
+  const def = Object.entries(developmentGraph.ontology.entityTypes).find(([name]) => name === type)?.[1];
+  if (!def) throw new Error(`missing type ${type}`);
+  return z.toJSONSchema(def.metadata) as { required?: string[]; properties?: Record<string, PropSchema> };
 };
 
 describe('presets edge cases', () => {
-  it('exports JSON Schemas with exactly the required and optional fields of the spec', () => {
-    const fields = Object.fromEntries(
-      Object.entries(developmentGraph.ontology.entityTypes).map(([type, def]) => {
-        const schema = z.toJSONSchema(def.metadata) as { required?: string[]; properties?: object };
-        const required = [...(schema.required ?? [])].sort();
-        const optional = Object.keys(schema.properties ?? {})
-          .filter((field) => !required.includes(field))
-          .sort();
-        return [type, { required, optional }];
-      }),
-    );
-    const sorted = Object.fromEntries(
-      Object.entries(SPEC_FIELDS).map(([type, f]) => [
-        type,
-        { required: [...f.required].sort(), optional: [...f.optional].sort() },
+  it.each(Object.keys(SPEC_SHAPES))('%s metadata has exactly the fields, types and enum values of the spec', (type) => {
+    const schema = schemaOf(type);
+    const shapes = Object.fromEntries(
+      Object.entries(schema.properties ?? {}).map(([field, prop]) => [
+        field,
+        prop.enum ? [...prop.enum] : prop.format === 'uri' ? 'url' : prop.type,
       ]),
     );
-    expect(fields).toEqual(sorted);
+    expect(shapes).toEqual(SPEC_SHAPES[type]);
+    expect([...(schema.required ?? [])].sort()).toEqual([...(SPEC_REQUIRED[type] ?? [])].sort());
   });
 
-  it('keeps every corpus key in the <type>: convention the instructions teach', () => {
-    expect(corpus.entities.filter((e) => !e.key.startsWith(`${e.type}:`)).map((e) => e.key)).toEqual([]);
+  it('only accepts http(s) links as gap upstream URLs', () => {
+    const gap = developmentGraph.ontology.entityTypes.gap.metadata;
+    expect(gap.safeParse({ state: 'widened', upstreamUrl: 'https://example.com/issues/1' }).success).toBe(true);
+    expect(gap.safeParse({ state: 'widened', upstreamUrl: 'javascript:alert(1)' }).success).toBe(false);
+  });
+
+  it('keeps every corpus key in the convention the instructions teach', () => {
+    const repos = corpus.entities.filter((e) => e.type === 'repo').map((e) => e.key.slice('repo:'.length));
+    const wrong = corpus.entities.filter(
+      (e) =>
+        !e.key.startsWith(`${e.type}:`) ||
+        (['component', 'spec'].includes(e.type) && !repos.some((repo) => e.key.startsWith(`${e.type}:${repo}/`))),
+    );
+    expect(wrong.map((e) => e.key)).toEqual([]);
   });
 
   describe('through core-graph', () => {

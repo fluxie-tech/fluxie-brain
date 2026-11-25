@@ -3,10 +3,14 @@ import { z } from 'zod';
 import type { EntityTypeDef } from '../types.ts';
 
 /** Every knowledge entity must link to at least one anchor, so retrieval can start from the work context. */
-export const ANCHORS = ['repo', 'component', 'dependency'];
+export const ANCHORS: readonly string[] = Object.freeze(['repo', 'component', 'dependency']);
 
-const ANCHOR_RULE =
-  'Always link it to at least one repo, component or dependency, or it cannot be found from the work.';
+/** The memory is shared across agents and projects, so nothing secret or personal goes in. */
+const PRIVACY_RULE = 'Never store credentials, tokens, customer data or personal data in title, content or metadata.';
+const KNOWLEDGE_RULES = `Always link it to at least one repo, component or dependency, or it cannot be found from the work. ${PRIVACY_RULE}`;
+const supersede = (type: string): string =>
+  `To replace an approved ${type}, create a new ${type} and link it with supersedes to the old one ` +
+  '(same type on both ends); do not edit the old one, which is then deprecated.';
 /** Shared by invariant, assumption and learning so agents pick the right one. */
 const CHOOSE_TYPE =
   'Choose the type by what you know: a property of OUR code that a test or check can verify is an invariant; ' +
@@ -24,7 +28,8 @@ const structureTypes = {
     description: 'A version-controlled repository (VCS unit).',
     instruction:
       'Title: the repo name. Content: what the repo is for, in a few sentences. ' +
-      'Key: repo:<owner>/<name>, e.g. repo:acme/billing-api. Create it once and link everything else to it.',
+      'Key: repo:<owner>/<name>, e.g. repo:acme/billing-api. Create it once and link everything else to it. ' +
+      PRIVACY_RULE,
     defaultStatus: 'approved',
     metadata: z.strictObject({
       host: z.enum(['github', 'gitlab', 'other']).optional().meta({ description: 'Where the repo is hosted' }),
@@ -37,8 +42,8 @@ const structureTypes = {
     description: 'A logical unit of code inside a repo: service, module or top-level package.',
     instruction:
       'Title: the component name. Content: its responsibility and boundaries. ' +
-      'Key: component:<repo-name>/<component-name>, e.g. component:billing-api/invoices. ' +
-      'Link it to its repo (or parent component) with part_of, and to what it uses with depends_on.',
+      'Key: component:<owner>/<repo>/<name>, e.g. component:acme/billing-api/invoices. ' +
+      `Link it to its repo (or parent component) with part_of, and to what it uses with depends_on. ${PRIVACY_RULE}`,
     defaultStatus: 'approved',
     metadata: z.strictObject({
       path: z.string().optional().meta({ description: 'Path in the repo, e.g. src/invoices' }),
@@ -55,8 +60,10 @@ const structureTypes = {
     instruction:
       'Title: the dependency name. Content: what it is used for. ' +
       'Key: dependency:<ecosystem>/<name>, without version, e.g. dependency:npm/react, ' +
-      'dependency:language/php, dependency:docker/postgres. Use the same key in every repo so knowledge is shared; ' +
-      'put the pinned version in metadata.',
+      'dependency:language/php, dependency:docker/postgres. A programming language is always ' +
+      'dependency:language/<name> (e.g. dependency:language/typescript), even when installed through a package ' +
+      'manager; anything else uses the registry it is installed from. Use the same key in every repo so knowledge ' +
+      `is shared; put the pinned version in metadata. ${PRIVACY_RULE}`,
     defaultStatus: 'approved',
     metadata: z.strictObject({
       ecosystem: z
@@ -83,8 +90,8 @@ const structureTypes = {
     description: 'A design document or RFC that lives outside the graph (e.g. SPEC-*.md).',
     instruction:
       'Title: the document title. Content: a short summary of what it specifies. ' +
-      'Key: spec:<repo-name>/<path>, e.g. spec:billing-api/SPEC-invoices.md. ' +
-      'Link it with describes to the repo or component it specifies.',
+      'Key: spec:<owner>/<repo>/<path>, e.g. spec:acme/billing-api/docs/SPEC-invoices.md. ' +
+      `Link it with describes to the repo or component it specifies. ${supersede('spec')} ${PRIVACY_RULE}`,
     defaultStatus: 'approved',
     metadata: z.strictObject({
       location: z.string().meta({ description: 'Path in the repo or URL of the document' }),
@@ -100,8 +107,8 @@ const governanceTypes = {
     instruction:
       'Title: the decision as a short statement, e.g. "Postgres runs with separate migrator and app roles". ' +
       'Content: Context (why a choice was needed), Decision, Consequences, Alternatives considered. ' +
-      'Key: decision:<kebab-slug>. To change an approved decision, create a new one and link it with supersedes ' +
-      `to the old one; do not edit the old one. Link it with applies_to to what it governs. ${ANCHOR_RULE}`,
+      `Key: decision:<kebab-slug>. ${supersede('decision')} Link it with applies_to to what it governs. ` +
+      KNOWLEDGE_RULES,
     defaultStatus: 'draft',
     metadata: z.strictObject({}),
   },
@@ -110,7 +117,7 @@ const governanceTypes = {
     instruction:
       'Title: the rule as one imperative sentence. Content: why it exists and, when it forbids something, the ' +
       'correct alternative. Key: principle:<kebab-slug>. Link it with applies_to to the repo, component or ' +
-      `dependency it governs; a decision can establish or relax it. ${ANCHOR_RULE}`,
+      `dependency it governs; a decision can establish or relax it. ${supersede('principle')} ${KNOWLEDGE_RULES}`,
     defaultStatus: 'draft',
     metadata: z.strictObject({
       polarity: z
@@ -125,7 +132,7 @@ const governanceTypes = {
     instruction:
       `${CHOOSE_TYPE} Title: the property, e.g. "confidence is compared at float32 precision". ` +
       'Content: what breaks if it does not hold. ' +
-      `Key: invariant:<kebab-slug>. Link it with about to the component it protects. ${ANCHOR_RULE}`,
+      `Key: invariant:<kebab-slug>. Link it with about to the component it protects. ${KNOWLEDGE_RULES}`,
     defaultStatus: 'draft',
     metadata: z.strictObject({ state: holdsState, guardRef }),
   },
@@ -139,7 +146,7 @@ const externalTypes = {
     instruction:
       `${CHOOSE_TYPE} Title: the belief, e.g. "dependency-cruiser cannot parse TypeScript 7 sources". ` +
       'Content: what we rely on, how we noticed, and the workaround if it is violated. ' +
-      `Key: assumption:<kebab-slug>. Link it with about to the dependency it is about. ${ANCHOR_RULE}`,
+      `Key: assumption:<kebab-slug>. Link it with about to the dependency it is about. ${KNOWLEDGE_RULES}`,
     defaultStatus: 'draft',
     metadata: z.strictObject({
       kind: z
@@ -155,13 +162,16 @@ const externalTypes = {
     instruction:
       'Title: the debt in one sentence. Content: current behavior, target behavior and the workaround in place. ' +
       'Key: gap:<kebab-slug>. Link it with about to what it affects, with undermines to the invariant it breaks, ' +
-      `and with waits_for to the dependency whose fix it waits for. Set state closed when paid off. ${ANCHOR_RULE}`,
+      `and with waits_for to the dependency whose fix it waits for. Set state closed when paid off. ${KNOWLEDGE_RULES}`,
     defaultStatus: 'draft',
     metadata: z.strictObject({
       state: z
         .enum(['narrowing', 'widened', 'closed'])
         .meta({ description: 'narrowing = being paid off; widened = got worse; closed = paid off' }),
-      upstreamUrl: z.string().optional().meta({ description: 'Upstream issue, PR or release that would close it' }),
+      upstreamUrl: z
+        .httpUrl()
+        .optional()
+        .meta({ description: 'http(s) link to the upstream issue, PR or release that would close it' }),
       pinnedVersion: z.string().optional().meta({ description: 'Version we are pinned to while waiting' }),
       shippedInVersion: z.string().optional().meta({ description: 'Upstream version that ships the fix' }),
     }),
@@ -171,7 +181,7 @@ const externalTypes = {
     instruction:
       `${CHOOSE_TYPE} Title: the lesson as one actionable sentence. Content: what happened, why, and what to do ` +
       'next time. Key: learning:<kebab-slug>. Link it with about to the repo, component or dependency it is ' +
-      `about, and with references to related decisions or specs. ${ANCHOR_RULE}`,
+      `about, and with references to related decisions or specs. ${KNOWLEDGE_RULES}`,
     defaultStatus: 'draft',
     metadata: z.strictObject({
       kind: z

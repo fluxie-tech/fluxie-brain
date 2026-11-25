@@ -93,7 +93,12 @@ describe('development graph ontology', () => {
   });
 
   it('teaches the key convention in every entity type instruction', () => {
-    for (const [type, def] of Object.entries(entityTypes)) expect(def.instruction).toContain(`${type}:`);
+    for (const [type, def] of Object.entries(entityTypes)) expect(def.instruction).toContain(`Key: ${type}:`);
+  });
+
+  it('names and describes the preset', () => {
+    expect(developmentGraph.name.trim()).not.toBe('');
+    expect(developmentGraph.description.trim()).not.toBe('');
   });
 
   it('has a metadata example for every entity type', () => {
@@ -121,5 +126,26 @@ describe('development graph ontology', () => {
   it.each(withEnum)('%s metadata rejects a value outside its enum', (type, def) => {
     const example = examples[type];
     expect(def.metadata.safeParse({ ...example?.valid, ...example?.badEnum }).success).toBe(false);
+  });
+});
+
+describe('development graph instructions (what SPEC-presets.md requires agents to be told)', () => {
+  const instruction = new Map(Object.entries(entityTypes).map(([type, def]) => [type, def.instruction]));
+  const knowledge = ['decision', 'principle', 'invariant', 'assumption', 'gap', 'learning'];
+
+  it.each(knowledge)('%s must be anchored to a repo, component or dependency', (type) => {
+    expect(instruction.get(type)).toContain('link it to at least one repo, component or dependency');
+  });
+
+  it.each(Object.keys(entityTypes))('%s keeps credentials and personal data out', (type) => {
+    expect(instruction.get(type)).toContain('Never store credentials');
+  });
+
+  it.each(['invariant', 'assumption', 'learning'])('%s explains how to choose between the three', (type) => {
+    expect(instruction.get(type)).toMatch(/OUR code.*invariant.*EXTERNAL system.*assumption.*learning/);
+  });
+
+  it.each(relationTypes.supersedes.from)('%s explains superseding with the same type on both ends', (type) => {
+    expect(instruction.get(type)).toMatch(/supersedes[^.]*same type on both ends/);
   });
 });

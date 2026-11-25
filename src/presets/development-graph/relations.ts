@@ -39,7 +39,7 @@ export const relationTypes = {
   about: {
     description: 'A lesson, invariant, assumption or gap concerns a repo, component or dependency (its anchor).',
     from: ['learning', 'invariant', 'assumption', 'gap'],
-    to: ANCHORS,
+    to: [...ANCHORS],
   },
   references: {
     description: 'A lesson or spec cites a decision or another spec.',
@@ -54,7 +54,7 @@ export const relationTypes = {
   },
   relates_to: {
     description: 'Informational link when no specific relation fits. Prefer a specific relation.',
-    from: ALL_TYPES,
-    to: ALL_TYPES,
+    from: [...ALL_TYPES],
+    to: [...ALL_TYPES],
   },
 } satisfies Record<string, RelationTypeDef>;
