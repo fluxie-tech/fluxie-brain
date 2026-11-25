@@ -70,12 +70,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **Fixture:** a ontologia fictícia `project`, `learning` (draft) e `rule` (approved).
 
 **Critérios de aceite:**
-- [ ] `createSpace` com preset não registrado falha com `OntologyError`; com preset registrado, cria o space
-- [ ] Os testes unitários da validação cobrem tipo inexistente, `metadata` inválido e `metadata` válido
-- [ ] `slug` duplicado é recusado
+- [x] `createSpace` com preset não registrado falha com `OntologyError`; com preset registrado, cria o space
+- [x] Os testes unitários da validação cobrem tipo inexistente, `metadata` inválido e `metadata` válido
+- [x] `slug` duplicado é recusado
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/ontology tests/core-graph/spaces`
+- [x] `pnpm test tests/core-graph/ontology tests/core-graph/spaces`
 
 **Dependências:** T2
 

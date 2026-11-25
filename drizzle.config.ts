@@ -10,5 +10,6 @@ export default defineConfig({
   dialect: 'postgresql',
   schema: './src/core-graph/schema.ts',
   out: './migrations',
+  casing: 'snake_case',
   dbCredentials: { url: process.env.MIGRATOR_DATABASE_URL ?? '' },
 });
