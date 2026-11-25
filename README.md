@@ -2,7 +2,7 @@
 
 Memória compartilhada em grafo para agentes de IA, que melhora com o uso. Servida via MCP, armazenada em Postgres.
 
-> Em desenvolvimento. Veja `CAPABILITY-MAP.md` para os módulos e `SPEC-core-graph.md` para o módulo atual.
+> Em desenvolvimento. Veja `CAPABILITY-MAP.md` para os módulos e os `SPEC-<módulo>.md` de cada um (`SPEC-core-graph.md`, `SPEC-presets.md`).
 
 ## Requisitos
 
@@ -36,7 +36,7 @@ API TypeScript em `src/core-graph/index.ts`. Outros módulos usam só esse ponto
 import { z } from 'zod';
 import { acceptProposal, createSpace, linkEntities, neighbors, registerOntology, upsertEntity } from './src/core-graph/index.ts';
 
-registerOntology('development-graph', {
+registerOntology('my-preset', {
   entityTypes: {
     project: { metadata: z.object({}), defaultStatus: 'approved' },
     learning: { metadata: z.object({ cause: z.string().optional() }), defaultStatus: 'draft' },
@@ -44,7 +44,7 @@ registerOntology('development-graph', {
   relationTypes: { learned_from: { from: ['learning'], to: ['project'] } },
 });
 
-const space = await createSpace({ slug: 'dev', name: 'Dev graph', preset: 'development-graph' });
+const space = await createSpace({ slug: 'dev', name: 'Dev graph', preset: 'my-preset' });
 const { entity: project } = await upsertEntity(space.id, { type: 'project', key: 'fluxie', title: 'fluxie-brain', content: '' }, 'human:owner');
 const { entity: learning } = await upsertEntity(space.id, { type: 'learning', key: 'rrf', title: 'Use RRF', content: '...' }, 'agent:claude-code');
 await linkEntities(space.id, { fromId: learning.id, toId: project.id, type: 'learned_from' }, 'agent:claude-code');
@@ -57,6 +57,21 @@ const slice = await neighbors(space.id, project.id, 2);
 - **Histórico:** toda escrita fica no `change_log` com o `actor`, e `revertEntity` restaura o conteúdo a partir dele.
 - **Isolamento:** ids de outro space se comportam como inexistentes.
 
+## Módulo presets
+
+Ontologias prontas por tipo de memória, em `src/presets/index.ts`. Cada space escolhe o seu preset. A v1 traz o **Development Graph** (`development-graph`): decisões, regras, invariantes, suposições sobre sistemas externos, dívidas e lições, ancorados a repositórios, componentes e dependências.
+
+```ts
+import { createSpace } from './src/core-graph/index.ts';
+import { DEVELOPMENT_GRAPH, getPreset, registerPresets } from './src/presets/index.ts';
+
+registerPresets(); // uma vez na inicialização
+const space = await createSpace({ slug: 'dev', name: 'Dev graph', preset: DEVELOPMENT_GRAPH });
+const preset = getPreset(DEVELOPMENT_GRAPH); // descrições, instruções e schemas Zod para os agentes
+```
+
+Um space pode guardar vários repositórios: conhecimento específico de uma stack fica ligado às âncoras dela, e o comum é alcançado pelas dependências compartilhadas. Detalhes em `SPEC-presets.md`.
+
 ## Qualidade
 
 As regras estão em `CONSTRAINTS.md` (tamanho, complexidade, arquitetura, cobertura, segurança): `pnpm check:fast`, `pnpm check:task` e `pnpm check:full`. O CI do GitHub roda o equivalente a cada push e PR.
@@ -67,3 +82,7 @@ As regras estão em `CONSTRAINTS.md` (tamanho, complexidade, arquitetura, cobert
 ## Licença
 
 MIT
+
+## Créditos
+
+O preset Development Graph adapta a camada de governança e conhecimento do schema `dev-graph` do [omnigraph-cookbooks](https://github.com/ModernRelay/omnigraph-cookbooks/tree/main/dev-graph) (MIT License, Copyright (c) 2026 ModernRelay).
