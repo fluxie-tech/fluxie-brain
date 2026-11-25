@@ -58,6 +58,8 @@ Mesma regra dos outros módulos: versão estável mais recente, fixada com núme
 
 - **Ollama:** imagem `ollama/ollama`. A última estável é a 0.40.18, de 24/11; a 0.40.17, de ~20/11, é a mais nova que já passou do prazo hoje. A tag é fixada no build.
   - **Só CPU, em todo lugar:** localmente no Docker Desktop, sem GPU, e igual na VPS. Assim o ambiente local é igual ao de produção e os números do benchmark valem para o deploy. A GPU local (RTX 3060) não é usada, e o compose não reserva GPU.
+  - **VPS alvo:** 4 vCPU, 10 GB de RAM e 100 GB de disco, para tudo junto: Postgres, Ollama e, depois, o `mcp-server`. Para a máquina local reproduzir a VPS, o compose limita o `ollama` a `cpus: 4` e `mem_limit: 3g`. A memória é um orçamento a confirmar no build: um modelo de ~0,6 B mais o runtime cabem com folga, e sobram ~7 GB para o resto. Os modelos ocupam ~1–2 GB do disco.
+  - **Modelo sempre carregado:** `OLLAMA_KEEP_ALIVE=-1`. Com o padrão do Ollama, o modelo sai da memória depois de 5 minutos parado, e a primeira busca seguinte paga o carregamento.
 - **Candidatos do benchmark**, ambos só de texto e com tamanho parecido:
   - `qwen3-embedding:0.6b`: 639 MB, 1024 dims, 32K de contexto, Apache 2.0;
   - `embeddinggemma-2:570m`: ~0,95 GB, 768 dims (truncável para 512/256/128), 8K de contexto pelo model card, Apache 2.0. Lançado em 06/10/2026.
@@ -148,7 +150,8 @@ Se algo falhar, nada é gravado.
 - **Sem âncora:** o idioma está amarrado ao projeto no corpus (pebble todo em EN, quarry todo em PT), e com âncora o filtro faria o trabalho do modelo.
 - **Medidas por modelo:**
   - MRR@10 e recall@5, no total e por grupo, para cada perna isolada (só vetor, só texto) e para a híbrida. A perna só de texto avalia o `tsv 'simple'` (pergunta em aberto 1 do spec do core-graph);
-  - latência p50/p95 para embutir uma consulta, em CPU (Docker Desktop local, sem GPU);
+  - latência p50/p95 para embutir uma consulta com o modelo já carregado, em CPU (Docker Desktop local, sem GPU, com os limites da VPS), e o tempo de carga a frio, à parte;
+  - memória do container `ollama` em uso (`docker stats`), que precisa caber nos 3 GB;
   - tempo para embutir o corpus inteiro;
   - verificação de que nenhum vetor tem NaN.
 - **Regra de escolha:**
@@ -167,7 +170,7 @@ pnpm bench:embeddings                                               # node scrip
 pnpm check:fast | check:task | check:full                           # como no CONSTRAINTS.md
 ```
 
-No compose, o serviço `ollama` publica a porta só em `127.0.0.1`, guarda os modelos num volume e tem healthcheck. Um serviço de uma execução só (`ollama-pull`) baixa o modelo configurado depois que o `ollama` está saudável.
+No compose, o serviço `ollama` publica a porta só em `127.0.0.1`, guarda os modelos num volume, tem healthcheck e roda com os limites da VPS (`cpus: 4`, `mem_limit: 3g`, `OLLAMA_KEEP_ALIVE=-1`). Um serviço de uma execução só (`ollama-pull`) baixa o modelo configurado depois que o `ollama` está saudável.
 
 ## Estrutura do projeto
 
@@ -259,7 +262,7 @@ Nenhuma bloqueia o plano. Todas são conferidas no build:
 3. **Truncamento:** como o `/v1/embeddings` do Ollama trata textos acima do contexto. Nos dois modelos, o contexto é muito maior que as entidades típicas.
 4. **Tag do Ollama:** a que tiver mais de 1 dia no dia do build (hoje, 0.40.17).
 5. **Drizzle:** se o tipo `vector` aceita coluna sem dimensão; se não aceitar, `customType`.
-6. **CPU como referência:** a latência é medida em CPU no Docker Desktop local (limitado pelos recursos que o WSL2 dá ao Docker), como aproximação da VPS, que ainda não foi escolhida. Se a VPS for bem mais fraca, o corte de 300 ms é medido de novo lá antes do deploy.
+6. **CPU como referência:** a latência é medida no Docker Desktop local com os limites da VPS (4 CPUs, 3 GB para o `ollama`). Um vCPU de VPS costuma ser mais lento que um núcleo de desktop, então o corte de 300 ms é medido de novo na VPS antes do deploy. Conferir também se o WSL2 libera pelo menos 4 CPUs para o Docker.
 
 ## Resultado do benchmark
 
