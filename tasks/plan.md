@@ -79,9 +79,29 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - metadata obrigatório ausente vira `OntologyError` com o nome do campo, sem escrita;
 - uma edição de agente numa entidade estrutural aprovada vira proposta pendente;
 - toda key do corpus segue a convenção `<tipo>:`;
-- uma prova de mutação: uma lição ancorada por engano numa dependência compartilhada vaza para o outro repo. A separação depende das âncoras, e o teste de separação pega o vazamento.
+- um teste que documenta o limite do modelo: uma lição ancorada por engano numa dependência compartilhada vaza para o outro repo. A separação vale só enquanto as âncoras estão certas.
 
-**Achado para módulos seguintes:** importar `src/presets/index.ts` exige `DATABASE_URL`, porque o `src/core-graph/db.ts` cria o pool na importação. Ferramentas offline que só leem o vocabulário (benchmark do `embeddings`, geração de descrições do `mcp-server`) vão esbarrar nisso. Decidir nesses specs: pool preguiçoso no core-graph ou importar o preset direto.
+**Ship (fase 6):** três revisores em paralelo (código, segurança, testes). Nenhum achado crítico ou alto. Corrigido antes do PR:
+- o floor-guard deixava passar afrouxamentos em texto misto e em números com separador de milhar;
+- os testes não fixavam enums, tipos nem as instruções exigidas pelo spec, e mutações sobreviviam;
+- faltava o `supersedes` de mesmo tipo nas instruções de `principle` e `spec`;
+- o teste de âncoras do corpus aceitava qualquer relação;
+- `gap.upstreamUrl` aceitava `javascript:`;
+- keys de `component`/`spec` sem o dono, e faltava o desempate de linguagem;
+- faltava a regra de privacidade nas instruções.
+
+## Pendências para módulos seguintes
+
+Achados de revisão fora do escopo do presets, decididos pelo dono em 2026-11-25 como pendências:
+
+| # | Achado | Dono |
+|---|---|---|
+| 1 | Importar `src/presets/index.ts` exige `DATABASE_URL`, porque o `src/core-graph/db.ts` cria o pool na importação. Ferramentas offline que só leem o vocabulário esbarram nisso. | specs do `embeddings` e do `mcp-server`: pool preguiçoso ou importar o preset direto |
+| 2 | Busca a partir de uma dependência compartilhada (ex.: Postgres) chega a 2 saltos às regras do outro repo, porque `neighbors` anda para trás pelo `depends_on`. A 2 saltos de um repo, o conhecimento sobre dependências dos seus componentes fica a 3 saltos e não aparece. | specs do `embeddings`/`mcp-server`: regra de direção na busca ou filtro pelo repo atual |
+| 3 | O metadata de relações não é validado (`src/core-graph/relations.ts` grava `link.metadata` direto) e o `RelationTypeDef` não tem schema. | `mcp-server` (recusar metadata de relação) ou mudança planejada no core-graph |
+| 4 | Textos livres aceitam caracteres de controle e bidi, e `title`/`content` escritos por agentes são superfície de prompt injection para outros agentes. | `mcp-server` (limites, sanitização, conteúdo tratado como não confiável) |
+| 5 | O `getPreset` devolve o mesmo objeto registrado no core-graph; alterá-lo muda a validação de todos. | `mcp-server`: tratar como somente leitura |
+| 6 | O floor-guard não confere os pisos do `vitest.config.ts` nem entradas novas no `.constraintsignore`; o CI interpola `github.base_ref` dentro do shell. | tarefa de qualidade separada |
 
 ## Riscos e mitigações
 
