@@ -1,14 +1,27 @@
-import { and, eq, getTableColumns, sql } from 'drizzle-orm';
-import { db } from './db.ts';
-import { isUniqueViolation, OntologyError, VersionConflictError } from './errors.ts';
+import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { type Db, db, type Tx } from './db.ts';
+import { isUniqueViolation, NotFoundError, OntologyError, VersionConflictError } from './errors.ts';
 import { logChange } from './history.ts';
-import { getOntology, validateEntity } from './ontology.ts';
+import { type EntityStatus, getOntology, validateEntity } from './ontology.ts';
 import { entities } from './schema.ts';
-import { findSpaceOrThrow } from './scope.ts';
+import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
 
 // tsv is an internal search column; keep it out of returned rows and change-log snapshots.
 const { tsv: _tsv, ...entityColumns } = getTableColumns(entities);
+
+/** Loads an entity by id, locking it for update; ids outside the space behave as missing. */
+export async function findEntityOrThrow(tx: Db | Tx, spaceId: string, entityId: string): Promise<Entity> {
+  const [entity] = isUuid(entityId)
+    ? await tx
+        .select(entityColumns)
+        .from(entities)
+        .where(and(eq(entities.spaceId, spaceId), eq(entities.id, entityId)))
+        .for('update')
+    : [];
+  if (!entity) throw new NotFoundError(`Entity ${entityId} not found in this space.`);
+  return entity;
+}
 
 export { entityColumns };
 
@@ -76,9 +89,9 @@ export async function upsertEntity(spaceId: string, input: EntityInput, actor: A
           `Entity "${input.key}" is at version ${existing.version}, expected ${input.expectedVersion}.`,
         );
       }
-      if (existing.status !== 'draft') {
-        // Approved / deprecated / rejected flows are added in the next tasks (proposals, re-drafting).
-        throw new Error(`Updating a "${existing.status}" entity is not implemented yet.`);
+      if (existing.status === 'approved') {
+        // Proposal flow for approved entities is added in T6.
+        throw new Error('Updating an approved entity is not implemented yet.');
       }
 
       const [updated] = await tx
@@ -88,6 +101,8 @@ export async function upsertEntity(spaceId: string, input: EntityInput, actor: A
           content: input.content,
           metadata,
           confidence: input.confidence ?? existing.confidence,
+          // Rejected or deprecated knowledge that is proposed again goes back to review.
+          status: 'draft',
           version: sql`${entities.version} + 1`,
           updatedAt: new Date(),
         })
@@ -111,6 +126,42 @@ export async function upsertEntity(spaceId: string, input: EntityInput, actor: A
       throw new VersionConflictError(`Entity "${input.key}" was created concurrently; retry.`);
     throw err;
   }
+}
+
+/** Changes an entity's status (the only way status changes); logged as a curation decision. */
+export async function setStatus(
+  spaceId: string,
+  entityId: string,
+  status: EntityStatus,
+  actor: Actor,
+): Promise<Entity> {
+  return db.transaction(async (tx) => {
+    const before = await findEntityOrThrow(tx, spaceId, entityId);
+    const [after] = await tx
+      .update(entities)
+      .set({ status, version: sql`${entities.version} + 1`, updatedAt: new Date() })
+      .where(eq(entities.id, entityId))
+      .returning(entityColumns);
+    if (!after) throw new Error('update returned no row');
+    await logChange(tx, { spaceId, kind: 'entity', action: 'status', target: entityId, actor, before, after });
+    return after;
+  });
+}
+
+/** Marks entities as used. Not an edit: no version bump and no change-log entry. */
+export async function recordUsage(spaceId: string, entityIds: string[]): Promise<void> {
+  const ids = [...new Set(entityIds)];
+  if (ids.length === 0) return;
+  if (!ids.every(isUuid)) throw new NotFoundError('One or more entities were not found in this space.');
+  await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(entities)
+      .set({ usageCount: sql`${entities.usageCount} + 1`, lastUsedAt: new Date() })
+      .where(and(eq(entities.spaceId, spaceId), inArray(entities.id, ids)))
+      .returning({ id: entities.id });
+    // Any id outside the space rolls back the whole batch.
+    if (updated.length !== ids.length) throw new NotFoundError('One or more entities were not found in this space.');
+  });
 }
 
 /** Returns the entity with this key in the space, or null. */

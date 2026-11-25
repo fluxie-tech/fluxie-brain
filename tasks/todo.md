@@ -118,12 +118,12 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 - **Escopo:** um helper comum que garante que todo id pertence ao `spaceId` informado.
 
 **Critérios de aceite:**
-- [ ] Critério 5: upsert em entidade `rejected` ou `deprecated` aplica e volta para `draft`
-- [ ] Critério 8: `getEntity`, `setStatus` e `recordUsage` com id de outro space dão `NotFoundError`
-- [ ] Critério 9 (parcial): `setStatus` gera exatamente 1 linha com `before` e `after`; `recordUsage` não altera `version` nem o change_log
+- [x] Critério 5: upsert em entidade `rejected` ou `deprecated` aplica e volta para `draft`
+- [x] Critério 8: `getEntity`, `setStatus` e `recordUsage` com id de outro space dão `NotFoundError`
+- [x] Critério 9 (parcial): `setStatus` gera exatamente 1 linha com `before` e `after`; `recordUsage` não altera `version` nem o change_log
 
 **Verificação:**
-- [ ] `pnpm test tests/core-graph/status`
+- [x] `pnpm test tests/core-graph/status`
 
 **Dependências:** T4
 
