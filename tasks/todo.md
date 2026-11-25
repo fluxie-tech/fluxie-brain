@@ -54,9 +54,9 @@ Depois, roda o spike que fecha as perguntas em aberto do spec e registra os acha
 Inclui o stub HTTP de teste.
 
 **Critérios de aceite:**
-- [ ] Contagem, dimensão ou NaN errados, HTTP de erro, JSON inválido ou conexão recusada geram `EmbeddingProviderError`, com mensagem legível e sem o corpo cru da resposta.
-- [ ] Um modelo fora do catálogo gera `EmbeddingConfigError`. Os templates de documento e de consulta saem como os achados da T1 mandam.
-- [ ] `public-api.test.ts` do embeddings fixa os exports. Nada é lido do ambiente na importação.
+- [x] Contagem, dimensão ou NaN errados, HTTP de erro, JSON inválido ou conexão recusada geram `EmbeddingProviderError`, com mensagem legível e sem o corpo cru da resposta.
+- [x] Um modelo fora do catálogo gera `EmbeddingConfigError`. Os templates de documento e de consulta saem como os achados da T1 mandam.
+- [x] `public-api.test.ts` do embeddings fixa os exports. Nada é lido do ambiente na importação.
 
 **Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
 
