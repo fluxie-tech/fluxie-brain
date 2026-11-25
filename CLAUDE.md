@@ -12,6 +12,7 @@ Leia `CONSTRAINTS.md` antes de escrever código. Não o enfraqueça para uma mud
 - Depois de editar: `pnpm check:fast`.
 - Antes de dar uma tarefa por concluída: `pnpm check:task`.
 - Na fase Review: `pnpm check:full`.
+- O `main` é protegido: todo trabalho vai num branch e entra por pull request, com merge só depois do CI verde. Nunca dê push direto no `main`.
 
 ## Workflow: agent-skills (addyosmani/agent-skills)
 

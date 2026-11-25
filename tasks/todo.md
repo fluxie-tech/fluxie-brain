@@ -54,8 +54,8 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 ---
 
 ### Checkpoint A: Fundação
-- [ ] Critério 1 verde; test, typecheck e lint verdes
-- [ ] Versões registradas; revisão humana antes de seguir
+- [x] Critério 1 verde; test, typecheck e lint verdes
+- [x] Versões registradas; revisão humana antes de seguir
 
 ---
 
@@ -134,8 +134,8 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 ---
 
 ### Checkpoint B: Entidades
-- [ ] Critérios 2, 3, 5, 6, 8, 9 (parcial) e 11 verdes
-- [ ] Revisão humana
+- [x] Critérios 2, 3, 5, 6, 8, 9 (parcial) e 11 verdes
+- [x] Revisão humana
 
 ---
 
@@ -210,8 +210,8 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 ---
 
 ### Checkpoint C: Curadoria e grafo
-- [ ] Critérios 4, 7 e 12 verdes
-- [ ] Revisão humana
+- [x] Critérios 4, 7 e 12 verdes
+- [x] Revisão humana
 
 ---
 
@@ -263,5 +263,7 @@ Valem para toda tarefa: `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes, e um
 ---
 
 ### Checkpoint final
-- [ ] Os 13 critérios verdes; tudo verde a partir de um banco zerado
-- [ ] Pronto para a fase 4 do lifecycle (`agent-skills:test`) e depois a Review
+- [x] Os 14 critérios verdes; tudo verde a partir de um banco zerado
+- [x] Pronto para a fase 4 do lifecycle (`agent-skills:test`) e depois a Review
+
+> Revisões humanas dos checkpoints A, B e C aceitas pelo owner em 2026-11-25, com base nas revisões automáticas das fases Review e Ship (revisor de código, auditor de segurança, engenheiro de testes) e no CI verde.

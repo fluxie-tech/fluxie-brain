@@ -36,9 +36,9 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [x] T2: Banco, migrações e harness de testes
 
 ### Checkpoint A: Fundação
-- [ ] `docker compose up -d db && pnpm db:migrate` do zero, com a extensão `vector` ativa (critério 1)
-- [ ] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
-- [ ] Versões escolhidas registradas (PG19 ou PG18), revisão humana
+- [x] `docker compose up -d db && pnpm db:migrate` do zero, com a extensão `vector` ativa (critério 1)
+- [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
+- [x] Versões escolhidas registradas (PG19 ou PG18), revisão humana
 
 ### Fase 2: Entidades
 - [x] T3: Ontologia e spaces
@@ -46,8 +46,8 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [x] T5: Status, uso e isolamento por space
 
 ### Checkpoint B: Entidades
-- [ ] Critérios 2, 3, 5, 6, 8, 9 e 11 cobertos por testes verdes
-- [ ] Revisão humana
+- [x] Critérios 2, 3, 5, 6, 8, 9 e 11 cobertos por testes verdes
+- [x] Revisão humana
 
 ### Fase 3: Curadoria e grafo
 - [x] T6: Propostas sobre entidades aprovadas
@@ -55,8 +55,8 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [x] T8: Vizinhança até 2 saltos
 
 ### Checkpoint C: Curadoria e grafo
-- [ ] Critérios 4, 7 e 12 cobertos por testes verdes
-- [ ] Revisão humana
+- [x] Critérios 4, 7 e 12 cobertos por testes verdes
+- [x] Revisão humana
 
 ### Fase 4: Histórico e fechamento
 - [x] T9: Histórico e revert
@@ -104,3 +104,5 @@ Superfície pública fixada por `public-api.test.ts`.
 ## Perguntas em aberto
 
 - Nenhuma bloqueante. A versão do Postgres é decidida na T2 pela regra do spec.
+
+> Revisões humanas dos checkpoints A, B e C aceitas pelo owner em 2026-11-25, com base nas revisões automáticas das fases Review e Ship (revisor de código, auditor de segurança, engenheiro de testes) e no CI verde.
