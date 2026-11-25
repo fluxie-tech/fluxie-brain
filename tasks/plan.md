@@ -63,7 +63,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 - [x] T10: API pública e verificação final
 
 ### Checkpoint final
-- [x] Os 13 critérios do spec mapeados para testes verdes
+- [x] Os 14 critérios do spec mapeados para testes verdes
 - [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
 - [ ] Pronto para a fase Verify/Review
 

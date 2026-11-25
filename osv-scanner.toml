@@ -1,5 +1,5 @@
 # osv-scanner exceptions. Mirror each entry in the Exceptions table of CONSTRAINTS.md.
 [[IgnoredVulns]]
 id = "GHSA-67mh-4wv8-2f99"
-ignoreUntil = 2027-02-23
+effectiveUntil = 2027-02-23
 reason = "E1: medium (CVSS 5.3), esbuild 0.18.20 via drizzle-kit dev dependency; affects only esbuild's dev server, which this project never runs. Below the high-or-above gate."

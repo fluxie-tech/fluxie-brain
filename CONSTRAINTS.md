@@ -43,14 +43,14 @@ Atalhos no `package.json`, que espelham esta tabela (em caso de divergência, va
 
 ## Measured, not yet enforced as targets (ratchet)
 
-Cobertura total do projeto, medida em 2026-11-25. O `vitest.config.ts` trava o valor de hoje menos 0,5 de tolerância, para variações de arquivos não relacionados não quebrarem o build. Quando um número subir, sobe-se o piso; ele nunca desce.
+Cobertura total do projeto, medida em 2026-11-25 (pisos subidos após o endurecimento da fase Ship). O `vitest.config.ts` trava o valor de hoje menos 0,5 de tolerância, para variações de arquivos não relacionados não quebrarem o build. Quando um número subir, sobe-se o piso; ele nunca desce.
 
 | Métrica | Hoje | Piso em `vitest.config.ts` | Direção |
 |---|---|---|---|
-| Linhas | 97,0% | 96,5 | não pode cair |
-| Statements | 92,3% | 91,8 | não pode cair |
-| Funções | 91,4% | 90,8 | não pode cair |
-| Branches | 86,1% | 85,5 | não pode cair |
+| Linhas | 97,1% | 96,6 | não pode cair |
+| Statements | 92,2% | 91,8 | não pode cair |
+| Funções | 91,7% | 91,1 | não pode cair |
+| Branches | 87,9% | 87,3 | não pode cair |
 
 ## Dimensões fora por ora
 

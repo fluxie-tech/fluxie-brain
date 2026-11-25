@@ -57,6 +57,13 @@ const slice = await neighbors(space.id, project.id, 2);
 - **Histórico:** toda escrita fica no `change_log` com o `actor`, e `revertEntity` restaura o conteúdo a partir dele.
 - **Isolamento:** ids de outro space se comportam como inexistentes.
 
+## Qualidade
+
+As regras estão em `CONSTRAINTS.md` (tamanho, complexidade, arquitetura, cobertura, segurança): `pnpm check:fast`, `pnpm check:task` e `pnpm check:full`. O CI do GitHub roda o equivalente a cada push e PR.
+
+- **Claude Code:** `.claude/settings.json` traz um hook que roda `pnpm check:fast` depois de cada edição feita por um agente. É o mesmo nível de confiança de rodar `pnpm test`; revise-o antes de confiar na pasta.
+- **Pré-requisitos locais:** `check:fast` usa o [gitleaks](https://github.com/gitleaks/gitleaks) instalado na máquina, e `check:full` usa Docker para o osv-scanner e o Semgrep.
+
 ## Licença
 
 MIT

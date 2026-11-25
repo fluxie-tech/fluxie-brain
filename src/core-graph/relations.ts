@@ -26,9 +26,13 @@ export async function linkEntities(spaceId: string, link: LinkInput, actor: Acto
   const { fromId, toId, type } = link;
   return db.transaction(async (tx) => {
     const space = await findSpaceOrThrow(tx, spaceId);
-    const from = await findEntityOrThrow(tx, spaceId, fromId);
     // Both endpoints must be in this space; v1 has no cross-space links, so a foreign id is just missing.
-    const to = await findEntityOrThrow(tx, spaceId, toId);
+    // Lock in a fixed (sorted) order so concurrent A->B and B->A links cannot deadlock.
+    const [first, second] = [fromId, toId].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase()));
+    const a = await findEntityOrThrow(tx, spaceId, first ?? fromId);
+    const b = await findEntityOrThrow(tx, spaceId, second ?? toId);
+    const from = a.id === fromId.toLowerCase() ? a : b;
+    const to = b.id === toId.toLowerCase() ? b : a;
     validateRelation(getOntology(space.preset), type, from.type, to.type);
 
     const [created] = await tx
@@ -60,14 +64,15 @@ export async function linkEntities(spaceId: string, link: LinkInput, actor: Acto
 /** Removes a relation; its previous state is kept in the change log. */
 export async function unlink(spaceId: string, relationId: string, actor: Actor): Promise<void> {
   await db.transaction(async (tx) => {
-    const [before] = isUuid(relationId)
-      ? await tx
-          .select(getTableColumns(relations))
-          .from(relations)
-          .innerJoin(entities, eq(entities.id, relations.fromId))
-          .where(and(eq(relations.id, relationId), eq(entities.spaceId, spaceId)))
-          .for('update', { of: relations })
-      : [];
+    const [before] =
+      isUuid(spaceId) && isUuid(relationId)
+        ? await tx
+            .select(getTableColumns(relations))
+            .from(relations)
+            .innerJoin(entities, eq(entities.id, relations.fromId))
+            .where(and(eq(relations.id, relationId), eq(entities.spaceId, spaceId)))
+            .for('update', { of: relations })
+        : [];
     if (!before) throw new NotFoundError(`Relation ${relationId} not found in this space.`);
     await tx.delete(relations).where(eq(relations.id, relationId));
     await logChange(tx, {
@@ -105,29 +110,39 @@ export async function neighbors(
     : [];
   if (!root) throw new NotFoundError(`Entity ${entityId} not found in this space.`);
 
-  const visited = new Set([entityId]);
+  const visited = new Set([root.id]);
   const found: GraphSlice['entities'] = [];
-  const edges = new Map<string, Relation>();
-  let frontier = [entityId];
+  let frontier = [root.id];
   for (let d = 1; d <= depth && frontier.length > 0; d++) {
-    const { touching, next } = await expandLevel(spaceId, frontier, visited, opts);
+    const next = await expandLevel(spaceId, frontier, visited, opts);
     for (const e of next) {
       visited.add(e.id);
       found.push({ ...e, depth: d });
     }
-    for (const r of touching) if (visited.has(r.fromId) && visited.has(r.toId)) edges.set(r.id, r);
     frontier = next.map((e) => e.id);
   }
-  return { entities: found, relations: [...edges.values()] };
+  // One final query so edges between entities found at the deepest level are included too.
+  const ids = [...visited];
+  const among = await db
+    .select()
+    .from(relations)
+    .where(
+      and(
+        inArray(relations.fromId, ids),
+        inArray(relations.toId, ids),
+        opts.relationTypes ? inArray(relations.type, opts.relationTypes) : undefined,
+      ),
+    );
+  return { entities: found, relations: among };
 }
 
-/** One BFS step: relations touching the frontier and the not-yet-visited entities they reach. */
+/** One BFS step: the not-yet-visited entities reached by relations touching the frontier. */
 async function expandLevel(
   spaceId: string,
   frontier: string[],
   visited: Set<string>,
   opts: NeighborFilters,
-): Promise<{ touching: Relation[]; next: Entity[] }> {
+): Promise<Entity[]> {
   const touching = await db
     .select()
     .from(relations)
@@ -138,8 +153,8 @@ async function expandLevel(
       ),
     );
   const candidates = [...new Set(touching.flatMap((r) => [r.fromId, r.toId]))].filter((id) => !visited.has(id));
-  if (candidates.length === 0) return { touching, next: [] };
-  const next = await db
+  if (candidates.length === 0) return [];
+  return db
     .select(entityColumns)
     .from(entities)
     .where(
@@ -149,7 +164,6 @@ async function expandLevel(
         opts.statuses ? inArray(entities.status, opts.statuses) : undefined,
       ),
     );
-  return { touching, next };
 }
 
 /** All relations touching an entity, in either direction. */

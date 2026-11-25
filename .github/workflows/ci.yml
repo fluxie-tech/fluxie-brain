@@ -1,0 +1,75 @@
+# Mirrors CONSTRAINTS.md (check:task + check:full). CONSTRAINTS.md is canonical; keep this in sync.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans history; floor-guard and changed-coverage diff against the base
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1 (version from packageManager)
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Create throwaway .env for the CI database
+        run: |
+          su=$(openssl rand -hex 24); mi=$(openssl rand -hex 24); ap=$(openssl rand -hex 24)
+          sed -e "s/POSTGRES_SUPERUSER_PASSWORD=change-me/POSTGRES_SUPERUSER_PASSWORD=$su/" \
+              -e "s/FLUXIE_MIGRATOR_PASSWORD=change-me/FLUXIE_MIGRATOR_PASSWORD=$mi/" \
+              -e "s/FLUXIE_APP_PASSWORD=change-me/FLUXIE_APP_PASSWORD=$ap/" \
+              -e "s/fluxie_app:change-me/fluxie_app:$ap/g" \
+              -e "s/fluxie_migrator:change-me/fluxie_migrator:$mi/g" .env.example > .env
+
+      - name: Start Postgres + pgvector
+        run: docker compose up -d --wait db
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Types
+        run: pnpm typecheck
+
+      - name: Lint, size and complexity
+        run: pnpm lint
+
+      - name: Architecture boundaries
+        run: pnpm check:arch
+
+      - name: Tests with coverage ratchet
+        run: pnpm test:coverage
+
+      - name: Floor guard and changed-lines coverage (pull requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/floor-guard.mjs --base "origin/${{ github.base_ref }}"
+          node scripts/changed-coverage.ts --base "origin/${{ github.base_ref }}"
+
+      - name: Secrets (full history)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact --no-banner /repo
+
+      # Same images and flags as the check:deps / check:sast scripts, with an absolute bind path for Linux.
+      - name: Dependency vulnerabilities
+        run: docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.7.1 scan source -r /src
+
+      - name: Static analysis (Semgrep, OWASP)
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.186.0 semgrep scan
+          --config p/default --config p/owasp-top-ten --severity ERROR --error --metrics=off --quiet
+          src scripts docker

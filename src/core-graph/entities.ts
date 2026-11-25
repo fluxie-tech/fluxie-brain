@@ -164,6 +164,7 @@ export async function recordUsage(spaceId: string, entityIds: string[]): Promise
   if (ids.length === 0) return;
   if (!ids.every(isUuid)) throw new NotFoundError('One or more entities were not found in this space.');
   await db.transaction(async (tx) => {
+    await findSpaceOrThrow(tx, spaceId);
     const updated = await tx
       .update(entities)
       .set({ usageCount: sql`${entities.usageCount} + 1`, lastUsedAt: new Date() })

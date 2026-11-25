@@ -16,13 +16,14 @@ export type Entity = Omit<typeof entities.$inferSelect, 'tsv'>;
 
 /** Loads an entity by id, locking it for update; ids outside the space behave as missing. */
 export async function findEntityOrThrow(tx: Db | Tx, spaceId: string, entityId: string): Promise<Entity> {
-  const [entity] = isUuid(entityId)
-    ? await tx
-        .select(entityColumns)
-        .from(entities)
-        .where(and(eq(entities.spaceId, spaceId), eq(entities.id, entityId)))
-        .for('update')
-    : [];
+  const [entity] =
+    isUuid(spaceId) && isUuid(entityId)
+      ? await tx
+          .select(entityColumns)
+          .from(entities)
+          .where(and(eq(entities.spaceId, spaceId), eq(entities.id, entityId)))
+          .for('update')
+      : [];
   if (!entity) throw new NotFoundError(`Entity ${entityId} not found in this space.`);
   return entity;
 }

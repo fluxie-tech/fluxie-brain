@@ -25,7 +25,7 @@ export function getOntology(preset: string): Ontology {
 
 /** Validates that the ontology allows `type` between entities of these types. */
 export function validateRelation(ontology: Ontology, type: string, fromType: string, toType: string): void {
-  const def = ontology.relationTypes[type];
+  const def = Object.hasOwn(ontology.relationTypes, type) ? ontology.relationTypes[type] : undefined;
   if (!def) {
     const allowed = Object.keys(ontology.relationTypes).join(', ');
     throw new OntologyError(`Relation type "${type}" is not defined. Allowed types: ${allowed}.`);
@@ -43,7 +43,7 @@ export function validateEntity(
   type: string,
   metadata: unknown,
 ): { metadata: Record<string, unknown>; defaultStatus: 'draft' | 'approved' } {
-  const def = ontology.entityTypes[type];
+  const def = Object.hasOwn(ontology.entityTypes, type) ? ontology.entityTypes[type] : undefined;
   if (!def) {
     const allowed = Object.keys(ontology.entityTypes).join(', ');
     throw new OntologyError(`Entity type "${type}" is not defined. Allowed types: ${allowed}.`);
@@ -52,5 +52,7 @@ export function validateEntity(
   if (!parsed.success) {
     throw new OntologyError(`Invalid metadata for "${type}": ${z.prettifyError(parsed.error)}`);
   }
-  return { metadata: parsed.data as Record<string, unknown>, defaultStatus: def.defaultStatus };
+  // Round-trip through JSON so callers see exactly what jsonb will store (undefined keys dropped).
+  const stored = JSON.parse(JSON.stringify(parsed.data)) as Record<string, unknown>;
+  return { metadata: stored, defaultStatus: def.defaultStatus };
 }

@@ -2,9 +2,10 @@ import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import { logChange } from './changelog.ts';
 import { db, type Tx } from './db.ts';
 import { ConflictError, NotFoundError, VersionConflictError } from './errors.ts';
+import { getOntology, validateEntity } from './ontology.ts';
 import { type Entity, entityColumns, findEntityOrThrow, sameContent } from './rows.ts';
 import { entities, entityProposals, type ProposedChange } from './schema.ts';
-import { isUuid } from './scope.ts';
+import { findSpaceOrThrow, isUuid } from './scope.ts';
 import type { Actor } from './types.ts';
 
 export type Proposal = typeof entityProposals.$inferSelect;
@@ -53,6 +54,7 @@ export async function createProposal(
 }
 
 export async function listProposals(spaceId: string, opts: { status?: ProposalStatus } = {}): Promise<Proposal[]> {
+  await findSpaceOrThrow(db, spaceId);
   return db
     .select(proposalColumns)
     .from(entityProposals)
@@ -71,14 +73,15 @@ export async function pendingProposalsFor(entityId: string): Promise<Proposal[]>
 
 /** Loads and locks a pending proposal of the space; proposals of other spaces behave as missing. */
 async function findPendingProposal(tx: Tx, spaceId: string, proposalId: string): Promise<Proposal> {
-  const [proposal] = isUuid(proposalId)
-    ? await tx
-        .select(proposalColumns)
-        .from(entityProposals)
-        .innerJoin(entities, eq(entities.id, entityProposals.entityId))
-        .where(and(eq(entityProposals.id, proposalId), eq(entities.spaceId, spaceId)))
-        .for('update', { of: entityProposals })
-    : [];
+  const [proposal] =
+    isUuid(spaceId) && isUuid(proposalId)
+      ? await tx
+          .select(proposalColumns)
+          .from(entityProposals)
+          .innerJoin(entities, eq(entities.id, entityProposals.entityId))
+          .where(and(eq(entityProposals.id, proposalId), eq(entities.spaceId, spaceId)))
+          .for('update', { of: entityProposals })
+      : [];
   if (!proposal) throw new NotFoundError(`Proposal ${proposalId} not found in this space.`);
   if (proposal.status !== 'pending') throw new ConflictError(`Proposal ${proposalId} was already ${proposal.status}.`);
   return proposal;
@@ -97,6 +100,7 @@ async function decide(tx: Tx, proposalId: string, status: ProposalStatus, actor:
 /** Applies a pending proposal to its entity. Fails if the entity changed since the proposal was made. */
 export async function acceptProposal(spaceId: string, proposalId: string, actor: Actor): Promise<Entity> {
   return db.transaction(async (tx) => {
+    const space = await findSpaceOrThrow(tx, spaceId);
     const proposal = await findPendingProposal(tx, spaceId, proposalId);
     const before = await findEntityOrThrow(tx, spaceId, proposal.entityId);
     if (before.version !== proposal.baseVersion) {
@@ -106,7 +110,15 @@ export async function acceptProposal(spaceId: string, proposalId: string, actor:
     }
     const [after] = await tx
       .update(entities)
-      .set({ ...proposal.proposed, version: sql`${entities.version} + 1`, updatedAt: new Date() })
+      .set({
+        // Copy fields explicitly (never spread stored JSON) and revalidate: the ontology may have changed.
+        title: proposal.proposed.title,
+        content: proposal.proposed.content,
+        metadata: validateEntity(getOntology(space.preset), before.type, proposal.proposed.metadata).metadata,
+        confidence: proposal.proposed.confidence,
+        version: sql`${entities.version} + 1`,
+        updatedAt: new Date(),
+      })
       .where(eq(entities.id, before.id))
       .returning(entityColumns);
     if (!after) throw new Error('update returned no row');

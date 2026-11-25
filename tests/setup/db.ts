@@ -21,6 +21,9 @@ export async function truncateAll(): Promise<void> {
   const client = migratorClient();
   await client.connect();
   try {
+    // Never wipe a real database because TEST_MIGRATOR_DATABASE_URL was pointed at it by mistake.
+    const { rows: db } = await client.query<{ name: string }>('select current_database() as name');
+    if (!db[0]?.name.endsWith('_test')) throw new Error(`Refusing to truncate non-test database "${db[0]?.name}".`);
     const { rows } = await client.query<{ tablename: string }>(
       `select tablename from pg_tables where schemaname = 'public'`,
     );
