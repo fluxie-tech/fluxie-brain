@@ -1,5 +1,20 @@
 {
   "enabledPlugins": {
     "agent-skills@addy-agent-skills": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && out=$(pnpm -s check:fast 2>&1) || { printf \"check:fast failed (CONSTRAINTS.md). Fix before continuing:\\n%s\\n\" \"$out\" | head -80 >&2; exit 2; }",
+            "timeout": 60,
+            "statusMessage": "check:fast (CONSTRAINTS.md)"
+          }
+        ]
+      }
+    ]
   }
 }
