@@ -46,7 +46,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 ### Checkpoint A: ontologia completa
 - [ ] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução
 - [ ] `pnpm check:task` verde
-- [ ] Revisão humana das descrições e instruções, que são o que o agente vai ler
+- [x] Revisão humana das descrições e instruções, que são o que o agente vai ler (aprovada em 2026-11-25)
 
 ### Fase 3: Corpus e fechamento
 - [x] T4: corpus fictício PT/EN e prova multiprojeto (M)

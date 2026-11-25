@@ -98,7 +98,7 @@ Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{ind
 
 - [x] 10 tipos e 12 relações, coerentes, com descrição e instrução.
 - [x] `pnpm check:task` verde.
-- [ ] **Revisão humana** das descrições e instruções. Parar e mostrar ao dono antes da T4.
+- [x] **Revisão humana** das descrições e instruções (aprovada pelo dono em 2026-11-25, após o build auto).
 
 ## Fase 3: Corpus e fechamento
 
