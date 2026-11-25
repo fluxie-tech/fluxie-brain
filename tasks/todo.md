@@ -242,7 +242,7 @@ Depois, roda nos dois modelos, aplica a regra de escolha e registra o resultado 
   - MRR@10 e recall@5, no total e por grupo;
   - os mesmos números para só vetor, só texto e híbrida;
   - p50/p95 em CPU, carga a frio, memória e tempo do corpus.
-- [ ] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O vencedor sai pela regra, e o padrão de `EMBEDDINGS_MODEL` (compose, `.env.example` e catálogo) passa a ser ele.
+- [ ] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O Gemma continua padrão, ou o dono decide de novo, conforme o "Papel do benchmark" do spec.
 - [ ] Revisão humana do resultado antes de seguir (Checkpoint C).
 
 **Verificação:** saída do script colada no spec; `pnpm check:task`.

@@ -32,7 +32,7 @@ services:
       OLLAMA_KEEP_ALIVE: "-1"
       # Only one model is ever in use; without this, every model tried stays loaded and the 3 GB fills up.
       OLLAMA_MAX_LOADED_MODELS: "1"
-      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-qwen3-embedding:0.6b}
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-embeddinggemma-2:270m}
     # Pull the model inside the service so `up --wait` waits for it (a one-shot pull service counts as ready
     # while still downloading). Skip the pull when the model is already in the volume, so restarts work offline.
     entrypoint:

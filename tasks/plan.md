@@ -5,7 +5,7 @@ Planos anteriores (concluídos): `tasks/core-graph/` e `tasks/presets/`.
 
 ## Visão geral
 
-Criar o módulo `src/embeddings`. Ele mantém vetores das entidades gerados pelo Ollama (CPU, API compatível com a OpenAI) numa tabela própria e oferece a busca híbrida: vetor + texto, fundidos por RRF, com filtro pelo escopo da âncora e vizinhos de contexto. O presets ganha o campo `scope`, e o core-graph passa a exportar `db`, `entities` e `relations`. Um benchmark manual escolhe entre `qwen3-embedding:0.6b` e `embeddinggemma-2:270m` (a `570m` foi trocada pela `270m` no spike, com aprovação do dono).
+Criar o módulo `src/embeddings`. Ele mantém vetores das entidades gerados pelo Ollama (CPU, API compatível com a OpenAI) numa tabela própria e oferece a busca híbrida: vetor + texto, fundidos por RRF, com filtro pelo escopo da âncora e vizinhos de contexto. O presets ganha o campo `scope`, e o core-graph passa a exportar `db`, `entities` e `relations`. O modelo padrão é o `embeddinggemma-2:270m`, escolhido pelo dono depois do spike; um benchmark manual contra o `qwen3-embedding:0.6b` é a evidência.
 
 ## Grafo de dependências
 

@@ -8,7 +8,7 @@ Encontrar o conhecimento certo para o trabalho atual, em português ou inglês, 
 - gera e mantém vetores das entidades com um modelo local (Ollama), por uma API compatível com a da OpenAI (`/v1/embeddings`), para dar para trocar de provedor depois;
 - faz busca híbrida: vetor + full-text, fundidos por RRF, mais os vizinhos a 1–2 saltos como contexto;
 - recebe opcionalmente uma âncora (o repo ou component atual) e devolve só o que está no escopo dela;
-- escolhe o modelo por benchmark entre Qwen3-Embedding-0.6B e EmbeddingGemma 2 em PT/EN.
+- usa o EmbeddingGemma 2 (`embeddinggemma-2:270m`) como padrão, com um benchmark em PT/EN contra o Qwen3-Embedding-0.6B como evidência.
 
 **Usuários do módulo:** o `mcp-server`, que chama `syncEmbeddings` depois das escritas e `search` nas ferramentas de busca; depois, o `ingest-conversations`.
 
@@ -121,7 +121,7 @@ type SearchResult = {
 
 **Configuração** (lida do ambiente a cada chamada pública, o que é barato; nunca na importação nem guardada em cache). Por dentro, as funções recebem um objeto de configuração explícito: os testes apontam para o stub numa porta qualquer, e o benchmark troca de modelo no mesmo processo.
 - `EMBEDDINGS_BASE_URL`: padrão `http://127.0.0.1:11434/v1`;
-- `EMBEDDINGS_MODEL`: padrão é o vencedor do benchmark;
+- `EMBEDDINGS_MODEL`: padrão `embeddinggemma-2:270m` (decisão do dono depois do spike);
 - `EMBEDDINGS_API_KEY`: opcional, enviada como `Bearer` (provedor remoto).
 
 **Catálogo de modelos** (em código): para cada id, a dimensão, o template de documento e o template de consulta.
@@ -160,11 +160,10 @@ Se algo falhar, nada é gravado.
   - memória do container `ollama` em uso (`docker stats`), que precisa caber nos 3 GB;
   - tempo para embutir o corpus inteiro;
   - verificação de que nenhum vetor tem NaN.
-- **Regra de escolha:**
-  - vence o maior MRR@10 híbrido;
-  - se a diferença for menor que 0,02, vence o mais rápido em CPU;
-  - um modelo com p95 acima de 300 ms em CPU está fora.
-- **Registro:** o resultado (a tabela que o script imprime, a data, as versões do Ollama e dos modelos, e a CPU usada) entra na seção "Resultado do benchmark" deste spec. O vencedor vira o padrão de `EMBEDDINGS_MODEL`.
+- **Papel do benchmark:** o padrão já é o `embeddinggemma-2:270m`, escolhido pelo dono depois do spike. No spike, ele deu metade da latência e metade da memória do Qwen3, e o Qwen3 ficou perto do corte de 300 ms já no desktop. O benchmark é a evidência dessa escolha, com o Qwen3 como comparação:
+  - o Gemma continua padrão se cumprir o corte (p95 abaixo de 300 ms em CPU) e não ficar 0,05 ou mais atrás do Qwen3 no MRR@10 híbrido;
+  - se ficar, o dono decide de novo, com os números na mão.
+- **Registro:** o resultado (a tabela que o script imprime, a data, as versões do Ollama e dos modelos, e a CPU usada) entra na seção "Resultado do benchmark" deste spec.
 
 ## Comandos
 
