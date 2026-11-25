@@ -65,7 +65,7 @@ T1 scaffold (Node, pnpm, Biome, Vitest, git)
 ### Checkpoint final
 - [x] Os 14 critérios do spec mapeados para testes verdes
 - [x] `pnpm test`, `pnpm typecheck` e `pnpm lint` verdes
-- [ ] Pronto para a fase Verify/Review
+- [x] Pronto para a fase Verify/Review
 
 ## Rastreabilidade: critérios do spec → testes
 
