@@ -3,7 +3,7 @@ import { type ChangeLogEntry, logChange } from './changelog.ts';
 import { db } from './db.ts';
 import { NotFoundError } from './errors.ts';
 import { getOntology, validateEntity } from './ontology.ts';
-import { type Entity, entityColumns, findEntityOrThrow } from './rows.ts';
+import { type Entity, entityColumns, findEntityOrThrow, sameContent } from './rows.ts';
 import { changeLog, entities, entityProposals } from './schema.ts';
 import { findSpaceOrThrow } from './scope.ts';
 import type { Actor } from './types.ts';
@@ -60,13 +60,13 @@ export async function revertEntity(spaceId: string, entityId: string, changeId: 
 
     // The ontology may have changed since that version: restored metadata must still be valid.
     const { metadata } = validateEntity(getOntology(space.preset), before.type, snapshot.metadata);
+    const restored = { title: snapshot.title, content: snapshot.content, metadata, confidence: snapshot.confidence };
+    // Same no-op rule as upsertEntity: nothing to restore means nothing to write.
+    if (sameContent(before, restored)) return before;
     const [after] = await tx
       .update(entities)
       .set({
-        title: snapshot.title,
-        content: snapshot.content,
-        metadata,
-        confidence: snapshot.confidence,
+        ...restored,
         version: sql`${entities.version} + 1`,
         updatedAt: new Date(),
       })

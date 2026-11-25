@@ -61,6 +61,14 @@ describe('edge cases', () => {
     },
   );
 
+  it('treats a repeated high-precision confidence as no change (stored as float32)', async () => {
+    const input = { type: 'learning', key: 'f', title: 'T', content: 'C', confidence: 0.123456789 };
+    await upsertEntity(space.id, input, agent);
+    const { entity } = await upsertEntity(space.id, input, agent);
+    expect(entity.version).toBe(1);
+    expect(await queryRows('select id from change_log')).toHaveLength(1);
+  });
+
   it('counts a repeated id once in recordUsage', async () => {
     const { entity } = await upsertEntity(space.id, { type: 'learning', key: 'l', title: 'L', content: '' }, agent);
     await recordUsage(space.id, [entity.id, entity.id]);

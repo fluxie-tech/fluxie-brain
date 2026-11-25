@@ -58,6 +58,14 @@ describe('history and revert', () => {
     expect(entries.map((e) => e.action)).toEqual(['create', 'update', 'status', 'revert']);
   });
 
+  it('writes nothing when reverting to content identical to the current one', async () => {
+    const { entity } = await upsertEntity(space.id, { type: 'learning', key: 'l1', title: 'v1', content: '' }, agent);
+    const [create] = await history(space.id, entity.id);
+    const reverted = await revertEntity(space.id, entity.id, create?.id ?? 0, curator);
+    expect(reverted.version).toBe(1);
+    expect((await history(space.id, entity.id)).map((e) => e.action)).toEqual(['create']);
+  });
+
   it('includes the entity proposals in its history, in order', async () => {
     const rule = { type: 'rule', key: 'r1', title: 'A', content: '', metadata: { severity: 'low' } };
     const { entity } = await upsertEntity(space.id, rule, agent);

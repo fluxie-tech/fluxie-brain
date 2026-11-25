@@ -68,6 +68,8 @@ describe('neighbors', () => {
       await setStatus(space.id, r1.id, 'rejected', 'human:owner');
       const slice = await neighbors(space.id, l1.id, 2, { statuses: ['draft', 'approved'] });
       expect(keysByDepth(slice)).toEqual(['p1@1']);
+      // The relation to the filtered-out r1 must not leak into the slice.
+      expect(slice.relations).toHaveLength(1);
     });
   });
 

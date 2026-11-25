@@ -32,7 +32,8 @@ export function sameContent(current: ProposedChange, next: ProposedChange): bool
   return (
     current.title === next.title &&
     current.content === next.content &&
-    current.confidence === next.confidence &&
+    // confidence is stored as `real` (float32): compare at that precision or repeats never match.
+    Math.fround(current.confidence) === Math.fround(next.confidence) &&
     isDeepStrictEqual(current.metadata, next.metadata)
   );
 }
