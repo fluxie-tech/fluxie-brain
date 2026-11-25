@@ -13,9 +13,21 @@ import {
   VersionConflictError,
 } from '../../src/core-graph/index.ts';
 import { TEST_PRESET, testOntology } from '../fixtures/ontology.ts';
-import { queryRows, truncateAll } from '../setup/db.ts';
+import { appClient, queryRows, truncateAll } from '../setup/db.ts';
 
 const agent = 'agent:test';
+
+/** Polls until some session of this database is waiting on a lock (the upsert's insert hit the rival's row). */
+async function waitUntilBlockedOnLock(): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    const [row] = await queryRows<{ n: number }>(
+      `select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`,
+    );
+    if ((row?.n ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('upsert never blocked on the rival insert');
+}
 
 describe('edge cases', () => {
   let space: Space;
@@ -36,6 +48,25 @@ describe('edge cases', () => {
     expect(await queryRows(`select id from entities where key = 'race'`)).toHaveLength(1);
     // Either the second call serialized behind the first (update) or it lost the insert race.
     for (const r of rejected) expect(r.reason).toBeInstanceOf(VersionConflictError);
+  });
+
+  it('maps a lost insert race to VersionConflictError, deterministically', async () => {
+    // A competing transaction inserts the same key and holds it uncommitted until the upsert is blocked on it.
+    const rival = appClient();
+    await rival.connect();
+    try {
+      await rival.query('begin');
+      await rival.query(
+        `insert into entities (space_id, type, key, title, status, created_by) values ($1, 'learning', 'race', 'R', 'draft', 'agent:rival')`,
+        [space.id],
+      );
+      const upsert = upsertEntity(space.id, { type: 'learning', key: 'race', title: 'U', content: '' }, agent);
+      await waitUntilBlockedOnLock();
+      await rival.query('commit');
+      await expect(upsert).rejects.toThrow(VersionConflictError);
+    } finally {
+      await rival.end();
+    }
   });
 
   it('applies a proposal once when two curators accept it concurrently', async () => {
