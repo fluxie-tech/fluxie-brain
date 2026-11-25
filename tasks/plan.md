@@ -41,7 +41,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Fase 2: Ontologia completa
 - [x] T2: decision, principle e invariant (S)
-- [ ] T3: assumption, gap e learning, fechando a ontologia (M)
+- [x] T3: assumption, gap e learning, fechando a ontologia (M)
 
 ### Checkpoint A: ontologia completa
 - [ ] 10 tipos e 12 relações do spec, coerentes, com descrição e instrução

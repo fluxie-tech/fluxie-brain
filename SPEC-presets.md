@@ -219,8 +219,8 @@ pnpm check:task                  # + arquitetura, testes com cobertura e cobertu
 ```
 src/presets/
   types.ts               → Preset, EntityTypeDef, RelationTypeDef
-  development-graph.ts   → o preset (cabeçalho com origem e copyright MIT do omnigraph-cookbooks);
-                           se passar de 300 linhas, divide em development-graph/entities.ts e relations.ts
+  development-graph/index.ts      → o preset (cabeçalho com origem e copyright MIT do omnigraph-cookbooks)
+  development-graph/entities.ts   → tipos de entidade · development-graph/relations.ts → relações
   index.ts               → registerPresets, listPresets, getPreset, DEVELOPMENT_GRAPH, tipos
 tests/presets/
   development-graph.test.ts   → unitário: coerência da ontologia, schemas, JSON Schema

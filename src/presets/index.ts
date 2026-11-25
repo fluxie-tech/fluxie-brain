@@ -1,8 +1,8 @@
 import { registerOntology } from '../core-graph/index.ts';
-import { developmentGraph } from './development-graph.ts';
+import { developmentGraph } from './development-graph/index.ts';
 import type { Preset } from './types.ts';
 
-export { DEVELOPMENT_GRAPH, developmentGraph } from './development-graph.ts';
+export { DEVELOPMENT_GRAPH, developmentGraph } from './development-graph/index.ts';
 export type { EntityTypeDef, Preset, RelationTypeDef } from './types.ts';
 
 const presets: readonly Preset[] = Object.freeze([developmentGraph]);

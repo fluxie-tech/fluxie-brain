@@ -82,9 +82,9 @@ Também acrescenta as relações `about`, `references`, `undermines` e `waits_fo
 Se o arquivo passar de 300 linhas, divide em `src/presets/development-graph/{index,entities,relations}.ts`.
 
 **Critérios de aceite:**
-- [ ] A ontologia bate com o spec: 10 tipos e 12 relações com as pontas da tabela. Um teste confere os nomes e o `defaultStatus` de cada tipo contra a lista do spec.
-- [ ] Integração: os três nascem `draft`; `about`, `references`, `undermines` e `waits_for` são aceitas, e uma relação fora de `from × to` falha com `OntologyError` sem escrita.
-- [ ] Nenhum arquivo de `src` passa de 300 linhas.
+- [x] A ontologia bate com o spec: 10 tipos e 12 relações com as pontas da tabela. Um teste confere os nomes e o `defaultStatus` de cada tipo contra a lista do spec.
+- [x] Integração: os três nascem `draft`; `about`, `references`, `undermines` e `waits_for` são aceitas, e uma relação fora de `from × to` falha com `OntologyError` sem escrita.
+- [x] Nenhum arquivo de `src` passa de 300 linhas.
 
 **Verificação:** `pnpm test tests/presets` · `pnpm check:task`.
 

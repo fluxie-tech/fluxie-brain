@@ -115,4 +115,57 @@ describe('development graph through core-graph', () => {
 
     await expect(link(principle, repo, 'establishes')).rejects.toThrow(OntologyError);
   });
+
+  it('creates external knowledge and lessons as drafts linked to their anchors', async () => {
+    const link = (from: Entity, to: Entity, type: string) =>
+      linkEntities(space.id, { fromId: from.id, toId: to.id, type }, agent);
+    const dep = await add({
+      type: 'dependency',
+      key: 'dependency:npm/orm',
+      title: 'ORM',
+      content: '',
+      metadata: { ecosystem: 'npm' },
+    });
+    const decision = await add({ type: 'decision', key: 'decision:orm', title: 'Use the ORM', content: '' });
+    const invariant = await add({
+      type: 'invariant',
+      key: 'invariant:no-n-plus-one',
+      title: 'No N+1 queries',
+      content: '',
+      metadata: { state: 'holds' },
+    });
+    const assumption = await add({
+      type: 'assumption',
+      key: 'assumption:orm-batches-inserts',
+      title: 'The ORM batches inserts',
+      content: '',
+      metadata: { kind: 'runtime', state: 'holds' },
+    });
+    const gap = await add({
+      type: 'gap',
+      key: 'gap:orm-lazy-loading',
+      title: 'Lazy loading still causes N+1',
+      content: '',
+      metadata: { state: 'narrowing', pinnedVersion: '2.1.0' },
+    });
+    const learning = await add({
+      type: 'learning',
+      key: 'learning:orm-eager-load',
+      title: 'Eager-load relations in list endpoints',
+      content: '',
+      metadata: { kind: 'hindsight' },
+    });
+    for (const entity of [assumption, gap, learning]) expect(entity.status).toBe('draft');
+
+    await link(assumption, dep, 'about');
+    await link(learning, dep, 'about');
+    await link(learning, decision, 'references');
+    await link(gap, invariant, 'undermines');
+    await link(gap, dep, 'waits_for');
+    await link(gap, learning, 'relates_to');
+    expect(await queryRows('select id from relations')).toHaveLength(6);
+
+    await expect(link(learning, invariant, 'about')).rejects.toThrow(OntologyError);
+    expect(await queryRows('select id from relations')).toHaveLength(6);
+  });
 });
