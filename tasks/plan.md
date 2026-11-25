@@ -55,8 +55,9 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T4: syncEmbeddings (S)
 
 ### Checkpoint A: vetores gerados
-- [ ] Critérios 1–4 do spec com teste ou verificação manual registrada
-- [ ] `pnpm check:task` verde
+- [x] Critérios 1–4 do spec com teste ou verificação manual registrada: 1 manual (spike T1 e prova de ponta a ponta abaixo), 2 `tests/embeddings/schema.test.ts`, 3 `tests/embeddings/sync.test.ts`, 4 `tests/embeddings/provider.test.ts` + teste de falha no meio do `sync.test.ts`
+- [x] `pnpm check:task` verde (240 testes; cobertura das linhas alteradas 100%)
+- [x] Prova de ponta a ponta com o Ollama real: as 32 entidades do corpus no banco de testes, `syncEmbeddings` com o Gemma 270m → `{ embedded: 32, remaining: 0 }` em 7,2 s; a segunda chamada deu `{ embedded: 0, remaining: 0 }` em 3 ms; 32 vetores de 768 dims
 - [x] Achados do spike revisados pelo dono (2026-11-25: Gemma `270m` no lugar da `570m`; pull no entrypoint)
 
 ### Fase 2: Busca
