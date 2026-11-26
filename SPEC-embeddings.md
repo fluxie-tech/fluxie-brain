@@ -524,3 +524,25 @@ conteúdo`, consulta crua).
 2. **Catálogo:** a entrada nova e os testes do provider.
 3. **Benchmark:** os dois modelos no dataset do Haiku, com a latência medida com a CPU livre.
 4. **Decisão:** no checkpoint com o dono.
+
+### Resultado da Emenda 2 (26/11/2026)
+
+`pnpm bench:fusion` nos dois modelos, com o mesmo dataset do Haiku e a mesma divisão (284 consultas de teste), e a latência medida com a CPU livre. Pela OpenRouter, a Azure atendeu.
+
+| Teste, MRR@10 | Gemma 270m (local) | text-embedding-3-small (OpenRouter) |
+|---|---|---|
+| só vetor | 0.652 | 0.654 |
+| melhor fusão calibrada | 0.666 (convexa, texto 0,25, grafo 0,25) | 0.660 (convexa, texto 0,25, grafo 0,5) |
+| melhor fusão sem grafo | 0.666 | 0.676 (convexa, texto 0,25) |
+| só vetor por grupo: en→en / en→pt / pt→en / pt→pt | 0.940 / 0.544 / 0.444 / 0.742 | 0.910 / 0.645 / 0.250 / 0.727 |
+| só vetor: paráfrase / exact / multihop | 0.491 / 0.680 / 0.293 | 0.558 / 0.604 / 0.292 |
+| p50 / p95 da busca inteira (três pernas ligadas) | 104 / 258 ms | 528 / 736 ms |
+
+**Pelas regras:**
+- **Gemma:** a fusão ganha +0,014, abaixo de 0,02, então fica só vetor. O p95 está dentro do corte.
+- **OpenAI:** o grafo sai (+0,013 no multihop); a fusão sem grafo ganharia (+0,022, nenhum grupo cai); mas o p95 de 736 ms passa de 300 ms, e o modelo está fora.
+- **Modelo de produção pela regra:** Gemma 270m local, só vetor, com o BM25 de reserva quando o provedor cai.
+
+**Achados:**
+- No vetor sozinho, os dois modelos empatam (0,652 × 0,654), mas erram em coisas diferentes: a OpenAI ganha em en→pt (+0,10) e em paráfrase (+0,07), e perde em pt→en (−0,19) e em `exact` (−0,08).
+- A perna de grafo não melhorou o ranking em nenhum dos dois modelos. O grafo segue útil no contexto (vizinhos) e no escopo pela âncora.
