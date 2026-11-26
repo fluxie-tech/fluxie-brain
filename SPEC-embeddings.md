@@ -248,7 +248,7 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 ## Critérios de sucesso
 
 1. `docker compose up -d --wait` sobe o `db` e o `ollama` só em CPU no Docker Desktop local, sem GPU, baixa o modelo padrão, e `POST /v1/embeddings` responde.
-2. `pnpm db:migrate` cria a `entity_embeddings` e o GIN em `entities.tsv`, e o `fluxie_app` consegue ler e escrever na tabela nova.
+2. `pnpm db:migrate` cria a `entity_embeddings` e os índices de texto, e o `fluxie_app` consegue ler e escrever na tabela nova. O GIN em `entities.tsv` da migração 0007 foi trocado pelos índices BM25 da 0008 (Emenda 1) e removido na 0009.
 3. `syncEmbeddings` gera vetores para todas as entidades do space e devolve `remaining: 0`. Uma segunda chamada não faz nada. Depois de mudar `title` ou `content` (update, aceite ou revert), só aquela entidade é regenerada; depois de mudar só `metadata`, nenhuma.
 4. Uma resposta inválida do provedor (contagem, dimensão, NaN, HTTP de erro, rede) lança `EmbeddingProviderError` e não grava nada. Um modelo fora do catálogo lança `EmbeddingConfigError`.
 5. `search` devolve `hits` ordenados pela fusão que a Emenda 1 escolher, com `ranks` por perna. Uma consulta sem palavra em comum com o alvo o encontra pelo vetor; uma consulta por termo exato o encontra pelo texto.

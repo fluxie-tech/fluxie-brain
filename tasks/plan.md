@@ -100,13 +100,13 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T17: fusão calibrada no `search` (M)
 
 ### Checkpoint E: pernas e dados prontos
-- [ ] Três pernas com teste; dataset do dogfooding validado, com a taxa de erro da amostra registrada
-- [ ] `pnpm check:task` verde
+- [x] Três pernas com teste; dataset do dogfooding validado, com a taxa de erro da amostra registrada
+- [x] `pnpm check:task` verde
 
 - [x] T18: benchmark com calibração e teste (rodada 1: a regra deu só vetor; a decisão passou para a Emenda 2) (M)
 
 ### Checkpoint F: decisão
-- [ ] Resultado agregado no spec; configuração da fusão (ou só vetor) aplicada pela regra e aprovada pelo dono
+- [x] Resultado agregado no spec; configuração da fusão (ou só vetor) aplicada pela regra e aprovada pelo dono
 
 ### Fase 4b: Emenda 2, embeddings pagos (aprovada em 26/11/2026)
 - [x] T20: `text-embedding-3-small` no catálogo, benchmarks prontos para modelo remoto (S)
@@ -116,15 +116,15 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T22: fusão adaptativa pelo formato da consulta (Emenda 3) (S). Passou pela regra: 0,6725 contra 0,6522, p95 de 166 ms
 
 ### Checkpoint G: modelo e fusão de produção
-- [ ] Os números estão no spec, e o modelo e a `FUSION` estão aplicados pela regra e aprovados pelo dono
+- [x] Os números estão no spec, e o modelo e a `FUSION` estão aplicados pela regra e aprovados pelo dono (26/11: Gemma 270m + fusão adaptativa)
 
 ### Fase 5: Fechamento
-- [ ] T11: fechamento (S)
+- [x] T11: fechamento (S)
 
 ### Checkpoint C: completo
 - [x] Resultado do benchmark no spec e modelo padrão aprovado pelo dono (rodada 1, 26/11)
-- [ ] Os 17 critérios do spec ligados a testes (tabela abaixo, preenchida na T11)
-- [ ] `pnpm check:task` verde; pronto para a fase Verify
+- [x] Os 17 critérios do spec ligados a testes (tabela abaixo)
+- [x] `pnpm check:task` verde; pronto para a fase Verify
 
 ## Achados do spike (T1)
 
@@ -198,7 +198,25 @@ Chamadas com 2 textos fictícios a `https://openrouter.ai/api/v1/embeddings`, mo
 
 ## Rastreabilidade: critérios do spec → testes
 
-Preenchida na T11.
+| # | Critério (resumo) | Teste ou verificação |
+|---|---|---|
+| 1 | Ollama só em CPU no compose, modelo baixado, `/v1/embeddings` responde | Manual: spike da T1 (achados acima) e as provas de ponta a ponta da T4 e do Checkpoint B |
+| 2 | Migrações: tabela, índices de texto, `fluxie_app` na tabela nova | `tests/embeddings/schema.test.ts` (DML do papel, chave, cascata, os dois BM25, nenhum GIN) |
+| 3 | `syncEmbeddings`: completa, idempotente, regenera só título/conteúdo | `tests/embeddings/sync.test.ts` |
+| 4 | Resposta inválida do provedor e modelo fora do catálogo | `tests/embeddings/provider.test.ts` (contagem, dimensão, índices, HTTP, rede, JSON; catálogo; roteamento da OpenRouter) |
+| 5 | `hits` fundidos com `ranks` por perna; acha pelo vetor sem palavra em comum e pelo texto por termo exato | `tests/embeddings/search.test.ts` e `tests/embeddings/fusion.test.ts` (`fuse`, `convex`, `combine`, `queryShape`) |
+| 6 | Status e tipos; `limit` e tamanho da consulta | `search.test.ts` |
+| 7 | Escopo da âncora no corpus, em `hits` e `context` | `tests/embeddings/scope.test.ts` (com prova de que o teste falha sem o filtro) |
+| 8 | Provedor fora do ar dá só texto | `search.test.ts` e `fusion.test.ts` (`combine` sem vetor) |
+| 9 | `context` até `depth`, sem repetir hits, no escopo e nos status | `search.test.ts` (context) e `scope.test.ts` |
+| 10 | Benchmark dos modelos e escolha pela regra | `scripts/bench-embeddings.ts` (rodada no spec), `chooseModel` em `tests/scripts/bench-metrics.test.ts`; Gemma confirmado pelo dono |
+| 11 | `Preset.scope` e exports do core-graph | `tests/presets/development-graph.test.ts`, `tests/core-graph/public-api.test.ts` |
+| 12 | Embeddings só importa o `index.ts` do core-graph | `pnpm check:arch` (depcruise) |
+| 13 | Imagem com `pg_textsearch` e `pgvector`; a suíte passa nela | Achados da T12 e `pnpm check:task` local. **O CI só se confirma no PR** |
+| 14 | Texto em BM25 nos dois idiomas, sem palavras vazias | `search.test.ts` ("BM25 text leg") e `schema.test.ts` |
+| 15 | Dataset do dogfooding válido, fora do git, amostra revisada | `tests/scripts/dogfood-lib.test.ts`, `tests/scripts/dogfood-dataset.test.ts`, contagens e revisão na seção da T15 |
+| 16 | Calibração e teste separados; decisão pela regra | `chooseFusion` em `bench-metrics.test.ts`; resultados das Emendas 1 a 3 no spec |
+| 17 | p95 da busca inteira ≤ 300 ms em CPU | `pnpm bench:fusion`: p95 de 166 ms com a `FUSION` de produção (Emenda 3) |
 
 ## Pendências herdadas do presets
 
@@ -207,7 +225,7 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | # | Pendência | Situação |
 |---|---|---|
 | 1 | Importar `src/presets/index.ts` exige `DATABASE_URL` | Fechada no `SPEC-embeddings.md`, sem código. Scripts importam o preset direto. |
-| 2 | A busca a partir de uma dependência compartilhada chega ao outro repo | Resolvida pela regra `scope` (T6, T7, T8) |
+| 2 | A busca a partir de uma dependência compartilhada chega ao outro repo | Resolvida pela regra `scope` (T6, T7, T8; vale também para a perna de grafo) |
 | 3–5 | Metadata de relação, prompt injection, `getPreset` somente leitura | Continuam com o `mcp-server` |
 | 6 | Refrasear com limite: o roteiro orienta a nova tentativa (tradução PT ↔ EN, outras palavras), com limite rígido de chamadas de busca por tarefa | Para o `mcp-server` (SPEC-embeddings.md, Emenda 3) |
 | 7 | Log de consultas (consulta, hits, perna de origem, por space, sem conteúdo sensível) para recalibrar a fusão | Para o `mcp-server` (Emenda 3) |

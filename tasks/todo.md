@@ -408,8 +408,8 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 **Tamanho:** M.
 
 ### Checkpoint E: pernas e dados prontos
-- [ ] Três pernas com teste; o dataset do dogfooding está validado, com a taxa de erro da amostra registrada.
-- [ ] `pnpm check:task` verde.
+- [x] Três pernas com teste; o dataset do dogfooding está validado, com a taxa de erro da amostra registrada.
+- [x] `pnpm check:task` verde.
 
 ### T18: benchmark com calibração e teste, e decisão da fusão
 
@@ -425,8 +425,8 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 
 **Critérios de aceite:**
 - [x] `chooseFusion` tem teste unitário com os casos da regra: margem de 0,02, queda por grupo, grafo nas consultas de vários saltos e latência acima do corte.
-- [ ] O spec traz a tabela agregada da rodada (data, contagens do dataset, calibração × teste) e a decisão. As constantes do `search.ts` refletem essa decisão.
-- [ ] O dono revisa o resultado (Checkpoint F).
+- [x] O spec traz a tabela agregada da rodada (data, contagens do dataset, calibração × teste) e a decisão. As constantes do `search.ts` refletem essa decisão.
+- [x] O dono revisa o resultado (Checkpoint F).
 
 **Verificação:** `pnpm bench:embeddings --data dogfood`; `pnpm check:task`.
 
@@ -437,7 +437,7 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 **Tamanho:** M.
 
 ### Checkpoint F: decisão
-- [ ] O resultado está no spec, e a configuração da fusão está aplicada pela regra e aprovada pelo dono.
+- [x] O resultado está no spec, e a configuração da fusão está aplicada pela regra e aprovada pelo dono.
 
 ## Fase 4b: Emenda 2, embeddings pagos
 
@@ -478,13 +478,13 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 - aplica as regras (do modelo e da fusão) e registra os números agregados no spec.
 
 **Critérios de aceite:**
-- [ ] O spec mostra a tabela dos dois modelos, a latência e a decisão.
-- [ ] Depois do Checkpoint G, o padrão (`DEFAULT_MODEL`, compose, `.env.example`) e a `FUSION` refletem a decisão.
+- [x] O spec mostra a tabela dos dois modelos, a latência e a decisão.
+- [x] Depois do Checkpoint G, o padrão (`DEFAULT_MODEL`, compose, `.env.example`) e a `FUSION` refletem a decisão.
 
 **Tamanho:** S.
 
 ### Checkpoint G: modelo e fusão de produção
-- [ ] Aprovação do dono.
+- [x] Aprovação do dono.
 
 ## Fase 5: Fechamento
 
@@ -499,9 +499,9 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 - `pnpm check:task` final.
 
 **Critérios de aceite:**
-- [ ] Os 17 critérios do spec estão ligados a testes ou a verificações registradas.
-- [ ] Os pisos do ratchet sobem, sem nenhum cair.
-- [ ] `pnpm check:task` verde com o banco no ar.
+- [x] Os 17 critérios do spec estão ligados a testes ou a verificações registradas.
+- [x] Os pisos do ratchet sobem, sem nenhum cair.
+- [x] `pnpm check:task` verde com o banco no ar.
 
 **Verificação:** `pnpm check:task`.
 
@@ -513,4 +513,4 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 
 ### Checkpoint C: completo
 - [x] Modelo padrão aprovado pelo dono (rodada 1, 26/11: Gemma 270m).
-- [ ] `pnpm check:task` verde; pronto para a fase Verify.
+- [x] `pnpm check:task` verde; pronto para a fase Verify.

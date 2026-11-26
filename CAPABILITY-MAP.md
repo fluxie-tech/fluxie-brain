@@ -6,7 +6,7 @@ Repositório público em `fluxie-tech/fluxie-brain`, licença MIT. Inspirado no 
 | Module id | Responsabilidade | Depende de |
 |---|---|---|
 | core-graph | Schema Postgres: spaces, entities, relations, change_log; validação contra a ontologia do preset; migrações | — |
-| embeddings | Embeddings locais via Ollama (API compatível com OpenAI, então dá para trocar de provedor). Vetores em tabela própria; modelo escolhido por teste entre Qwen3-Embedding-0.6B e EmbeddingGemma 2, alvo CPU. Busca híbrida (vetor + full-text + RRF + vizinhos a 1–2 saltos) | core-graph |
+| embeddings | Embeddings locais via Ollama, só CPU, com o EmbeddingGemma 2 270m (escolhido por benchmark; API compatível com a OpenAI, e a OpenRouter só com pool de provedores fechado). Vetores em tabela própria. Busca híbrida: vetor, BM25 (`pg_textsearch`, PT e EN) e grafo (PageRank), com fusão adaptativa pelo formato da consulta, calibrada num projeto real; escopo pela âncora e vizinhos a 1–2 saltos | core-graph |
 | presets | Ontologias por tipo de memória (tipos de nó/relação, campos obrigatórios, política de aprovação) | core-graph |
 | mcp-server | Ferramentas MCP, escopo por space, stdio + HTTP com token, imagem Docker | core-graph, embeddings, presets |
 | agent-loop | Hooks/skill do Claude Code: injetar contexto antes da tarefa, registrar aprendizados depois | mcp-server |

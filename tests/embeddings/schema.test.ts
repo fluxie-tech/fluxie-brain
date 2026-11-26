@@ -73,10 +73,14 @@ describe('entity_embeddings table', () => {
     expect(await queryRows('select 1 from entity_embeddings')).toHaveLength(0);
   });
 
-  it('indexes entities.tsv with GIN for the full-text leg', async () => {
-    const rows = await queryRows<{ indexdef: string }>(
-      `select indexdef from pg_indexes where tablename = 'entities' and indexdef ilike '%using gin (tsv)%'`,
+  it('indexes title and content with BM25 in Portuguese and English, and no longer keeps the tsv GIN', async () => {
+    const rows = await queryRows<{ indexname: string; indexdef: string }>(
+      `select indexname, indexdef from pg_indexes where tablename = 'entities' and indexdef ilike '%using bm25%' order by 1`,
     );
-    expect(rows).toHaveLength(1);
+    expect(rows.map((r) => r.indexname)).toEqual(['entities_bm25_en', 'entities_bm25_pt']);
+    const gin = await queryRows(
+      `select 1 from pg_indexes where tablename = 'entities' and indexdef ilike '%using gin (tsv)%'`,
+    );
+    expect(gin).toHaveLength(0);
   });
 });
