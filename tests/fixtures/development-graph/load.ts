@@ -4,7 +4,7 @@ import { type Actor, type Entity, linkEntities, upsertEntity } from '../../../sr
 /** `lang` and `project` annotate the fictional corpus for tests and benchmarks; they are not stored. */
 export type CorpusEntity = {
   lang: 'pt' | 'en';
-  project: 'pebble' | 'quarry' | 'shared';
+  project: 'pebble' | 'quarry' | 'shared' | 'tern';
   type: string;
   key: string;
   title: string;
@@ -16,10 +16,17 @@ export type Corpus = { entities: CorpusEntity[]; relations: CorpusRelation[] };
 
 export const corpus = JSON.parse(readFileSync(new URL('./corpus.json', import.meta.url), 'utf8')) as Corpus;
 
-/** Loads the whole corpus into a space through core-graph and returns the stored entities by key. */
-export async function loadCorpus(spaceId: string, actor: Actor = 'agent:corpus'): Promise<Map<string, Entity>> {
-  const byKey = new Map<string, Entity>();
-  for (const { lang: _lang, project: _project, ...input } of corpus.entities) {
+/**
+ * Loads a corpus (the presets one by default) into a space through core-graph and returns the stored entities by key.
+ * Pass the map of an earlier load to add data whose relations point at it (the embeddings distractors).
+ */
+export async function loadCorpus(
+  spaceId: string,
+  actor: Actor = 'agent:corpus',
+  data: Corpus = corpus,
+  byKey = new Map<string, Entity>(),
+): Promise<Map<string, Entity>> {
+  for (const { lang: _lang, project: _project, ...input } of data.entities) {
     byKey.set(input.key, (await upsertEntity(spaceId, input, actor)).entity);
   }
   const idOf = (key: string): string => {
@@ -27,7 +34,7 @@ export async function loadCorpus(spaceId: string, actor: Actor = 'agent:corpus')
     if (!entity) throw new Error(`Corpus relation points to unknown key "${key}".`);
     return entity.id;
   };
-  for (const { from, to, type } of corpus.relations) {
+  for (const { from, to, type } of data.relations) {
     await linkEntities(spaceId, { fromId: idOf(from), toId: idOf(to), type }, actor);
   }
   return byKey;

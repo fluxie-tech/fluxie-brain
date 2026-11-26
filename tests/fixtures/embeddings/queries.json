@@ -1,0 +1,325 @@
+[
+  {
+    "id": "en-en-01",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "React strict mode runs effects twice",
+    "expected": ["learning:react-strict-mode-double-effects"]
+  },
+  {
+    "id": "en-en-02",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "advisory locks behind a connection pooler",
+    "expected": ["learning:postgres-advisory-locks-behind-pooler"]
+  },
+  {
+    "id": "en-en-03",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "attachments added offline are not synced",
+    "expected": ["gap:pebble-offline-attachments"]
+  },
+  {
+    "id": "en-en-04",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "mutate the DOM inside the editor",
+    "expected": ["principle:pebble-no-direct-dom-in-editor"]
+  },
+  {
+    "id": "en-en-05",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "why did a subscription fire two times while developing locally",
+    "expected": ["learning:react-strict-mode-double-effects"]
+  },
+  {
+    "id": "en-en-06",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "how do concurrent edits from two laptops get combined without losing paragraphs",
+    "expected": ["decision:pebble-crdt-sync"]
+  },
+  {
+    "id": "en-en-07",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "every replica must end up displaying identical text",
+    "expected": ["invariant:pebble-sync-converges"]
+  },
+  {
+    "id": "en-en-08",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "is it safe to replay queued changes in a shuffled sequence",
+    "expected": ["assumption:yjs-updates-order-independent"]
+  },
+  {
+    "id": "en-en-09",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "convert old plain-text documents first, then change how merging works",
+    "expected": ["learning:pebble-crdt-migration-hindsight"]
+  },
+  {
+    "id": "en-en-10",
+    "lang": "en",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "how do we stop field reports from vanishing when the phone kills background tasks",
+    "expected": ["decision:tern-upload-with-workmanager"]
+  },
+
+  {
+    "id": "pt-pt-01",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "emitir notas fiscais por fila com reenvio",
+    "expected": ["decision:quarry-notas-em-fila"]
+  },
+  {
+    "id": "pt-pt-02",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "SQL cru nos controllers",
+    "expected": ["principle:quarry-sem-sql-cru-nos-controllers"]
+  },
+  {
+    "id": "pt-pt-03",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "config:cache faz o env() devolver null",
+    "expected": ["learning:laravel-config-cache-em-producao"]
+  },
+  {
+    "id": "pt-pt-04",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "atualização do Laravel bloqueada pelo pacote de boletos",
+    "expected": ["gap:quarry-upgrade-laravel-bloqueado"]
+  },
+  {
+    "id": "pt-pt-05",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "reprocessar o envio pode duplicar o documento do cliente?",
+    "expected": ["invariant:quarry-nota-idempotente"]
+  },
+  {
+    "id": "pt-pt-06",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "registros pulados ao paginar enquanto atualizo o status",
+    "expected": ["assumption:eloquent-chunk-mantem-ordem"]
+  },
+  {
+    "id": "pt-pt-07",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "ninguém percebeu o acúmulo de jobs pendentes por dois dias",
+    "expected": ["learning:quarry-retro-fila-de-notas"]
+  },
+  {
+    "id": "pt-pt-08",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "consultas agregadas pesadas podem fugir do ORM?",
+    "expected": ["decision:quarry-sql-cru-em-relatorios"]
+  },
+  {
+    "id": "pt-pt-09",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "usar latest no compose quebrou uma extensão do banco",
+    "expected": ["principle:fixar-tag-das-imagens-docker"]
+  },
+  {
+    "id": "pt-pt-10",
+    "lang": "pt",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "a primeira versão emitia dentro do próprio pedido, sem fila",
+    "expected": ["decision:quarry-notas-em-tabela"]
+  },
+
+  {
+    "id": "pt-en-01",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "efeitos do React no strict mode",
+    "expected": ["learning:react-strict-mode-double-effects"]
+  },
+  {
+    "id": "pt-en-02",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "advisory locks do Postgres com pooler",
+    "expected": ["learning:postgres-advisory-locks-behind-pooler"]
+  },
+  {
+    "id": "pt-en-03",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "o Yjs aplica updates em qualquer ordem?",
+    "expected": ["assumption:yjs-updates-order-independent"]
+  },
+  {
+    "id": "pt-en-04",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "lexical",
+    "text": "mudar o schema do Room sem migration derruba o app",
+    "expected": ["learning:tern-room-migration-crash"]
+  },
+  {
+    "id": "pt-en-05",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "anexos criados sem internet ficam só no aparelho",
+    "expected": ["gap:pebble-offline-attachments"]
+  },
+  {
+    "id": "pt-en-06",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "alterar o HTML na mão dentro do componente de texto rico",
+    "expected": ["principle:pebble-no-direct-dom-in-editor"]
+  },
+  {
+    "id": "pt-en-07",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "como juntar edições simultâneas feitas sem conexão",
+    "expected": ["decision:pebble-crdt-sync"]
+  },
+  {
+    "id": "pt-en-08",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "relatórios de vistoria duplicados no sistema da sede",
+    "expected": ["invariant:tern-inspection-uploaded-once"]
+  },
+  {
+    "id": "pt-en-09",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "fotos esperando rede sem fio quando o plano de dados é limitado",
+    "expected": ["gap:tern-photos-on-metered"]
+  },
+  {
+    "id": "pt-en-10",
+    "lang": "pt",
+    "targetLang": "en",
+    "kind": "paraphrase",
+    "text": "dois aparelhos com as mesmas alterações precisam mostrar o mesmo texto",
+    "expected": ["invariant:pebble-sync-converges"]
+  },
+
+  {
+    "id": "en-pt-01",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "Laravel config cache returns null for env",
+    "expected": ["learning:laravel-config-cache-em-producao"]
+  },
+  {
+    "id": "en-pt-02",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "Eloquent chunk loop skips rows",
+    "expected": ["assumption:eloquent-chunk-mantem-ordem"]
+  },
+  {
+    "id": "en-pt-03",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "raw SQL in Laravel controllers",
+    "expected": ["principle:quarry-sem-sql-cru-nos-controllers"]
+  },
+  {
+    "id": "en-pt-04",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "lexical",
+    "text": "Docker image tag pinning",
+    "expected": ["principle:fixar-tag-das-imagens-docker"]
+  },
+  {
+    "id": "en-pt-05",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "resending a tax invoice must never bill the customer twice",
+    "expected": ["invariant:quarry-nota-idempotente"]
+  },
+  {
+    "id": "en-pt-06",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "issue invoices through background jobs with automatic retries",
+    "expected": ["decision:quarry-notas-em-fila"]
+  },
+  {
+    "id": "en-pt-07",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "framework upgrade stuck because a payment slip package lacks support",
+    "expected": ["gap:quarry-upgrade-laravel-bloqueado"]
+  },
+  {
+    "id": "en-pt-08",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "nobody noticed the invoice job backlog growing for two days",
+    "expected": ["learning:quarry-retro-fila-de-notas"]
+  },
+  {
+    "id": "en-pt-09",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "store money as integer cents to avoid rounding drift",
+    "expected": ["principle:quarry-valores-em-centavos"]
+  },
+  {
+    "id": "en-pt-10",
+    "lang": "en",
+    "targetLang": "pt",
+    "kind": "paraphrase",
+    "text": "invoices can only be voided before the city deadline",
+    "expected": ["learning:quarry-nota-cancelada-fora-do-prazo"]
+  }
+]

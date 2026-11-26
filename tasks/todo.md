@@ -212,9 +212,9 @@ As duas pernas da busca filtram por esses ids.
 - `scripts/bench-metrics.ts` com MRR@10, recall@5 e p50/p95.
 
 **Critérios de aceite:**
-- [ ] Os distratores carregam pelo core-graph real com o preset (`OntologyError` nenhum). Toda key em `expected` existe no corpus ou nos distratores.
-- [ ] Toda consulta `paraphrase` não divide nenhuma palavra de conteúdo (ignorando palavras de até 3 letras) com os títulos esperados. Cada grupo de idioma tem pelo menos 8 consultas.
-- [ ] Métricas com teste unitário (casos à mão, lista vazia, alvo ausente).
+- [x] Os distratores carregam pelo core-graph real com o preset (`OntologyError` nenhum). Toda key em `expected` existe no corpus ou nos distratores.
+- [x] Toda consulta `paraphrase` não divide nenhuma palavra de conteúdo (ignorando palavras de até 3 letras) com os títulos esperados. Cada grupo de idioma tem pelo menos 8 consultas.
+- [x] Métricas com teste unitário (casos à mão, lista vazia, alvo ausente).
 
 **Verificação:** `pnpm vitest run tests/embeddings/fixtures.test.ts tests/scripts/bench-metrics.test.ts`; `pnpm check:task`.
 
