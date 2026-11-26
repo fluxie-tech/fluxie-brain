@@ -468,3 +468,56 @@ Isso apesar de a fusão calibrada não derrubar nenhum grupo e ganhar em `exact`
 - A latência não foi medida, porque a CPU estava ocupada por um processo de fora do projeto. Ela ainda é necessária para o critério 17.
 
 A decisão final é do dono, no Checkpoint F.
+
+## Emenda 2: extração e embeddings pagos pela OpenRouter (2026-11-26)
+
+**Por quê:** na rodada 1 da Emenda 1, nenhuma fusão superou o vetor sozinho pela margem, e o ponto mais fraco são as consultas entre idiomas. Isso deixa duas perguntas que só um modelo maior responde:
+1. Um modelo de embeddings maior melhora a busca (principalmente entre idiomas)?
+2. Uma extração feita por um modelo maior, do jeito que a ingestão via MCP fará no futuro, dá dados melhores que a do Haiku?
+
+O dono pediu para testar as duas coisas pela OpenRouter, com o modelo de embeddings **como candidato a produção**.
+
+### O que entra
+
+- **Embeddings pagos:**
+  - entra no catálogo o `text-embedding-3-small` da OpenAI, pela OpenRouter, com o id que a OpenRouter usa. São **1536 dimensões nativas**, sem corte, e sem prefixo (documento `título\nconteúdo`, consulta crua);
+  - a coluna `vector` sem dimensão fixa já comporta isso, então não há migração: os vetores de cada modelo ficam em linhas próprias e só são comparados entre si. 1536 continua abaixo do limite de 2000 do HNSW;
+  - o provider atual já serve: base URL `https://openrouter.ai/api/v1`, com a chave como Bearer. O spike confere se a OpenRouter expõe `/embeddings` com o mesmo formato de resposta.
+- **Extração paga** (`scripts/dogfood-extract-api.ts`):
+  - envia os mesmos lotes do `dogfood:prepare` (205 arquivos, varridos pelo `gitleaks`, nunca os `.env*`), junto com os mesmos guias (`preset-reference.md`, `extraction-format.md`) e as mesmas âncoras, a um modelo de chat da OpenRouter, com saída em JSON;
+  - grava em `.dogfood/extracted-<modelo>/`;
+  - o `dogfood:build` passa a aceitar a pasta de entrada e gera `.dogfood/dataset-<nome>.json`;
+  - a semente da divisão é a mesma da Emenda 1.
+- **Comparação 2×2:**
+  - duas extrações (Haiku e o modelo da OpenRouter) × dois modelos de embeddings (Gemma local e o `text-embedding-3-small`);
+  - em cada célula, o `bench:fusion` calibra a fusão na metade de calibração e reporta na de teste.
+
+### Regra de decisão
+
+- **Modelo de produção:**
+  - vence o maior MRR@10 nas consultas de teste, com a fusão escolhida pela regra da Emenda 1 para aquele modelo;
+  - se a diferença for menor que 0,02, vence o local (sem custo, sem rede, sem enviar conhecimento para fora);
+  - um modelo com p95 da busca inteira acima de 300 ms, medido com a CPU livre e incluindo a rede, está fora.
+- **Extração:** o resultado só informa o spec do `mcp-server` (o modelo e o roteiro da ingestão). Ele não muda o código deste módulo.
+
+### Privacidade e custo
+
+- **Decisão do dono (26/11):** os 205 arquivos permitidos vão para o modelo da OpenRouter. É uma exceção à Emenda 1, que proibia enviar texto do chatbot para fora.
+- **O que continua igual:** os `.env*` nunca são lidos; o `gitleaks` barra arquivo com segredo; nada do chatbot entra no git; o spec recebe só números agregados.
+- **Chave:** `OPENROUTER_API_KEY` vai no `.env`, preenchida pelo dono, nunca impressa nem registrada em log. As chamadas só vão para `openrouter.ai`.
+- **Custo:** antes de cada etapa paga, o script imprime a estimativa de tokens e espera o dono liberar:
+  - a extração soma uns 526 mil tokens de entrada, mais a saída;
+  - os embeddings ficam em uns 50 mil tokens por dataset, centavos.
+- **Se o embedding pago vencer:** em produção, todo conhecimento gravado e toda consulta passariam pela OpenRouter. O `mcp-server` precisará tratar isso (configuração por space, aviso ao usuário e custo). Fica registrado como pendência.
+
+### Ordem
+
+1. **Spike:**
+   - uma chamada de embeddings e uma de chat, para conferir o formato, a dimensão e a latência de rede;
+   - o dono passa a configuração (base URL e ids dos modelos).
+2. **Extração paga:** o dono vê a estimativa e libera a rodada.
+3. **Build** do novo dataset e revisão da amostra, como na T15.
+4. **Benchmark 2×2,** com a latência medida com a CPU livre.
+5. **Decisão** no checkpoint com o dono.
+
+A fusão de produção (`FUSION`) segue como está até o fim desta emenda. A decisão pendente da Emenda 1 (só vetor) é tomada junto.
