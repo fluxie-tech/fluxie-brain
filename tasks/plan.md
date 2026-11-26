@@ -29,6 +29,7 @@ T12 spike: imagem do db com pg_textsearch 1.6.0 no PG19 (o risco primeiro; fecha
 T16 perna de grafo (PageRank personalizado)            (depende de T8; pode correr ao lado de T13–T15)
 T17 fusão calibrada no search (funções + constantes provisórias)   (depende de T13 e T16)
  └─ T18 benchmark com calibração/teste no dogfooding + decisão     (depende de T15 e T17)
+T19/T20/T21 Emenda 2: embedding pago (catálogo, spike, benchmark dos dois modelos) → Checkpoint G
 T11 fechamento: rastreabilidade (17 critérios), pendências, pisos de cobertura, check:task
 ```
 
@@ -102,10 +103,18 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [ ] Três pernas com teste; dataset do dogfooding validado, com a taxa de erro da amostra registrada
 - [ ] `pnpm check:task` verde
 
-- [ ] T18: benchmark com calibração e teste e decisão da fusão (M)
+- [x] T18: benchmark com calibração e teste (rodada 1: a regra deu só vetor; a decisão passou para a Emenda 2) (M)
 
 ### Checkpoint F: decisão
 - [ ] Resultado agregado no spec; configuração da fusão (ou só vetor) aplicada pela regra e aprovada pelo dono
+
+### Fase 4b: Emenda 2, embeddings pagos (aprovada em 26/11/2026)
+- [x] T20: `text-embedding-3-small` no catálogo, benchmarks prontos para modelo remoto (S)
+- [ ] T19: spike da OpenRouter `/embeddings`, que depende da chave no `.env` e do id do modelo (XS)
+- [ ] T21: benchmark dos dois modelos no dataset do Haiku, com latência e CPU livre (S)
+
+### Checkpoint G: modelo e fusão de produção
+- [ ] Os números estão no spec, e o modelo e a `FUSION` estão aplicados pela regra e aprovados pelo dono
 
 ### Fase 5: Fechamento
 - [ ] T11: fechamento (S)

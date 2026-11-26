@@ -38,7 +38,8 @@ type Dataset = {
 };
 
 const data = JSON.parse(readFileSync('.dogfood/dataset.json', 'utf8')) as Dataset;
-const MODEL = 'embeddinggemma-2:270m';
+// --model=<catalog id>; the provider comes from the environment, as in production (EMBEDDINGS_BASE_URL, EMBEDDINGS_API_KEY).
+const MODEL = process.argv.find((a) => a.startsWith('--model='))?.slice('--model='.length) ?? 'embeddinggemma-2:270m';
 // --no-latency: skip the timing (e.g. when the machine is busy); quality numbers do not depend on CPU load.
 const MEASURE_LATENCY = !process.argv.includes('--no-latency');
 // Small sync batches keep each provider call under its 60 s timeout on a slow or busy CPU.
@@ -155,8 +156,30 @@ function printTables(
   }
 }
 
+/**
+ * A remote provider costs money and receives the dataset texts: print the token estimate and stop unless --yes.
+ * Never prints the API key.
+ */
+function confirmRemote(baseUrl: string): boolean {
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(baseUrl) || process.argv.includes('--yes')) return true;
+  const bytes = (s: string) => Buffer.byteLength(s);
+  const entityBytes = data.entities.reduce(
+    (n, e) =>
+      n +
+      bytes(`${e.title}
+${e.content}`),
+    0,
+  );
+  const queryBytes = data.queries.reduce((n, q) => n + bytes(q.text), 0) * (MEASURE_LATENCY ? 2 : 1);
+  const host = new URL(baseUrl).host;
+  console.log(`Provedor remoto (${host}), modelo ${MODEL}: ~${Math.ceil((entityBytes + queryBytes) / 4)} tokens.`);
+  console.log('Nada foi enviado. Rode de novo com --yes para seguir.');
+  return false;
+}
+
 async function main() {
   const config = { ...configFromEnv(), model: MODEL };
+  if (!confirmRemote(config.baseUrl)) return;
   const { spaceId, keyOf } = await prepare(config);
   const legs = await collectLegs(config, spaceId, keyOf);
   const twins = await twinsOf(spaceId);

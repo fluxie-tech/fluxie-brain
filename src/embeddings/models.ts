@@ -23,7 +23,17 @@ export const MODELS = {
     query: (text) =>
       `Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:${text}`,
   },
+  // Remote, through OpenRouter's OpenAI-compatible API (Emenda 2): production candidate. OpenAI embeddings take raw
+  // text, with no instruction or role prefix. Native 1536 dims, uncut. Id as OpenRouter names it (confirmed in T19).
+  'openai/text-embedding-3-small': {
+    dimensions: 1536,
+    document: (title, content) => `${title}\n${content}`,
+    query: (text) => text,
+  },
 } satisfies Record<string, ModelSpec>;
+
+/** Models served by the local Ollama container (the ones the compose can pull); the rest are remote APIs. */
+export const LOCAL_MODELS = ['embeddinggemma-2:270m', 'qwen3-embedding:0.6b'] as const;
 
 export const DEFAULT_MODEL = 'embeddinggemma-2:270m';
 

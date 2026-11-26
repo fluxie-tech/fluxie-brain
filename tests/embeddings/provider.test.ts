@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CoreGraphError } from '../../src/core-graph/index.ts';
 import { EmbeddingConfigError, EmbeddingProviderError } from '../../src/embeddings/index.ts';
-import { MODELS, modelSpec } from '../../src/embeddings/models.ts';
+import { LOCAL_MODELS, MODELS, modelSpec } from '../../src/embeddings/models.ts';
 import { configFromEnv, embed, type ProviderConfig } from '../../src/embeddings/provider.ts';
 import { type Stub, startStub } from './stub-provider.ts';
 
@@ -24,6 +24,15 @@ describe('model catalog', () => {
     expect(modelSpec(QWEN).query('sync notes')).toBe(
       'Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:sync notes',
     );
+  });
+
+  it('sends OpenAI text-embedding-3-small raw text at its native 1536 dimensions', () => {
+    const openai = 'openai/text-embedding-3-small';
+    expect(MODELS[openai].dimensions).toBe(1536);
+    expect(modelSpec(openai).document('Sync engine', 'Merges notes.')).toBe('Sync engine\nMerges notes.');
+    expect(modelSpec(openai).query('sync notes')).toBe('sync notes');
+    expect(LOCAL_MODELS).not.toContain(openai);
+    for (const local of LOCAL_MODELS) expect(Object.hasOwn(MODELS, local)).toBe(true);
   });
 
   it('rejects a model outside the catalog with a config error', () => {

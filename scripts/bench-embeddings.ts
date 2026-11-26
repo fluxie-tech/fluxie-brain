@@ -11,7 +11,7 @@ process.env.DATABASE_URL = testUrl;
 const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
 const { combine } = await import('../src/embeddings/fusion.ts');
-const { MODELS, modelSpec } = await import('../src/embeddings/models.ts');
+const { LOCAL_MODELS, modelSpec } = await import('../src/embeddings/models.ts');
 const { configFromEnv, embed } = await import('../src/embeddings/provider.ts');
 const { runLegs } = await import('../src/embeddings/legs.ts');
 const { FUSION, legSize } = await import('../src/embeddings/search.ts');
@@ -48,7 +48,7 @@ async function prepareSpace(): Promise<{ spaceId: string; keyOf: Map<string, str
 
 /** Unloads every model, then times the first embedding call: the cold load. */
 async function coldLoad(config: Config): Promise<number> {
-  for (const model of Object.keys(MODELS)) {
+  for (const model of LOCAL_MODELS) {
     try {
       ollama('stop', model);
     } catch {
@@ -154,7 +154,7 @@ function printPerformance(results: Result[]): void {
 registerPresets();
 try {
   const results: Result[] = [];
-  for (const model of Object.keys(MODELS)) {
+  for (const model of LOCAL_MODELS) {
     console.error(`benchmarking ${model}...`);
     results.push(await benchModel(model));
   }

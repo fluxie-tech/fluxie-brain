@@ -424,7 +424,7 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 - os números agregados (sem nenhum texto do chatbot) vão para "Resultado do benchmark" no spec.
 
 **Critérios de aceite:**
-- [ ] `chooseFusion` tem teste unitário com os casos da regra: margem de 0,02, queda por grupo, grafo nas consultas de vários saltos e latência acima do corte.
+- [x] `chooseFusion` tem teste unitário com os casos da regra: margem de 0,02, queda por grupo, grafo nas consultas de vários saltos e latência acima do corte.
 - [ ] O spec traz a tabela agregada da rodada (data, contagens do dataset, calibração × teste) e a decisão. As constantes do `search.ts` refletem essa decisão.
 - [ ] O dono revisa o resultado (Checkpoint F).
 
@@ -438,6 +438,53 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 
 ### Checkpoint F: decisão
 - [ ] O resultado está no spec, e a configuração da fusão está aplicada pela regra e aprovada pelo dono.
+
+## Fase 4b: Emenda 2, embeddings pagos
+
+### T20: `text-embedding-3-small` no catálogo e benchmarks prontos para modelo remoto
+
+**Descrição:**
+- o `models.ts` ganha o `openai/text-embedding-3-small` (1536 dims, sem prefixo; o id é provisório até a T19);
+- o `bench-embeddings.ts` passa a listar só os modelos locais do Ollama;
+- o `bench-fusion.ts` aceita `--model=`, lê o provedor do ambiente como em produção (`EMBEDDINGS_BASE_URL`, `EMBEDDINGS_API_KEY`) e, num provedor remoto, imprime a estimativa de tokens e só segue com `--yes`.
+
+**Critérios de aceite:**
+- [x] Testes do catálogo com o modelo novo (dimensão e templates); o provider aceita 1536 dims pelo stub.
+- [x] `pnpm bench:fusion` sem `--yes` contra uma URL remota não chama a API.
+
+**Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
+
+**Arquivos:** `src/embeddings/models.ts`, `tests/embeddings/provider.test.ts`, `scripts/bench-embeddings.ts`, `scripts/bench-fusion.ts`.
+
+**Tamanho:** S.
+
+### T19: spike da OpenRouter `/embeddings`
+
+**Descrição:**
+- depende de o dono pôr `OPENROUTER_API_KEY` no `.env` e passar o id exato do modelo;
+- uma chamada com dois textos confere o status, o formato da resposta (o mesmo Zod do provider), a dimensão (1536) e a latência de rede;
+- se o id ou o formato for outro, o catálogo é corrigido.
+
+**Critérios de aceite:**
+- [ ] Os achados ficam no `tasks/plan.md`, e a chave nunca é impressa.
+
+**Tamanho:** XS.
+
+### T21: benchmark dos dois modelos
+
+**Descrição:**
+- roda o `bench:fusion` com o Gemma (local) e com o `text-embedding-3-small` (OpenRouter) no mesmo dataset e na mesma divisão;
+- mede a latência com a CPU livre;
+- aplica as regras (do modelo e da fusão) e registra os números agregados no spec.
+
+**Critérios de aceite:**
+- [ ] O spec mostra a tabela dos dois modelos, a latência e a decisão.
+- [ ] Depois do Checkpoint G, o padrão (`DEFAULT_MODEL`, compose, `.env.example`) e a `FUSION` refletem a decisão.
+
+**Tamanho:** S.
+
+### Checkpoint G: modelo e fusão de produção
+- [ ] Aprovação do dono.
 
 ## Fase 5: Fechamento
 
