@@ -86,7 +86,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T10: script do benchmark, 1ª rodada e escolha do modelo (M). O Gemma 270m venceu pela regra e foi confirmado pelo dono em 26/11. A híbrida perdeu para o vetor sozinho, o que levou à Emenda 1 do spec.
 
 ### Fase 4: Emenda 1, híbrida melhorada
-- [ ] T12: spike da imagem do banco com pg_textsearch 1.6.0 (S)
+- [x] T12: spike da imagem do banco com pg_textsearch 1.6.0 (S)
 - [ ] T14: `dogfood:prepare` (S)
 
 ### Checkpoint D: base pronta
@@ -135,6 +135,21 @@ Medido em 25/11/2026 no Docker Desktop 29.9.3 (WSL2: o Docker vê 16 CPUs e 15,3
 | 11 | Latência (sonda rápida, não é o benchmark) | Modelo carregado, 30 consultas: Qwen3 p50 191 ms / p95 216 ms; Gemma 270m p50 85 ms / p95 97 ms. Carga a frio: ~1,6–1,8 s. Lote de 32 documentos de ~70 tokens: Qwen3 17,8 s, Gemma 8,2 s. | O Qwen3 fica perto do corte de 300 ms, e um vCPU de VPS costuma ser mais lento |
 | 12 | Papel do app | O `fluxie_app` não cria nem tabela temporária, como esperado pelo endurecimento | Nada a mudar |
 | 13 | CI | `docker compose up -d --wait db` continua subindo só o banco | O CI não muda |
+
+## Achados do spike da Emenda 1 (T12)
+
+Medido em 26/11/2026, no Docker Desktop local, com a imagem `fluxie-brain-db:pg19-pgvector0.8.7-pgts1.6.0` (`docker/db/Dockerfile`).
+
+| # | Pergunta | Achado | Efeito |
+|---|---|---|---|
+| 1 | Pacote pronto ou compilar? | A v1.6.0 (23/11/2026 17:00 UTC) publica zips para pg17, pg18 e pg19 em amd64 e arm64, além do código-fonte. A base é Debian 12 com Postgres 19.0. | Compila do tarball de código (sha256 `356244be…f8fd`, o digest do release), com os headers fixados na versão exata do servidor. Build em **64 s** (cache frio). |
+| 2 | Dois índices `bm25` sobre a mesma expressão? | Funciona: `bm25 ((title \|\| ' ' \|\| content))` com `portuguese` e com `english` na mesma tabela. Coluna também funciona. | Índices sobre a expressão, sem coluna nova: **o core-graph não muda** |
+| 3 | Stopwords e radical | Com `portuguese`, um documento só com "como" tem score 0; "faturar" casa "faturamento". | É o que faltava na perna de texto (critério 14) |
+| 4 | Linhas sem termo casado | Voltam com score **0**. O score é negativo, e menor é melhor. | A perna filtra `score < 0` |
+| 5 | Filtros no `WHERE` (`EXPLAIN ANALYZE`, 50 mil linhas) | `Index Scan using bm_pt` com os filtros de space e status aplicados depois: 5 ms com filtros, 0,3 ms sem. | Serve. Limite conhecido: um space pequeno numa tabela grande faz o scan percorrer mais linhas até completar o `LIMIT` |
+| 6 | Papel restrito | O `fluxie_app` consulta com `<@>`/`to_bm25query`. `create extension pg_textsearch` fica no `init-db.sh` (superusuário), como o `vector`. | A migração só cria os índices |
+| 7 | Suíte e SAST | `pnpm check:task`: 284 testes passam na imagem nova sem mudança de código. `pnpm check:sast` limpo com o Dockerfile. | O CI passa a construir a imagem (`build:` no compose). Confirmo no PR |
+| 8 | IDF entre spaces | As estatísticas são do índice inteiro (os 50 spaces da sonda). | Limite conhecido, já registrado no spec |
 
 ## Rastreabilidade: critérios do spec → testes
 

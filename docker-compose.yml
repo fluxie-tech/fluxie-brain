@@ -1,7 +1,10 @@
 services:
   db:
-    # PG19 + pgvector 0.8.7 (stable, built for PG19). Bump deliberately.
-    image: pgvector/pgvector:0.8.7-pg19
+    # PG19 + pgvector 0.8.7 + pg_textsearch 1.6.0 (BM25), built from docker/db/Dockerfile. Bump deliberately.
+    build: ./docker/db
+    image: fluxie-brain-db:pg19-pgvector0.8.7-pgts1.6.0
+    # pg_textsearch must be preloaded; it registers its index access method at startup.
+    command: ["postgres", "-c", "shared_preload_libraries=pg_textsearch"]
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set in .env}

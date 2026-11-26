@@ -274,9 +274,9 @@ O spike responde às perguntas em aberto da emenda e registra os achados no `tas
 Se um achado contradisser o spec, o plano para e volta ao dono.
 
 **Critérios de aceite:**
-- [ ] `docker compose up -d --wait db` sobe a imagem nova a partir de um volume limpo, e `pnpm db:migrate` roda nela.
-- [ ] A suíte inteira (`pnpm check:task`) passa na imagem nova, sem nenhuma mudança de código.
-- [ ] A tabela de achados da T12 no `tasks/plan.md` responde às quatro perguntas da emenda.
+- [x] `docker compose up -d --wait db` sobe a imagem nova a partir de um volume limpo, e `pnpm db:migrate` roda nela.
+- [x] A suíte inteira (`pnpm check:task`) passa na imagem nova, sem nenhuma mudança de código.
+- [x] A tabela de achados da T12 no `tasks/plan.md` responde às quatro perguntas da emenda.
 
 **Verificação:** `docker compose down -v && docker compose up -d --wait db`; `pnpm db:migrate`; `pnpm check:task`.
 

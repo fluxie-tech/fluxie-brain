@@ -429,9 +429,12 @@ O dono decidiu melhorar a híbrida, em vez de abandoná-la, e medir num projeto 
 - **Infra do `db`:** o compose e o CI trocam a imagem `pgvector/pgvector:0.8.7-pg19` por uma própria (`docker/db/Dockerfile`), que adiciona o `pg_textsearch` 1.6.0 e o carrega por `shared_preload_libraries`. O código do core-graph não muda.
 - **Migrações:** uma migração custom cria a extensão e os dois índices BM25 e dá ao `fluxie_app` o que ele precisar para consultar.
 
-### Perguntas em aberto (fechadas no spike da emenda)
+### Perguntas em aberto
 
-- A v1.6.0 tem pacote pronto para pg19 amd64, ou precisa compilar? A página de releases não mostrou a lista inteira.
-- A extensão aceita dois índices `bm25` (`portuguese` e `english`) sobre a mesma expressão? Ela indexa expressão, ou exige uma coluna?
-- O `to_bm25query` combina com os filtros de space, status e escopo no mesmo `WHERE` sem perder o índice?
+Fechadas pelo spike da T12 (26/11; a tabela completa está em `tasks/plan.md`):
+- **Pacote ou compilar:** a imagem compila do tarball de código, fixado por versão e sha256. O build leva 64 s.
+- **Dois índices:** funcionam sobre a mesma expressão `title || ' ' || content`, então não precisa de coluna nova.
+- **Filtros no `WHERE`:** o `to_bm25query` com os filtros usa o índice (5 ms com 50 mil linhas). Linhas sem termo casado voltam com score 0, por isso a perna filtra `score < 0`.
+
+Ainda em aberto:
 - O Haiku 5.5 em `low` extrai com qualidade suficiente? A revisão da amostra responde. Se ficar acima de 20% de erros, a mudança de modelo ou de esforço é perguntada ao dono.
