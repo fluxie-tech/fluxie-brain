@@ -5,8 +5,11 @@ import { fuse, orQuery } from './fusion.ts';
 import { modelSpec } from './models.ts';
 import { configFromEnv, embed, type ProviderConfig } from './provider.ts';
 import { entityEmbeddings, vectorLiteral, vectorOf } from './schema.ts';
+import { type Anchor, scopeIds } from './scope.ts';
 
 export type SearchOptions = {
+  /** Restricts both legs to the anchor's scope; the mcp-server passes the space preset's rule. */
+  anchor?: Anchor;
   statuses?: EntityStatus[];
   types?: string[];
   limit?: number;
@@ -17,8 +20,13 @@ export type SearchHit = { entity: Entity; score: number; ranks: { vector?: numbe
 
 export type SearchResult = { hits: SearchHit[]; context: GraphSlice; vector: 'ok' | 'unavailable' };
 
-/** Which entities a leg may return: the space, the requested statuses and, if given, the types. */
-export type LegFilter = { spaceId: string; statuses: EntityStatus[]; types: string[] | undefined };
+/** Which entities a leg may return: the space, the requested statuses and, if given, the types and scope ids. */
+export type LegFilter = {
+  spaceId: string;
+  statuses: EntityStatus[];
+  types: string[] | undefined;
+  ids?: string[] | undefined;
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_QUERY = 2000;
@@ -42,7 +50,12 @@ export async function searchSpace(
 ): Promise<SearchResult> {
   const limit = opts.limit ?? 10;
   validate(spaceId, query, limit, opts.depth ?? 1);
-  const filter: LegFilter = { spaceId, statuses: opts.statuses ?? ['approved', 'draft'], types: opts.types };
+  const filter: LegFilter = {
+    spaceId,
+    statuses: opts.statuses ?? ['approved', 'draft'],
+    types: opts.types,
+    ids: opts.anchor ? await scopeIds(spaceId, opts.anchor) : undefined,
+  };
   const [vector, text] = await Promise.all([vectorLegOrNothing(config, query, filter), textLeg(query, filter)]);
   const fused = fuse([vector ?? [], text]).slice(0, limit);
   const byId = await loadEntities(fused.map((f) => f.id));
@@ -87,6 +100,7 @@ const matches = (filter: LegFilter): SQL | undefined =>
     eq(entities.spaceId, filter.spaceId),
     inArray(entities.status, filter.statuses),
     filter.types ? inArray(entities.type, filter.types) : undefined,
+    filter.ids ? inArray(entities.id, filter.ids) : undefined,
   );
 
 /** Ids of the LEG_SIZE nearest entities by cosine distance, among the active model's vectors only (exact search). */

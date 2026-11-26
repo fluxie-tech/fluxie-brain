@@ -63,7 +63,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 ### Fase 2: Busca
 - [x] T5: busca híbrida sem âncora (M)
 - [x] T6: campo `scope` no presets (XS)
-- [ ] T7: filtro pelo escopo da âncora (M)
+- [x] T7: filtro pelo escopo da âncora (M)
 - [ ] T8: vizinhos de contexto (S)
 
 ### Checkpoint B: busca completa

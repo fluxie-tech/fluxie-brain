@@ -169,9 +169,9 @@ O contexto vem vazio até a T8.
 As duas pernas da busca filtram por esses ids.
 
 **Critérios de aceite:**
-- [ ] No corpus do presets, com a regra do Development Graph, a partir de `repo:fictora/pebble-web`, `repo:fictora/quarry-api` e `component:fictora/quarry-api/faturamento`: nenhum item do outro projeto nos `hits`; os `shared` aparecem nos dois repos; as lições sobre dependências de componentes aparecem.
-- [ ] Uma âncora inexistente ou de outro space dá `NotFoundError`. Um component de outro repo usado por `depends_on` entra, mas os irmãos dele não (fixture pequena no próprio teste).
-- [ ] Sem âncora, o resultado é igual ao da T5.
+- [x] No corpus do presets, com a regra do Development Graph, a partir de `repo:fictora/pebble-web`, `repo:fictora/quarry-api` e `component:fictora/quarry-api/faturamento`: nenhum item do outro projeto nos `hits`; os `shared` aparecem nos dois repos; as lições sobre dependências de componentes aparecem.
+- [x] Uma âncora inexistente ou de outro space dá `NotFoundError`. Um component de outro repo usado por `depends_on` entra, mas os irmãos dele não (fixture pequena no próprio teste).
+- [x] Sem âncora, o resultado é igual ao da T5.
 
 **Verificação:** `pnpm vitest run tests/embeddings/scope.test.ts`; `pnpm check:task`.
 
