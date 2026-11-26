@@ -1,4 +1,8 @@
 {
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_CODE_SUBAGENT_EFFORT": "medium"
+  },
   "enabledPlugins": {
     "agent-skills@addy-agent-skills": true
   },
