@@ -469,55 +469,47 @@ Isso apesar de a fusão calibrada não derrubar nenhum grupo e ganhar em `exact`
 
 A decisão final é do dono, no Checkpoint F.
 
-## Emenda 2: extração e embeddings pagos pela OpenRouter (2026-11-26)
+## Emenda 2: embeddings pagos pela OpenRouter (2026-11-26)
 
-**Por quê:** na rodada 1 da Emenda 1, nenhuma fusão superou o vetor sozinho pela margem, e o ponto mais fraco são as consultas entre idiomas. Isso deixa duas perguntas que só um modelo maior responde:
-1. Um modelo de embeddings maior melhora a busca (principalmente entre idiomas)?
-2. Uma extração feita por um modelo maior, do jeito que a ingestão via MCP fará no futuro, dá dados melhores que a do Haiku?
+**Por quê:** na rodada 1 da Emenda 1, nenhuma fusão superou o vetor sozinho pela margem, e o ponto mais fraco são as consultas entre idiomas (pt→en 0,444; en→pt 0,544). A pergunta é se um modelo de embeddings maior melhora isso. O dono pediu para testar um modelo pago pela OpenRouter **como candidato a produção**.
 
-O dono pediu para testar as duas coisas pela OpenRouter, com o modelo de embeddings **como candidato a produção**.
+**A extração fica de fora desta emenda** (dono, 26/11). No produto, a extração é mista:
+- o agente conectado por MCP grava o conhecimento no dia a dia, seguindo o roteiro que o `mcp-server` publica;
+- a carga inicial de um projeto existente é um módulo novo, o `ingest-projects`, que vem depois do `mcp-server` e usa um LLM do servidor. Está no `CAPABILITY-MAP.md`.
+
+Comparar extratores fica para esse módulo. Aqui, o dataset é o que o Haiku já extraiu.
 
 ### O que entra
 
-- **Embeddings pagos:**
-  - entra no catálogo o `text-embedding-3-small` da OpenAI, pela OpenRouter, com o id que a OpenRouter usa. São **1536 dimensões nativas**, sem corte, e sem prefixo (documento `título\nconteúdo`, consulta crua);
-  - a coluna `vector` sem dimensão fixa já comporta isso, então não há migração: os vetores de cada modelo ficam em linhas próprias e só são comparados entre si. 1536 continua abaixo do limite de 2000 do HNSW;
-  - o provider atual já serve: base URL `https://openrouter.ai/api/v1`, com a chave como Bearer. O spike confere se a OpenRouter expõe `/embeddings` com o mesmo formato de resposta.
-- **Extração paga** (`scripts/dogfood-extract-api.ts`):
-  - envia os mesmos lotes do `dogfood:prepare` (205 arquivos, varridos pelo `gitleaks`, nunca os `.env*`), junto com os mesmos guias (`preset-reference.md`, `extraction-format.md`) e as mesmas âncoras, a um modelo de chat da OpenRouter, com saída em JSON;
-  - grava em `.dogfood/extracted-<modelo>/`;
-  - o `dogfood:build` passa a aceitar a pasta de entrada e gera `.dogfood/dataset-<nome>.json`;
-  - a semente da divisão é a mesma da Emenda 1.
-- **Comparação 2×2:**
-  - duas extrações (Haiku e o modelo da OpenRouter) × dois modelos de embeddings (Gemma local e o `text-embedding-3-small`);
-  - em cada célula, o `bench:fusion` calibra a fusão na metade de calibração e reporta na de teste.
+- **Catálogo:**
+  - entra o `text-embedding-3-small` da OpenAI, pela OpenRouter, com o id que a OpenRouter usa;
+  - são **1536 dimensões nativas**, sem corte, e sem prefixo (documento `título
+conteúdo`, consulta crua).
+- **Sem migração:** a coluna `vector` sem dimensão fixa já comporta isso. Os vetores de cada modelo ficam em linhas próprias e só são comparados entre si, e 1536 fica abaixo do limite de 2000 do HNSW.
+- **Provider:** o atual serve, com base URL `https://openrouter.ai/api/v1` e a chave como Bearer. O spike confere se a OpenRouter expõe `/embeddings` com o mesmo formato de resposta.
+- **Comparação:** o `bench:fusion` passa a aceitar o modelo e roda no mesmo dataset e na mesma divisão para os dois modelos (Gemma local e `text-embedding-3-small`). Em cada um, ele calibra a fusão na metade de calibração e reporta na de teste.
 
 ### Regra de decisão
 
 - **Modelo de produção:**
-  - vence o maior MRR@10 nas consultas de teste, com a fusão escolhida pela regra da Emenda 1 para aquele modelo;
-  - se a diferença for menor que 0,02, vence o local (sem custo, sem rede, sem enviar conhecimento para fora);
-  - um modelo com p95 da busca inteira acima de 300 ms, medido com a CPU livre e incluindo a rede, está fora.
-- **Extração:** o resultado só informa o spec do `mcp-server` (o modelo e o roteiro da ingestão). Ele não muda o código deste módulo.
+  - vence o maior MRR@10 nas consultas de teste, cada modelo com a fusão que a regra da Emenda 1 escolher para ele;
+  - se a diferença for menor que 0,02, vence o local, que não custa nada, não depende de rede e não manda conhecimento para fora;
+  - um modelo com p95 da busca inteira acima de 300 ms está fora. O p95 é medido com a CPU livre e inclui a rede.
+- **Fusão de produção:** a decisão pendente da Emenda 1 (só vetor) é tomada junto, para o modelo escolhido. A `FUSION` segue como está até lá.
 
 ### Privacidade e custo
 
-- **Decisão do dono (26/11):** os 205 arquivos permitidos vão para o modelo da OpenRouter. É uma exceção à Emenda 1, que proibia enviar texto do chatbot para fora.
-- **O que continua igual:** os `.env*` nunca são lidos; o `gitleaks` barra arquivo com segredo; nada do chatbot entra no git; o spec recebe só números agregados.
-- **Chave:** `OPENROUTER_API_KEY` vai no `.env`, preenchida pelo dono, nunca impressa nem registrada em log. As chamadas só vão para `openrouter.ai`.
-- **Custo:** antes de cada etapa paga, o script imprime a estimativa de tokens e espera o dono liberar:
-  - a extração soma uns 526 mil tokens de entrada, mais a saída;
-  - os embeddings ficam em uns 50 mil tokens por dataset, centavos.
-- **Se o embedding pago vencer:** em produção, todo conhecimento gravado e toda consulta passariam pela OpenRouter. O `mcp-server` precisará tratar isso (configuração por space, aviso ao usuário e custo). Fica registrado como pendência.
+- **O que sai:** só os textos do dataset (as 392 entidades e as 575 consultas, derivados dos docs do chatbot) vão para o endpoint de embeddings da OpenRouter. Os arquivos originais e os `.env*` não saem. Nada do chatbot entra no git, e o spec só recebe números agregados.
+- **Chave:**
+  - `OPENROUTER_API_KEY` vai no `.env`, preenchida pelo dono;
+  - nunca é impressa nem aparece em log;
+  - as chamadas só vão para `openrouter.ai`.
+- **Custo:** uns 50 mil tokens por rodada, centavos. O script imprime a estimativa antes de chamar a API.
+- **Se o embedding pago vencer:** em produção, todo conhecimento gravado e toda consulta passariam pela OpenRouter. O `mcp-server` precisará tratar isso (configuração por space, aviso ao usuário, custo). Fica registrado como pendência.
 
 ### Ordem
 
-1. **Spike:**
-   - uma chamada de embeddings e uma de chat, para conferir o formato, a dimensão e a latência de rede;
-   - o dono passa a configuração (base URL e ids dos modelos).
-2. **Extração paga:** o dono vê a estimativa e libera a rodada.
-3. **Build** do novo dataset e revisão da amostra, como na T15.
-4. **Benchmark 2×2,** com a latência medida com a CPU livre.
-5. **Decisão** no checkpoint com o dono.
-
-A fusão de produção (`FUSION`) segue como está até o fim desta emenda. A decisão pendente da Emenda 1 (só vetor) é tomada junto.
+1. **Spike:** uma chamada de embeddings para conferir o formato, a dimensão e a latência de rede. O dono passa a configuração (base URL e o id do modelo).
+2. **Catálogo:** a entrada nova e os testes do provider.
+3. **Benchmark:** os dois modelos no dataset do Haiku, com a latência medida com a CPU livre.
+4. **Decisão:** no checkpoint com o dono.
