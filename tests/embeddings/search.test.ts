@@ -84,10 +84,52 @@ describe('search', () => {
     expect(top?.entity.key).toBe('cache');
     expect(top?.ranks.vector).toBeGreaterThan(0);
     expect(top?.ranks.text).toBe(1);
-    // The graph leg only runs when the shape's configuration gives it a weight.
-    if (FUSION[queryShape('redis cache')].graph === 0) expect(top?.ranks.graph).toBeUndefined();
-    else expect(top?.ranks.graph).toBeGreaterThan(0);
+    // The graph leg only runs, and only reports a rank, when the shape's configuration gives it a weight.
+    expect(top?.ranks.graph !== undefined).toBe(FUSION[queryShape('redis cache')].graph > 0);
     expect(top?.score).toBeGreaterThan(0);
+  });
+
+  it('returns hits by non-increasing score, and accepts the largest limit', async () => {
+    const { hits } = await run('redis cache invoice snake', { limit: 50 });
+    expect(hits.length).toBeGreaterThan(1);
+    const scores = hits.map((h) => h.score);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+  });
+
+  describe('fusion by query shape', () => {
+    const { document, query, dimensions } = modelSpec(GEMMA);
+    // A unit vector whose cosine with the query vector (axis 5, away from the axis 0 of the billing fixture) is `cos`.
+    const unit = (cos: number) => {
+      const v = new Array<number>(dimensions).fill(0);
+      v[5] = cos;
+      v[6] = Math.sqrt(1 - cos * cos);
+      return v;
+    };
+
+    it('orders a natural question by the vector alone, even if another entity matches every word', async () => {
+      const q = 'redis cache eviction policy';
+      stub.fixed.set(query(q), unit(1));
+      stub.fixed.set(document('near', 'unrelated prose'), unit(0.9));
+      stub.fixed.set(document('words', q), unit(0.8));
+      await add(space.id, 'learning', 'near', 'unrelated prose');
+      await add(space.id, 'learning', 'words', q);
+      await syncSpace(gemma, space.id, 32);
+      const { hits } = await run(q);
+      expect(hits.slice(0, 2).map((h) => h.entity.key)).toEqual(['near', 'words']);
+      expect(hits[1]?.ranks.text).toBeGreaterThan(0);
+    });
+
+    it('lets the exact term of a code-like query outrank a slightly closer vector', async () => {
+      const q = 'config:cache';
+      stub.fixed.set(query(q), unit(1));
+      stub.fixed.set(document('closer', 'unrelated prose'), unit(0.6));
+      stub.fixed.set(document('exact', 'how config:cache behaves'), unit(0.59));
+      await add(space.id, 'learning', 'closer', 'unrelated prose');
+      await add(space.id, 'learning', 'exact', 'how config:cache behaves');
+      await syncSpace(gemma, space.id, 32);
+      const { hits } = await run(q);
+      expect(hits[0]?.entity.key).toBe('exact');
+    });
   });
 
   it('filters by status (approved and draft by default) and by type', async () => {
@@ -111,6 +153,36 @@ describe('search', () => {
     expect(result.vector).toBe('unavailable');
     expect(keys(result)).toEqual(['cache']);
     expect(result.hits[0]?.ranks).toEqual({ vector: undefined, text: 1 });
+  });
+
+  describe('when the provider is unusable, search answers from the text leg', () => {
+    const wrongDims = JSON.stringify({ data: [{ index: 0, embedding: [0.1, 0.2] }] });
+    const unusable: [string, () => { status: number; body: string }][] = [
+      ['an HTTP 500', () => ({ status: 500, body: '{}' })],
+      ['a body that is not JSON', () => ({ status: 200, body: 'oops' })],
+      ['vectors of the wrong dimension', () => ({ status: 200, body: wrongDims })],
+    ];
+
+    it.each(unusable)('with %s, even for a natural question', async (_name, reply) => {
+      stub.respond = reply;
+      const result = await run('redis cache eviction policy');
+      expect(result.vector).toBe('unavailable');
+      expect(keys(result)).toEqual(['cache']);
+    });
+
+    it('with a refused connection', async () => {
+      const closed = await startStub();
+      await closed.close();
+      const result = await searchSpace({ ...gemma, baseUrl: closed.baseUrl }, space.id, 'redis cache eviction', {});
+      expect(result.vector).toBe('unavailable');
+      expect(keys(result)).toEqual(['cache']);
+    });
+
+    it('but a configuration error is not hidden as "unavailable"', async () => {
+      await expect(searchSpace({ ...gemma, model: 'nope' }, space.id, 'redis', {})).rejects.toThrow(
+        EmbeddingConfigError,
+      );
+    });
   });
 
   it('still finds an entity that has no vector yet, through the text leg', async () => {
@@ -166,6 +238,13 @@ describe('search', () => {
       });
     });
 
+    it('keeps a relation that links two hits', async () => {
+      const { hits, context } = await run('redis cache invoice snake', { limit: 50, depth: 1 });
+      expect(keys({ hits })).toEqual(expect.arrayContaining(['cache', 'billing', 'naming']));
+      const relations = context.relations.map((r) => `${keyOf.get(r.fromId)} ${r.type} ${keyOf.get(r.toId)}`);
+      expect(relations.sort()).toEqual(['cache learned_from billing', 'naming applies_to billing']);
+    });
+
     it('never repeats a hit in the context', async () => {
       const { hits, context } = await run('redis cache invoice snake', { limit: 50, depth: 2 });
       const hitIds = new Set(hits.map((h) => h.entity.id));
@@ -193,6 +272,11 @@ describe('search', () => {
       expect(keys[0]).toBe('efeitos');
       expect(keys).not.toContain('stopwords');
       expect(await text('como de que para')).toEqual([]);
+    });
+
+    it('ignores English-only stopwords too: a document made of them never matches', async () => {
+      await add(space.id, 'learning', 'en-stops', 'the of be an the of be an');
+      expect(await text('the of be an')).toEqual([]);
     });
 
     it('ranks a rare exact term above a common one', async () => {

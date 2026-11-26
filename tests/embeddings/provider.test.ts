@@ -110,7 +110,9 @@ describe('embed', () => {
     const vectors = await embed(config, ['alpha', 'beta', 'gamma']);
     expect(vectors).toHaveLength(3);
     expect(vectors.every((v) => v.length === 768)).toBe(true);
-    expect(stub.requests).toEqual([{ model: GEMMA, input: ['alpha', 'beta', 'gamma'], authorization: undefined }]);
+    expect(stub.requests).toEqual([
+      { path: '/v1/embeddings', model: GEMMA, input: ['alpha', 'beta', 'gamma'], authorization: undefined },
+    ]);
   });
 
   it('orders vectors by the response index, not by arrival', async () => {
@@ -193,5 +195,39 @@ describe('embed', () => {
     const closed = await startStub();
     await closed.close();
     await expect(embed({ ...config, baseUrl: closed.baseUrl }, ['alpha'])).rejects.toThrow(EmbeddingProviderError);
+  });
+
+  it('rejects an index past the end of the inputs even when the count matches', async () => {
+    stub.respond = fail(200, okBody([{ index: 5, embedding: new Array(768).fill(0.1) }]));
+    await expect(embed(config, ['alpha'])).rejects.toThrow(/duplicate or out-of-range/);
+  });
+
+  it('rejects a number too large for a double (1e999 parses as Infinity)', async () => {
+    const body = `{"data":[{"index":0,"embedding":[1e999,${new Array(767).fill(0.1).join(',')}]}]}`;
+    stub.respond = fail(200, body);
+    await expect(embed(config, ['alpha'])).rejects.toThrow(EmbeddingProviderError);
+  });
+
+  it('posts to /v1/embeddings whatever trailing slashes the base URL has', async () => {
+    await embed({ ...config, baseUrl: `${stub.baseUrl}//` }, ['alpha']);
+    expect(stub.requests.map((r) => r.path)).toEqual(['/v1/embeddings']);
+  });
+});
+
+describe('catalog and OpenRouter guards', () => {
+  it('refuses a model named like an inherited Object property', () => {
+    for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(() => modelSpec(name), name).toThrow(EmbeddingConfigError);
+      expect(() => configFromEnv({ EMBEDDINGS_MODEL: name }), name).toThrow(EmbeddingConfigError);
+    }
+  });
+
+  it('demands a closed pool for every OpenRouter host spelling, but not for a lookalike domain', () => {
+    for (const host of ['openrouter.ai', 'api.openrouter.ai', 'OPENROUTER.AI']) {
+      expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: `https://${host}/api/v1` }), host).toThrow(
+        /closed provider pool/,
+      );
+    }
+    expect(configFromEnv({ EMBEDDINGS_BASE_URL: 'https://notopenrouter.ai/v1' }).routing).toBeUndefined();
   });
 });

@@ -81,6 +81,38 @@ describe('search scoped by an anchor (Development Graph rule)', () => {
     await expect(scoped('repo:fictora/pebble-web', other.id)).rejects.toThrow(NotFoundError);
   });
 
+  it('leaves out a component of another repo that depends on mine, and leaks nothing through the context', async () => {
+    const small = await createSpace({ slug: 'dir', name: 'Direction', preset: DEVELOPMENT_GRAPH });
+    const add = async (type: string, key: string, metadata: Record<string, unknown>) =>
+      (await upsertEntity(small.id, { type, key, title: key, content: `${key} notas`, metadata }, 'agent:t')).entity.id;
+    const link = (fromId: string, toId: string, type: string) =>
+      linkEntities(small.id, { fromId, toId, type }, 'agent:t');
+    const repo = (ref: string) => add('repo', `repo:${ref}`, { host: 'github', ref, defaultBranch: 'main' });
+    const component = (key: string) => add('component', key, { path: 'src', criticality: 'high' });
+    const [a, b, c] = [await repo('acme/a'), await repo('acme/b'), await repo('acme/c')];
+    const [ac, bx, cz] = [
+      await component('component:acme/a/c'),
+      await component('component:acme/b/x'),
+      await component('component:acme/c/z'),
+    ];
+    await link(ac, a, 'part_of');
+    await link(bx, b, 'part_of');
+    await link(cz, c, 'part_of');
+    await link(ac, bx, 'depends_on'); // mine uses theirs: theirs is in scope
+    await link(cz, ac, 'depends_on'); // theirs uses mine: theirs is NOT in scope
+    await syncSpace(gemma, small.id, 32);
+    const { hits, context } = await searchSpace(gemma, small.id, 'notas', {
+      anchor: { key: 'repo:acme/a', scope },
+      limit: 50,
+      depth: 2,
+    });
+    const hitIds = new Set(hits.map((h) => h.entity.id));
+    expect(hits.map((h) => h.entity.key).sort()).toEqual(['component:acme/a/c', 'component:acme/b/x', 'repo:acme/a']);
+    // repo b, repo c and cz neighbor the hits but are outside the scope: none may show up, nor an edge towards them.
+    expect(context.entities).toEqual([]);
+    expect(context.relations.every((r) => hitIds.has(r.fromId) && hitIds.has(r.toId))).toBe(true);
+  });
+
   it('includes a component of another repo used through depends_on, but not its siblings or its repo', async () => {
     const other = await createSpace({ slug: 'small', name: 'Small', preset: DEVELOPMENT_GRAPH });
     const add = async (type: string, key: string, metadata: Record<string, unknown>) =>

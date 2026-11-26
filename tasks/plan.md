@@ -230,6 +230,8 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 6 | Refrasear com limite: o roteiro orienta a nova tentativa (tradução PT ↔ EN, outras palavras), com limite rígido de chamadas de busca por tarefa | Para o `mcp-server` (SPEC-embeddings.md, Emenda 3) |
 | 7 | Log de consultas (consulta, hits, perna de origem, por space, sem conteúdo sensível) para recalibrar a fusão | Para o `mcp-server` (Emenda 3) |
 | 8 | Se um embedding remoto for usado: configuração por space, aviso ao usuário e custo | Para o `mcp-server` (Emenda 2) |
+| 9 | Escopo da âncora com mais de 65.535 ids: o `inArray` estoura o limite de parâmetros do Postgres (erro bruto do banco, na perna vetorial e na de texto); a saída é filtrar o escopo em SQL | Para o `mcp-server` / endurecimento (achado da fase Verify) |
+| 10 | Consulta sem acento não acha texto acentuado na perna BM25 (`faturacao` × `faturação`); exigiria a extensão `unaccent` e novos índices | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 
 ## Riscos e mitigações
 

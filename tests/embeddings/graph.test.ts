@@ -48,6 +48,14 @@ describe('personalizedPageRank', () => {
     expect(rank.get('b')).toBeCloseTo(rank.get('c') ?? 0, 9);
   });
 
+  it('ignores self-loops: the ranks equal those of the same graph without them', () => {
+    const seeds = [{ id: 'a', weight: 1 }];
+    const clean = personalizedPageRank([...line], seeds);
+    const looped = personalizedPageRank([['a', 'a'], ...line, ['b', 'b']], seeds);
+    expect(looped.size).toBe(clean.size);
+    for (const [id, score] of clean) expect(looped.get(id)).toBeCloseTo(score, 12);
+  });
+
   it('keeps all the mass on an isolated seed, and gives nothing without positive weights', () => {
     expect([...personalizedPageRank([...line], [{ id: 'z', weight: 1 }])]).toEqual([['z', 1]]);
     expect(personalizedPageRank([...line], [{ id: 'a', weight: 0 }]).size).toBe(0);

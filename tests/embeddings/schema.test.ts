@@ -78,6 +78,8 @@ describe('entity_embeddings table', () => {
       `select indexname, indexdef from pg_indexes where tablename = 'entities' and indexdef ilike '%using bm25%' order by 1`,
     );
     expect(rows.map((r) => r.indexname)).toEqual(['entities_bm25_en', 'entities_bm25_pt']);
+    expect(rows[0]?.indexdef).toMatch(/text_config=english/);
+    expect(rows[1]?.indexdef).toMatch(/text_config=portuguese/);
     const gin = await queryRows(
       `select 1 from pg_indexes where tablename = 'entities' and indexdef ilike '%using gin (tsv)%'`,
     );

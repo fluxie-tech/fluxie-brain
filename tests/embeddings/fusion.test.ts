@@ -96,6 +96,11 @@ describe('queryShape', () => {
     expect(queryShape('como evitar efeitos duplicados no modo estrito')).toBe('natural');
     expect(queryShape('Faturação em 2026 sem atraso')).toBe('natural');
   });
+
+  it('puts the short/natural boundary at 3 distinct words, and counts a repeated word once', () => {
+    expect(queryShape('fila de notas')).toBe('natural');
+    expect(queryShape('fila fila')).toBe('short');
+  });
 });
 
 describe('queryWords', () => {
