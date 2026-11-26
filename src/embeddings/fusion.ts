@@ -72,9 +72,16 @@ export function queryShape(query: string): QueryShape {
 }
 
 /**
- * The query's words, lowercased and once each. Only letters, marks and digits survive, so no query syntax from the
+ * The query's words, in Unicode NFC (as stored), lowercased and once each. Only letters, marks and digits survive, so no query syntax from the
  * user reaches the text search.
  */
 export function queryWords(text: string): string[] {
-  return [...new Set(text.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu))];
+  return [
+    ...new Set(
+      text
+        .normalize('NFC')
+        .toLowerCase()
+        .match(/[\p{L}\p{M}\p{N}]+/gu),
+    ),
+  ];
 }

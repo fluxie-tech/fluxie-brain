@@ -89,6 +89,9 @@ export async function embed(config: ProviderConfig, texts: string[]): Promise<nu
         `Embeddings provider returned ${embedding.length} dimensions; ${config.model} has ${dimensions}.`,
       );
     }
+    // Cosine distance is undefined for a zero vector (NaN), which would silently degrade the fusion.
+    if (embedding.every((x) => x === 0))
+      throw new EmbeddingProviderError('Embeddings provider returned a zero vector.');
     vectors[index] = embedding;
   }
   return vectors;

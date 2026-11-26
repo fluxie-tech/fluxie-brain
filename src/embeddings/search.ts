@@ -58,6 +58,7 @@ export async function searchSpace(
   const limit = opts.limit ?? 10;
   const depth = opts.depth ?? 1;
   validate(spaceId, query, limit, depth);
+  validateFilters(opts);
   const filter: LegFilter = {
     spaceId,
     statuses: opts.statuses ?? ['approved', 'draft'],
@@ -99,6 +100,14 @@ function validate(spaceId: string, query: string, limit: number, depth: number):
   }
   if (depth !== 0 && depth !== 1 && depth !== 2)
     throw new EmbeddingConfigError(`depth must be 0, 1 or 2, got ${depth}.`);
+}
+
+function validateFilters({ statuses, types }: SearchOptions): void {
+  const known: readonly string[] = entities.status.enumValues;
+  if (statuses && (statuses.length === 0 || statuses.some((s) => !known.includes(s)))) {
+    throw new EmbeddingConfigError(`statuses must be a non-empty list of: ${known.join(', ')}.`);
+  }
+  if (types?.length === 0) throw new EmbeddingConfigError('types must be a non-empty list when given.');
 }
 
 async function loadEntities(ids: string[]): Promise<Map<string, Entity>> {

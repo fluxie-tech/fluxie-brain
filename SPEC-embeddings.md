@@ -112,7 +112,7 @@ type SearchResult = {
 ```
 
 **Comportamento da busca:**
-1. Valida a entrada: consulta não vazia de até 2000 caracteres, `limit` entre 1 e 50, e uma âncora que exista no space. Senão, lança o erro do core-graph correspondente (`NotFoundError` para a âncora).
+1. Valida a entrada: consulta não vazia de até 2000 caracteres, `limit` entre 1 e 50, e uma âncora que exista no space. `statuses` vazio ou fora do enum do core-graph e `types` vazio lançam `EmbeddingConfigError`. Senão, lança o erro do core-graph correspondente (`NotFoundError` para a âncora).
 2. Calcula o escopo, se houver âncora.
 3. **Perna vetorial:** embute a consulta com o template de consulta do modelo e pega os 50 mais próximos por distância de cosseno, entre as entidades do space no escopo, nos status e tipos pedidos (busca exata).
 4. **Perna de texto:** `tsv` contra os termos da consulta combinados com OU (o `plainto_tsquery` exige todos os termos, e uma pergunta em linguagem natural quase nunca casa), ordenados por `ts_rank_cd`, com os mesmos filtros; os 50 primeiros.
@@ -252,7 +252,7 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 3. `syncEmbeddings` gera vetores para todas as entidades do space e devolve `remaining: 0`. Uma segunda chamada não faz nada. Depois de mudar `title` ou `content` (update, aceite ou revert), só aquela entidade é regenerada; depois de mudar só `metadata`, nenhuma.
 4. Uma resposta inválida do provedor (contagem, dimensão, NaN, HTTP de erro, rede) lança `EmbeddingProviderError` e não grava nada. Um modelo fora do catálogo lança `EmbeddingConfigError`.
 5. `search` devolve `hits` ordenados pela fusão que a Emenda 1 escolher, com `ranks` por perna. Uma consulta sem palavra em comum com o alvo o encontra pelo vetor; uma consulta por termo exato o encontra pelo texto.
-6. Por padrão, só entidades `approved` e `draft`; `statuses` e `types` filtram; `limit` (1–50) e uma consulta (1–2000 caracteres) fora do limite são recusados.
+6. Por padrão, só entidades `approved` e `draft`; `statuses` e `types` filtram; `limit` (1–50) e uma consulta (1–2000 caracteres) fora do limite são recusados; a consulta é normalizada para NFC, e um vetor de norma zero vindo do provedor é recusado (`EmbeddingProviderError`).
 7. Com âncora e a regra do Development Graph, no corpus: nenhuma entidade do outro projeto aparece em `hits` nem em `context`, a partir de `repo:fictora/pebble-web`, de `repo:fictora/quarry-api` e de um component; os itens `shared` aparecem nos dois; as lições sobre dependências de componentes aparecem.
 8. Com o provedor fora do ar, `search` responde só pelo texto, com `vector: 'unavailable'`.
 9. O `context` traz os vizinhos dos `hits` até `depth`, sem repetir `hits`, respeitando o escopo e os status.
