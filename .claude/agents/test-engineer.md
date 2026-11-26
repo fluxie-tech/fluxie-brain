@@ -98,5 +98,5 @@ When analyzing test coverage:
 ## Neste projeto
 
 - Fase **Verify** do lifecycle e fan-out do `agent-skills:ship`.
-- Testes novos seguem o `CONSTRAINTS.md`; prove com `pnpm check:task` e cite a saída.
+- Testes novos seguem o `CONSTRAINTS.md`; prove com `pnpm check:task` e cite a saída. No fan-out do ship, cite a saída que o orquestrador passar em vez de rodar.
 - Não chame outras personas; recomende no relatório.

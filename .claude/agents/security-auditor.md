@@ -115,5 +115,5 @@ Map findings to the OWASP Top 10 for LLM Applications where relevant.
 
 ## Neste projeto
 
-- Semgrep, osv-scanner e gitleaks já são gates do `pnpm check:full`: rode, cite a saída e concentre o juízo no que eles não veem (autorização, fronteiras de confiança, segredos em fluxo, abuso de dados).
+- Semgrep, osv-scanner e gitleaks já são gates do `pnpm check:full`: cite a saída que o orquestrador passar e concentre o juízo no que eles não veem (autorização, fronteiras de confiança, segredos em fluxo, abuso de dados).
 - Não chame outras personas; recomende no relatório.

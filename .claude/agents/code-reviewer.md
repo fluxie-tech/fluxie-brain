@@ -106,5 +106,5 @@ Categorize every finding, using the same severity labels as the `code-review-and
 ## Neste projeto
 
 - Fase **Review** do lifecycle e fan-out do `agent-skills:ship`, sempre chamado pelo orquestrador.
-- Rode `pnpm check:full` e cite a saída na Verification Story.
+- Cite na Verification Story a saída do `pnpm check:full` que o orquestrador passar; se não vier, rode-o (fora do fan-out do ship).
 - Não chame outras personas; recomende no relatório.

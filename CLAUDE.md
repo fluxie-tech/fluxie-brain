@@ -78,6 +78,9 @@ Os agentes nativos sem override recebem `model` **e** `effort` explícitos em ca
 | `claude-code-guide` | dúvida sobre o Claude Code                                                           | haiku / low        |
 
 Regras:
+- **Pedido permanente do dono:** toda fase e toda skill do lifecycle é entregue ao seu agente, nunca executada inline, nem quando o usuário digita o comando (`/agent-skills:review` etc.). O orquestrador repassa o pedido ao agente da tabela.
+- Chame as personas pelo nome **sem prefixo** (`code-reviewer`, nunca `agent-skills:code-reviewer`). A versão do plugin cai no padrão sonnet/medium.
+- No fan-out do ship, o orquestrador roda `pnpm check:full` **uma vez** e passa a saída no prompt das três personas, que só a citam. Assim não rodam três suítes ao mesmo tempo no mesmo Postgres.
 - Use sempre o mais barato que resolva. Se a saída falhar na verificação, suba um degrau (haiku → sonnet → opus, low → medium → high) e registre no resumo. Trabalho de juízo (spec, review, decisão de ship) nunca desce da tabela.
 - `.claude/settings.json` define `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` e `CLAUDE_CODE_SUBAGENT_EFFORT=medium` como rede de segurança para subagentes sem modelo definido. Não é motivo para omitir o modelo na chamada.
 - **Protocolo de perguntas:** subagentes não têm `AskUserQuestion`. Diante de uma decisão do usuário, o subagente para e devolve um bloco `PERGUNTAS` (até 4), cada uma com contexto, 2 a 4 opções com as trocas e a recomendada primeiro, marcada "(Recommended)". O orquestrador pergunta pelo `AskUserQuestion` e devolve as respostas ao **mesmo** agente pelo `SendMessage`, para ele retomar com o contexto intacto.
