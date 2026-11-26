@@ -87,10 +87,10 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Fase 4: Emenda 1, híbrida melhorada
 - [x] T12: spike da imagem do banco com pg_textsearch 1.6.0 (S)
-- [ ] T14: `dogfood:prepare` (S)
+- [x] T14: `dogfood:prepare` (S)
 
 ### Checkpoint D: base pronta
-- [ ] A suíte inteira passa na imagem nova; perguntas da emenda fechadas (achados abaixo)
+- [x] A suíte inteira passa na imagem nova; perguntas da emenda fechadas (achados abaixo)
 - [ ] O dono viu os números do `dogfood:prepare` (arquivos, lotes, tokens) e liberou a extração
 
 - [ ] T13: perna de texto em BM25 (M)

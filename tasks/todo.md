@@ -298,8 +298,8 @@ Se um achado contradisser o spec, o plano para e volta ao dono.
 Inclui também `pnpm dogfood:prepare` no `package.json`.
 
 **Critérios de aceite:**
-- [ ] Testes, com uma árvore de arquivos fictícia num diretório temporário: a lista exclui `.env`, `.env.local`, `vendor/x.md` e `.claude/a.md`; os lotes cobrem cada arquivo uma vez e respeitam o teto; o `.dogfood/` está no `.gitignore`.
-- [ ] Rodando no chatbot, imprime só contagens (nenhum caminho de arquivo pulado traz o conteúdo).
+- [x] Testes, com uma árvore de arquivos fictícia num diretório temporário: a lista exclui `.env`, `.env.local`, `vendor/x.md` e `.claude/a.md`; os lotes cobrem cada arquivo uma vez e respeitam o teto; o `.dogfood/` está no `.gitignore`.
+- [x] Rodando no chatbot, imprime só contagens (nenhum caminho de arquivo pulado traz o conteúdo).
 
 **Verificação:** `pnpm vitest run tests/scripts/dogfood-lib.test.ts`; `pnpm dogfood:prepare`; `pnpm check:task`.
 
@@ -310,7 +310,7 @@ Inclui também `pnpm dogfood:prepare` no `package.json`.
 **Tamanho:** S.
 
 ### Checkpoint D: base pronta
-- [ ] A imagem nova funciona e as perguntas da emenda estão respondidas.
+- [x] A imagem nova funciona e as perguntas da emenda estão respondidas.
 - [ ] O dono viu os números do `dogfood:prepare` e liberou a extração.
 
 ### T13: perna de texto em BM25
