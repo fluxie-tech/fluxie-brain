@@ -87,15 +87,19 @@ async function edgesOf(filter: GraphFilter): Promise<Edge[]> {
 }
 
 /**
- * Ids ranked by Personalized PageRank from the seeds (the best vector hits), at most `limit`, best first, ties by id.
- * Only the seeds and what the walk reaches over allowed relations can appear.
+ * Entities ranked by Personalized PageRank from the seeds (the best vector hits), at most `limit`, best first, ties by
+ * id, with their PageRank mass as score. Only the seeds and what the walk reaches over allowed relations can appear.
  */
-export async function graphLeg(seeds: Seed[], filter: GraphFilter, limit: number): Promise<string[]> {
+export async function graphLeg(
+  seeds: Seed[],
+  filter: GraphFilter,
+  limit: number,
+): Promise<{ id: string; score: number }[]> {
   if (seeds.length === 0) return [];
   const rank = personalizedPageRank(await edgesOf(filter), seeds);
   return [...rank]
     .filter(([, score]) => score > 0)
-    .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1))
-    .slice(0, limit)
-    .map(([id]) => id);
+    .map(([id, score]) => ({ id, score }))
+    .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1))
+    .slice(0, limit);
 }

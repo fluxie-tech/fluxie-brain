@@ -395,9 +395,9 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 - o provedor fora do ar continua dando só texto.
 
 **Critérios de aceite:**
-- [ ] Unitário: os dois `fuse` com pesos (peso 0 desliga a perna; desempate pelo id; perna vazia; normalização quando todos os scores são iguais).
-- [ ] Integração: os `ranks` trazem as três pernas; com o peso do texto em 0, a ordem é a do vetor; os testes antigos de status, tipo, limite, escopo e provedor fora do ar continuam passando.
-- [ ] O `search.ts` fica dentro dos limites do `CONSTRAINTS.md`. Se passar, o código é dividido em arquivos.
+- [x] Unitário: os dois `fuse` com pesos (peso 0 desliga a perna; desempate pelo id; perna vazia; normalização quando todos os scores são iguais).
+- [x] Integração: os `ranks` trazem as três pernas; com o peso do texto em 0, a ordem é a do vetor; os testes antigos de status, tipo, limite, escopo e provedor fora do ar continuam passando.
+- [x] O `search.ts` fica dentro dos limites do `CONSTRAINTS.md`. Se passar, o código é dividido em arquivos.
 
 **Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
 

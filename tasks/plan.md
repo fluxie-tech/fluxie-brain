@@ -96,7 +96,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T13: perna de texto em BM25 (M)
 - [x] T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra (M)
 - [x] T16: perna de grafo (M)
-- [ ] T17: fusão calibrada no `search` (M)
+- [x] T17: fusão calibrada no `search` (M)
 
 ### Checkpoint E: pernas e dados prontos
 - [ ] Três pernas com teste; dataset do dogfooding validado, com a taxa de erro da amostra registrada

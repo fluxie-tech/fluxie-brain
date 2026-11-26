@@ -59,9 +59,9 @@ describe('graphLeg on the presets corpus', () => {
   let space: Space;
   let byKey: Map<string, Entity>;
   const id = (key: string) => byKey.get(key)?.id ?? '';
-  const keyOf = (ids: string[]) => {
+  const keyOf = (hits: { id: string }[]) => {
     const keys = new Map([...byKey].map(([k, e]) => [e.id, k]));
-    return ids.map((i) => keys.get(i));
+    return hits.map((h) => keys.get(h.id));
   };
   const statuses = ['approved' as const, 'draft' as const];
 

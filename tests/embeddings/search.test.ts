@@ -9,9 +9,10 @@ import {
   upsertEntity,
 } from '../../src/core-graph/index.ts';
 import { EmbeddingConfigError, search } from '../../src/embeddings/index.ts';
+import { textLeg } from '../../src/embeddings/legs.ts';
 import { modelSpec } from '../../src/embeddings/models.ts';
 import type { ProviderConfig } from '../../src/embeddings/provider.ts';
-import { searchSpace, textLeg } from '../../src/embeddings/search.ts';
+import { FUSION, searchSpace } from '../../src/embeddings/search.ts';
 import { syncSpace } from '../../src/embeddings/sync.ts';
 import { TEST_PRESET, testOntology } from '../fixtures/ontology.ts';
 import { truncateAll } from '../setup/db.ts';
@@ -70,19 +71,22 @@ describe('search', () => {
 
   it('finds by meaning through the vector leg when no word is shared', async () => {
     const filter = { spaceId: space.id, statuses: ['approved' as const, 'draft' as const], types: undefined };
-    expect(await textLeg(PAYMENTS, filter)).toEqual([]);
+    expect(await textLeg(PAYMENTS, filter, 20)).toEqual([]);
     const [top] = (await run(PAYMENTS)).hits;
     expect(top?.entity.key).toBe('billing');
-    expect(top?.ranks).toEqual({ vector: 1, text: undefined });
+    expect(top?.ranks.vector).toBe(1);
+    expect(top?.ranks.text).toBeUndefined();
   });
 
-  it('fuses both legs with RRF and reports each rank', async () => {
+  it('fuses the three legs with the production weights and reports each rank', async () => {
     const [top] = (await run('redis cache')).hits;
     expect(top?.entity.key).toBe('cache');
-    const { vector = 0, text = 0 } = top?.ranks ?? {};
+    const { vector = 0, text = 0, graph } = top?.ranks ?? {};
     expect(vector).toBeGreaterThan(0);
     expect(text).toBe(1);
-    expect(top?.score).toBeCloseTo(1 / (60 + vector) + 1 / (60 + text), 12);
+    expect(graph).toBeGreaterThan(0);
+    const expected = 1 / (60 + vector) + FUSION.text / (60 + text) + FUSION.graph / (60 + (graph ?? 0));
+    expect(top?.score).toBeCloseTo(expected, 12);
   });
 
   it('filters by status (approved and draft by default) and by type', async () => {
@@ -170,8 +174,8 @@ describe('search', () => {
 
   describe('BM25 text leg', () => {
     const text = (query: string) =>
-      textLeg(query, { spaceId: space.id, statuses: ['approved', 'draft', 'deprecated'], types: undefined }).then(
-        (ids) => ids.map((id) => keyOf.get(id)),
+      textLeg(query, { spaceId: space.id, statuses: ['approved', 'draft', 'deprecated'], types: undefined }, 50).then(
+        (hits) => hits.map((h) => keyOf.get(h.id)),
       );
 
     beforeEach(async () => {

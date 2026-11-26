@@ -10,20 +10,21 @@ process.env.DATABASE_URL = testUrl;
 
 const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
-const { fuse } = await import('../src/embeddings/fusion.ts');
+const { combine } = await import('../src/embeddings/fusion.ts');
 const { MODELS, modelSpec } = await import('../src/embeddings/models.ts');
 const { configFromEnv, embed } = await import('../src/embeddings/provider.ts');
-const { textLeg, vectorLeg } = await import('../src/embeddings/search.ts');
+const { runLegs } = await import('../src/embeddings/legs.ts');
+const { FUSION, legSize } = await import('../src/embeddings/search.ts');
 const { syncSpace } = await import('../src/embeddings/sync.ts');
 const { DEVELOPMENT_GRAPH, registerPresets } = await import('../src/presets/index.ts');
 const { loadBenchmarkData, queries } = await import('../tests/fixtures/embeddings/load.ts');
 const { queryRows, truncateAll } = await import('../tests/setup/db.ts');
 
 type Config = ReturnType<typeof configFromEnv>;
-type Leg = 'vector' | 'text' | 'hybrid';
+type Leg = 'vector' | 'text' | 'graph' | 'hybrid';
 type Ranked = { query: (typeof queries)[number]; lists: Record<Leg, string[]> };
 
-const LEGS: Leg[] = ['vector', 'text', 'hybrid'];
+const LEGS: Leg[] = ['vector', 'text', 'graph', 'hybrid'];
 const GROUPS = ['all', 'en->en', 'pt->pt', 'pt->en', 'en->pt'];
 const FILTER_STATUSES = ['approved', 'draft'] as const;
 
@@ -62,10 +63,10 @@ async function rankAll(config: Config, spaceId: string, keyOf: Map<string, strin
   const toKeys = (ids: string[]) => ids.map((id) => keyOf.get(id) ?? id);
   const ranked: Ranked[] = [];
   for (const query of queries) {
-    const vector = await vectorLeg(config, query.text, filter);
-    const text = await textLeg(query.text, filter);
-    const hybrid = fuse([vector, text]).map((f) => f.id);
-    ranked.push({ query, lists: { vector: toKeys(vector), text: toKeys(text), hybrid: toKeys(hybrid) } });
+    const legs = await runLegs(config, query.text, filter, { size: legSize(10), graph: true });
+    const ids = (list: { id: string }[] | undefined) => toKeys((list ?? []).map((s) => s.id));
+    const hybrid = ids(combine(legs, FUSION));
+    ranked.push({ query, lists: { vector: ids(legs.vector), text: ids(legs.text), graph: ids(legs.graph), hybrid } });
   }
   return ranked;
 }
