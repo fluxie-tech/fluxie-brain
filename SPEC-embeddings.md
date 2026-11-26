@@ -272,4 +272,29 @@ Fica uma, que não bloqueia: a latência em CPU é medida no Docker Desktop loca
 
 ## Resultado do benchmark
 
-Preenchido na fase Build.
+**Rodada de 2026-11-26** (`pnpm bench:embeddings`, `scripts/bench-embeddings.ts`):
+- Ollama 0.40.18, só CPU, no Docker Desktop 29.9.3 local com os limites da VPS (`cpus: 4`, `mem_limit: 3g`), num AMD Ryzen 7 5800H;
+- modelos `embeddinggemma-2:270m` e `qwen3-embedding:0.6b` (Q8_0);
+- dados: o corpus do presets (32) mais os distratores (32), 40 consultas (10 por grupo), sem âncora.
+
+Qualidade (células: MRR@10 / recall@5):
+
+| Modelo | Perna | all | en->en | pt->pt | pt->en | en->pt |
+|---|---|---|---|---|---|---|
+| embeddinggemma-2:270m | vector | 0.921 / 1.00 | 0.933 / 1.00 | 0.933 / 1.00 | 0.883 / 1.00 | 0.933 / 1.00 |
+| embeddinggemma-2:270m | text | 0.487 / 0.63 | 0.625 / 0.70 | 0.687 / 1.00 | 0.225 / 0.40 | 0.412 / 0.40 |
+| embeddinggemma-2:270m | hybrid | 0.642 / 0.65 | 0.733 / 0.70 | 0.950 / 1.00 | 0.412 / 0.40 | 0.472 / 0.50 |
+| qwen3-embedding:0.6b | vector | 0.861 / 0.95 | 0.900 / 1.00 | 0.867 / 0.90 | 0.727 / 0.90 | 0.950 / 1.00 |
+| qwen3-embedding:0.6b | text | 0.508 / 0.60 | 0.644 / 0.70 | 0.737 / 1.00 | 0.250 / 0.30 | 0.400 / 0.40 |
+| qwen3-embedding:0.6b | hybrid | 0.650 / 0.68 | 0.817 / 0.80 | 0.900 / 1.00 | 0.414 / 0.40 | 0.468 / 0.50 |
+
+Desempenho:
+
+| Modelo | Carga a frio | p50 consulta | p95 consulta | Corpus (embutir) | Memória do ollama | Vetores com NaN |
+|---|---|---|---|---|---|---|
+| embeddinggemma-2:270m | 1.5 s | 81 ms | 89 ms | 8.1 s (64 entidades) | 539.9MiB / 3GiB | 0 |
+| qwen3-embedding:0.6b | 1.4 s | 215 ms | 279 ms | 17.9 s (64 entidades) | 1.212GiB / 3GiB | 0 |
+
+**Pela regra:** os dois ficam abaixo de 300 ms de p95, e a diferença de MRR@10 híbrido (0,650 × 0,642) é menor que 0,02, então vence o mais rápido em CPU: **`embeddinggemma-2:270m`**, que já era o padrão. O Gemma também vence só pelo vetor (0,921 × 0,861).
+
+**Achado:** a híbrida perde para o vetor sozinho nos dois modelos (Gemma 0,642 × 0,921). A perna de texto só ajuda em PT→PT, e nas consultas entre idiomas é quase só ruído. Pela decisão do dono no Checkpoint B, isso volta ao spec. A perna de texto também varia entre rodadas (0,487 × 0,508 com as mesmas consultas), porque o `ts_rank_cd` empata muito e o desempate é pelo id, que é aleatório a cada carga.

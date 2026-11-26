@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "test:coverage": "vitest run --coverage",
+    "bench:embeddings": "node --env-file=.env scripts/bench-embeddings.ts",
     "check:arch": "depcruise --validate .dependency-cruiser.cjs src",
     "check:fast": "pnpm typecheck && pnpm lint && gitleaks git --pre-commit --redact --no-banner && node scripts/floor-guard.mjs",
     "check:task": "pnpm check:fast && pnpm check:arch && pnpm test:coverage && node scripts/changed-coverage.ts",

@@ -27,6 +27,27 @@ export function percentile(values: number[], p: number): number {
   return sorted[Math.max(0, Math.ceil((p / 100) * sorted.length) - 1)] ?? Number.NaN;
 }
 
+export type ModelRun = { model: string; hybridMrr: number; p50: number; p95: number };
+
+/**
+ * The SPEC-embeddings.md rule: a model with CPU p95 above `maxP95` ms is out; the highest hybrid MRR@10 wins;
+ * if the runner-up is within `tie`, the faster one (lower p50) wins instead.
+ */
+export function chooseModel(
+  runs: ModelRun[],
+  maxP95 = 300,
+  tie = 0.02,
+): { winner: string | undefined; reason: string } {
+  const eligible = runs.filter((r) => r.p95 <= maxP95).sort((a, b) => b.hybridMrr - a.hybridMrr);
+  const [best, second] = eligible;
+  if (!best) return { winner: undefined, reason: `every model has p95 above ${maxP95} ms` };
+  if (second && best.hybridMrr - second.hybridMrr < tie) {
+    const faster = second.p50 < best.p50 ? second : best;
+    return { winner: faster.model, reason: `MRR gap below ${tie}: the faster model on CPU (p50) wins` };
+  }
+  return { winner: best.model, reason: 'highest hybrid MRR@10' };
+}
+
 function requireExpected(expected: string[]): void {
   // A query without expected keys would silently count as a miss and drag the average down.
   if (expected.length === 0) throw new RangeError('a query needs at least one expected key');
