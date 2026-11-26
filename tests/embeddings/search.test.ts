@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSpace,
+  linkEntities,
   NotFoundError,
   registerOntology,
   type Space,
@@ -25,13 +26,16 @@ describe('search', () => {
   let stub: Stub;
   let space: Space;
   let gemma: ProviderConfig;
+  const keyOf = new Map<string, string>();
+  const idOf = new Map<string, string>();
 
-  const add = (spaceId: string, type: string, key: string, content: string) =>
-    upsertEntity(
-      spaceId,
-      { type, key, title: key, content, metadata: type === 'rule' ? { severity: 'low' } : undefined },
-      agent,
-    );
+  const add = async (spaceId: string, type: string, key: string, content: string) => {
+    const metadata = type === 'rule' ? { severity: 'low' } : undefined;
+    const result = await upsertEntity(spaceId, { type, key, title: key, content, metadata }, agent);
+    keyOf.set(result.entity.id, key);
+    idOf.set(key, result.entity.id);
+    return result;
+  };
   const keys = (r: { hits: { entity: { key: string } }[] }) => r.hits.map((h) => h.entity.key);
   const run = (query: string, opts = {}) => searchSpace(gemma, space.id, query, opts);
 
@@ -122,6 +126,46 @@ describe('search', () => {
     await add(other.id, 'learning', 'foreign', 'redis cache eviction policy');
     await syncSpace(gemma, other.id, 32);
     expect(keys(await run('redis cache eviction'))).not.toContain('foreign');
+  });
+
+  describe('context', () => {
+    const ctx = async (depth: 0 | 1 | 2) => {
+      const { hits, context } = await run('eviction', { limit: 1, depth });
+      expect(hits.map((h) => h.entity.key)).toEqual(['cache']);
+      return {
+        entities: context.entities.map((e) => [e.key, e.depth]),
+        relations: context.relations.map((r) => `${keyOf.get(r.fromId)} ${r.type} ${keyOf.get(r.toId)}`).sort(),
+      };
+    };
+
+    beforeEach(async () => {
+      const link = (from: string, type: string, to: string) =>
+        linkEntities(space.id, { fromId: idOf.get(from) ?? '', toId: idOf.get(to) ?? '', type }, agent);
+      await link('cache', 'learned_from', 'billing');
+      await link('naming', 'applies_to', 'billing');
+      await link('old', 'relates_to', 'cache');
+    });
+
+    it('is empty at depth 0', async () => {
+      expect(await ctx(0)).toEqual({ entities: [], relations: [] });
+    });
+
+    it('brings the neighbors at depth 1 and 2, once each, without the hits or other statuses', async () => {
+      expect(await ctx(1)).toEqual({ entities: [['billing', 1]], relations: ['cache learned_from billing'] });
+      expect(await ctx(2)).toEqual({
+        entities: [
+          ['billing', 1],
+          ['naming', 2],
+        ],
+        relations: ['cache learned_from billing', 'naming applies_to billing'],
+      });
+    });
+
+    it('never repeats a hit in the context', async () => {
+      const { hits, context } = await run('redis cache invoice snake', { limit: 50, depth: 2 });
+      const hitIds = new Set(hits.map((h) => h.entity.id));
+      expect(context.entities.filter((e) => hitIds.has(e.id))).toEqual([]);
+    });
   });
 
   it('reads the provider from the environment in the public function', async () => {

@@ -64,11 +64,13 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] T5: busca híbrida sem âncora (M)
 - [x] T6: campo `scope` no presets (XS)
 - [x] T7: filtro pelo escopo da âncora (M)
-- [ ] T8: vizinhos de contexto (S)
+- [x] T8: vizinhos de contexto (S)
 
 ### Checkpoint B: busca completa
-- [ ] Critérios 5–9 e 11 do spec com teste
-- [ ] `pnpm check:task` verde
+- [x] Critérios 5–9 e 11 do spec com teste: 5, 6 e 8 `tests/embeddings/search.test.ts`; 7 `tests/embeddings/scope.test.ts` (hits e context, três âncoras, fixture de component usado por outro repo); 9 `search.test.ts` (context) + `scope.test.ts`; 11 `tests/presets/development-graph.test.ts` + `tests/core-graph/public-api.test.ts`
+- [x] `pnpm check:task` verde (271 testes; cobertura das linhas alteradas 100%). O teste de vazamento do context falha (3 casos) com o filtro de escopo desligado
+- [x] Prova com o Ollama real (Gemma 270m, banco de testes, corpus): busca em 81–109 ms com vetor; com âncora em `repo:fictora/pebble-web`, nada do quarry
+- [ ] Achado para o dono: a perna de texto (OU de todas as palavras, `simple`, sem stopwords) casa palavras vazias ("como", "do", "be", "an") e, no RRF, um documento nas duas pernas com ranks medianos passa na frente do 1º lugar de uma perna só. Em 2 de 3 consultas ao vivo o alvo certo saiu do top 3 (ex.: `invariant:quarry-nota-idempotente` é o 1º do vetor e ficou em 3º). O benchmark (T10) mede isso por perna
 
 ### Fase 3: Benchmark e fechamento
 - [ ] T9: fixtures do benchmark e métricas (M)

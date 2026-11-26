@@ -18,6 +18,7 @@ describe('search scoped by an anchor (Development Graph rule)', () => {
   let stub: Stub;
   let space: Space;
   let gemma: ProviderConfig;
+  let keyOfId: Map<string, string>;
 
   // limit 50 is above the corpus size and the vector leg ranks every embedded entity, so hits = the whole scope.
   const scoped = async (key: string, spaceId = space.id) => {
@@ -34,7 +35,7 @@ describe('search scoped by an anchor (Development Graph rule)', () => {
     await truncateAll();
     gemma = { baseUrl: stub.baseUrl, model: 'embeddinggemma-2:270m', apiKey: undefined };
     space = await createSpace({ slug: 'dev', name: 'Dev', preset: DEVELOPMENT_GRAPH });
-    await loadCorpus(space.id);
+    keyOfId = new Map([...(await loadCorpus(space.id))].map(([key, e]) => [e.id, key]));
     await syncSpace(gemma, space.id, 32);
   });
 
@@ -44,6 +45,23 @@ describe('search scoped by an anchor (Development Graph rule)', () => {
     ['component:fictora/quarry-api/faturamento', 'quarry'],
   ])('from %s returns its own project and the shared items, nothing of the other', async (anchor, own) => {
     expect(await scoped(anchor)).toEqual([...keysOf(own), ...keysOf('shared')].sort());
+  });
+
+  it.each([
+    ['repo:fictora/pebble-web', 'quarry'],
+    ['repo:fictora/quarry-api', 'pebble'],
+    ['component:fictora/quarry-api/faturamento', 'pebble'],
+  ])('from %s keeps the context (entities and relations) out of %s', async (anchor, other) => {
+    // Few hits and depth 2, so the context has room to wander towards the other project through shared items.
+    const { context } = await searchSpace(gemma, space.id, QUERY, {
+      anchor: { key: anchor, scope },
+      limit: 3,
+      depth: 2,
+    });
+    expect(context.entities.length).toBeGreaterThan(0);
+    const projects = (ids: string[]) => ids.map((id) => projectOf.get(keyOfId.get(id) ?? ''));
+    expect(projects(context.entities.map((e) => e.id))).not.toContain(other);
+    expect(projects(context.relations.flatMap((r) => [r.fromId, r.toId]))).not.toContain(other);
   });
 
   it('brings the lessons about the dependencies of a repo component', async () => {

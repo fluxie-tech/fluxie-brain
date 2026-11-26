@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, getTableColumns, inArray, type SQL, sql } from 'drizzle-orm';
 import { db, type Entity, type EntityStatus, entities, type GraphSlice, NotFoundError } from '../core-graph/index.ts';
+import { contextOf } from './context.ts';
 import { EmbeddingConfigError, EmbeddingProviderError } from './errors.ts';
 import { fuse, orQuery } from './fusion.ts';
 import { modelSpec } from './models.ts';
@@ -49,7 +50,8 @@ export async function searchSpace(
   opts: SearchOptions,
 ): Promise<SearchResult> {
   const limit = opts.limit ?? 10;
-  validate(spaceId, query, limit, opts.depth ?? 1);
+  const depth = opts.depth ?? 1;
+  validate(spaceId, query, limit, depth);
   const filter: LegFilter = {
     spaceId,
     statuses: opts.statuses ?? ['approved', 'draft'],
@@ -69,7 +71,13 @@ export async function searchSpace(
     if (!entity) return [];
     return [{ entity, score, ranks: { vector: rankIn(vector, id), text: rankIn(text, id) } }];
   });
-  return { hits, context: { entities: [], relations: [] }, vector: vector ? 'ok' : 'unavailable' };
+  const context = await contextOf(
+    spaceId,
+    hits.map((h) => h.entity.id),
+    depth,
+    filter,
+  );
+  return { hits, context, vector: vector ? 'ok' : 'unavailable' };
 }
 
 function validate(spaceId: string, query: string, limit: number, depth: number): void {

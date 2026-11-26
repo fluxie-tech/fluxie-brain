@@ -186,9 +186,9 @@ As duas pernas da busca filtram por esses ids.
 **Descrição:** `context` reúne os vizinhos dos hits até `depth` (0–2, padrão 1) pelo `neighbors` do core-graph, sem repetir hits e restritos ao escopo e aos status pedidos. As relações também ficam só entre entidades do resultado.
 
 **Critérios de aceite:**
-- [ ] `depth: 0` dá contexto vazio; `1` e `2` trazem os vizinhos certos, sem duplicata.
-- [ ] Com âncora, no corpus, nada do outro projeto em `context.entities` nem em `context.relations`, nos dois sentidos.
-- [ ] Status fora do pedido não aparecem no contexto.
+- [x] `depth: 0` dá contexto vazio; `1` e `2` trazem os vizinhos certos, sem duplicata.
+- [x] Com âncora, no corpus, nada do outro projeto em `context.entities` nem em `context.relations`, nos dois sentidos.
+- [x] Status fora do pedido não aparecem no contexto.
 
 **Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
 
@@ -199,8 +199,8 @@ As duas pernas da busca filtram por esses ids.
 **Tamanho:** S.
 
 ### Checkpoint B: busca completa
-- [ ] Critérios 5–9 e 11 do spec cobertos.
-- [ ] `pnpm check:task` verde.
+- [x] Critérios 5–9 e 11 do spec cobertos.
+- [x] `pnpm check:task` verde.
 
 ## Fase 3: Benchmark e fechamento
 
