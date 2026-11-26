@@ -18,6 +18,7 @@
     "db:migrate": "drizzle-kit migrate",
     "test:coverage": "vitest run --coverage",
     "bench:embeddings": "node --env-file=.env scripts/bench-embeddings.ts",
+    "bench:fusion": "node --env-file=.env scripts/bench-fusion.ts",
     "dogfood:prepare": "node scripts/dogfood-prepare.ts",
     "dogfood:build": "node --env-file=.env scripts/dogfood-build.ts",
     "check:arch": "depcruise --validate .dependency-cruiser.cjs src",

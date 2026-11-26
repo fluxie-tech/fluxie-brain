@@ -48,6 +48,44 @@ export function chooseModel(
   return { winner: best.model, reason: 'highest hybrid MRR@10' };
 }
 
+/** One fusion configuration measured on the test split: MRR@10 overall, per language group and on multihop queries. */
+export type FusionEval = {
+  fusion: { fn: 'rrf' | 'convex'; text: number; graph: number };
+  mrr: number;
+  groups: Record<string, number>;
+  multihop: number;
+};
+
+const MARGIN = 0.02;
+
+/**
+ * The Emenda 1 rule, on the test split (SPEC-embeddings.md):
+ * - the graph leg stays only if it lifts multihop MRR by MARGIN without lowering the total (else the best graph-free
+ *   configuration is the candidate);
+ * - the candidate fusion enters only if it beats vector alone by MARGIN and no language group drops by more than MARGIN;
+ * - if the full search p95 is above `maxP95` ms, vector alone is used.
+ */
+export function chooseFusion(
+  runs: { vectorOnly: FusionEval; calibrated: FusionEval; calibratedNoGraph: FusionEval },
+  p95: number,
+  maxP95 = 300,
+): { chosen: FusionEval; reason: string } {
+  const { vectorOnly, calibrated, calibratedNoGraph } = runs;
+  if (p95 > maxP95) return { chosen: vectorOnly, reason: `search p95 ${p95.toFixed(0)} ms above ${maxP95} ms` };
+  const graphHelps =
+    calibrated.multihop - calibratedNoGraph.multihop >= MARGIN && calibrated.mrr >= calibratedNoGraph.mrr;
+  const candidate = calibrated.fusion.graph > 0 && !graphHelps ? calibratedNoGraph : calibrated;
+  const graphNote = candidate === calibratedNoGraph && calibrated.fusion.graph > 0 ? 'graph leg dropped; ' : '';
+  const drops = Object.keys(vectorOnly.groups).filter(
+    (g) => (vectorOnly.groups[g] ?? 0) - (candidate.groups[g] ?? 0) > MARGIN,
+  );
+  if (candidate.mrr - vectorOnly.mrr < MARGIN) {
+    return { chosen: vectorOnly, reason: `${graphNote}fusion gains less than ${MARGIN} MRR over vector alone` };
+  }
+  if (drops.length > 0) return { chosen: vectorOnly, reason: `${graphNote}fusion drops group(s) ${drops.join(', ')}` };
+  return { chosen: candidate, reason: `${graphNote}fusion beats vector alone by at least ${MARGIN}` };
+}
+
 function requireExpected(expected: string[]): void {
   // A query without expected keys would silently count as a miss and drag the average down.
   if (expected.length === 0) throw new RangeError('a query needs at least one expected key');

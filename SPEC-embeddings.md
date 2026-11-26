@@ -438,3 +438,33 @@ Fechadas pelo spike da T12 (26/11; a tabela completa está em `tasks/plan.md`):
 
 Ainda em aberto:
 - O Haiku 5.5 em `low` extrai com qualidade suficiente? A revisão da amostra responde. Se ficar acima de 20% de erros, a mudança de modelo ou de esforço é perguntada ao dono.
+
+### Resultado da Emenda 1 (dogfooding, 26/11/2026)
+
+`pnpm bench:fusion --no-latency`, com Gemma 270m, sobre o dataset do chatbot: 392 entidades, 505 relações e 575 consultas (291 de calibração e 284 de teste). Só números agregados. Foram testadas 30 configurações (RRF ou convexa, texto ∈ {0; 0,25; 0,5; 0,75; 1}, grafo ∈ {0; 0,25; 0,5}). A melhor na calibração foi a convexa com texto 0,25 e grafo 0,25 (0,664).
+
+Teste, MRR@10:
+
+| Configuração | todas | en→en | en→pt | pt→en | pt→pt | lexical | paráfrase | exact | multihop |
+|---|---|---|---|---|---|---|---|---|---|
+| só vetor | 0.652 | 0.940 | 0.544 | 0.444 | 0.742 | 0.877 | 0.491 | 0.680 | 0.293 |
+| só texto (BM25) | 0.510 | 0.904 | 0.234 | 0.268 | 0.744 | 0.812 | 0.099 | 0.783 | 0.133 |
+| só grafo | 0.362 | 0.522 | 0.330 | 0.274 | 0.373 | 0.485 | 0.264 | 0.358 | 0.252 |
+| RRF com pesos iguais | 0.606 | 0.924 | 0.418 | 0.418 | 0.757 | 0.866 | 0.341 | 0.719 | 0.265 |
+| convexa, texto 0,25, grafo 0,25 | 0.666 | 0.940 | 0.552 | 0.446 | 0.770 | 0.898 | 0.481 | 0.716 | 0.307 |
+| convexa, texto 0,25, sem grafo | 0.666 | 0.943 | 0.549 | 0.450 | 0.771 | 0.893 | 0.487 | 0.720 | 0.299 |
+
+Contando os gêmeos (mesmo tipo e cosseno ≥ 0,93) como acerto, a diferença continua a mesma (+0,014).
+
+**A regra decide pelo vetor sozinho.**
+- A fusão calibrada ganha +0,014, abaixo da margem de 0,02.
+- O grafo melhora o multihop em +0,008, abaixo de 0,02, e sai.
+
+Isso apesar de a fusão calibrada não derrubar nenhum grupo e ganhar em `exact` (+0,036), em pt→pt (+0,028) e em `lexical` (+0,021).
+
+**Achados:**
+- Para `exact`, o BM25 sozinho (0,783) supera qualquer fusão de peso fixo.
+- O ponto mais fraco são as consultas entre idiomas: pt→en 0,444, en→pt 0,544.
+- A latência não foi medida, porque a CPU estava ocupada por um processo de fora do projeto. Ela ainda é necessária para o critério 17.
+
+A decisão final é do dono, no Checkpoint F.

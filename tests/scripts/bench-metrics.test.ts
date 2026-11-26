@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chooseModel, mean, percentile, recall, reciprocalRank } from '../../scripts/bench-metrics.ts';
+import { chooseFusion, chooseModel, mean, percentile, recall, reciprocalRank } from '../../scripts/bench-metrics.ts';
 
 describe('bench metrics', () => {
   it('reciprocal rank uses the first expected key within the top k', () => {
@@ -48,6 +48,47 @@ describe('bench metrics', () => {
         winner: undefined,
         reason: 'every model has p95 above 300 ms',
       });
+    });
+  });
+
+  describe('chooseFusion (the Emenda 1 rule)', () => {
+    const groups = (v: number) => ({ 'en->en': v, 'pt->pt': v });
+    const run = (
+      text: number,
+      graph: number,
+      mrr: number,
+      more: { multihop?: number; g?: Record<string, number> } = {},
+    ) => ({
+      fusion: { fn: 'rrf' as const, text, graph },
+      mrr,
+      groups: more.g ?? groups(mrr),
+      multihop: more.multihop ?? mrr,
+    });
+    const vectorOnly = run(0, 0, 0.7, { multihop: 0.5 });
+
+    it('keeps the calibrated fusion when it beats vector alone by 0.02 and the graph helps multihop', () => {
+      const calibrated = run(0.5, 0.25, 0.75, { multihop: 0.6 });
+      const calibratedNoGraph = run(0.5, 0, 0.74, { multihop: 0.55 });
+      const { chosen } = chooseFusion({ vectorOnly, calibrated, calibratedNoGraph }, 150);
+      expect(chosen).toBe(calibrated);
+    });
+
+    it('drops the graph leg when it does not lift multihop by 0.02', () => {
+      const calibrated = run(0.5, 0.25, 0.75, { multihop: 0.51 });
+      const calibratedNoGraph = run(0.5, 0, 0.74, { multihop: 0.5 });
+      const { chosen, reason } = chooseFusion({ vectorOnly, calibrated, calibratedNoGraph }, 150);
+      expect(chosen).toBe(calibratedNoGraph);
+      expect(reason).toMatch(/graph leg dropped/);
+    });
+
+    it('falls back to vector alone on a small gain, a group drop or a slow search', () => {
+      const small = run(0.5, 0, 0.715);
+      expect(chooseFusion({ vectorOnly, calibrated: small, calibratedNoGraph: small }, 150).chosen).toBe(vectorOnly);
+      const dropsPt = run(0.5, 0, 0.8, { g: { 'en->en': 0.9, 'pt->pt': 0.67 } });
+      const result = chooseFusion({ vectorOnly, calibrated: dropsPt, calibratedNoGraph: dropsPt }, 150);
+      expect(result).toEqual({ chosen: vectorOnly, reason: 'fusion drops group(s) pt->pt' });
+      const good = run(0.5, 0, 0.8);
+      expect(chooseFusion({ vectorOnly, calibrated: good, calibratedNoGraph: good }, 301).chosen).toBe(vectorOnly);
     });
   });
 
