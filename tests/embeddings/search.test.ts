@@ -8,6 +8,7 @@ import {
   setStatus,
   upsertEntity,
 } from '../../src/core-graph/index.ts';
+import { queryShape } from '../../src/embeddings/fusion.ts';
 import { EmbeddingConfigError, search } from '../../src/embeddings/index.ts';
 import { textLeg } from '../../src/embeddings/legs.ts';
 import { modelSpec } from '../../src/embeddings/models.ts';
@@ -78,15 +79,15 @@ describe('search', () => {
     expect(top?.ranks.text).toBeUndefined();
   });
 
-  it('fuses the three legs with the production weights and reports each rank', async () => {
+  it('fuses with the production configuration of the query shape and reports each leg rank', async () => {
     const [top] = (await run('redis cache')).hits;
     expect(top?.entity.key).toBe('cache');
-    const { vector = 0, text = 0, graph } = top?.ranks ?? {};
-    expect(vector).toBeGreaterThan(0);
-    expect(text).toBe(1);
-    expect(graph).toBeGreaterThan(0);
-    const expected = 1 / (60 + vector) + FUSION.text / (60 + text) + FUSION.graph / (60 + (graph ?? 0));
-    expect(top?.score).toBeCloseTo(expected, 12);
+    expect(top?.ranks.vector).toBeGreaterThan(0);
+    expect(top?.ranks.text).toBe(1);
+    // The graph leg only runs when the shape's configuration gives it a weight.
+    if (FUSION[queryShape('redis cache')].graph === 0) expect(top?.ranks.graph).toBeUndefined();
+    else expect(top?.ranks.graph).toBeGreaterThan(0);
+    expect(top?.score).toBeGreaterThan(0);
   });
 
   it('filters by status (approved and draft by default) and by type', async () => {

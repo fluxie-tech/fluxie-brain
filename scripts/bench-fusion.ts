@@ -10,7 +10,7 @@ process.env.DATABASE_URL = testUrl;
 
 const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
-const { combine } = await import('../src/embeddings/fusion.ts');
+const { combine, queryShape } = await import('../src/embeddings/fusion.ts');
 const { runLegs } = await import('../src/embeddings/legs.ts');
 const { configFromEnv } = await import('../src/embeddings/provider.ts');
 const { FUSION, legSize, searchSpace } = await import('../src/embeddings/search.ts');
@@ -177,6 +177,53 @@ ${e.content}`),
   return false;
 }
 
+type Shape = 'identifier' | 'short' | 'natural';
+type Adaptive = Record<Shape, Fusion>;
+const SHAPES: Shape[] = ['identifier', 'short', 'natural'];
+const shapeOf = (q: Query) => queryShape(q.text) as Shape;
+const adaptiveLabel = (a: Adaptive) => SHAPES.map((s) => `${s}: ${label(a[s])}`).join(' | ');
+/** One Fusion standing for an adaptive config in the rule: it uses the graph if any shape does. */
+const summary = (a: Adaptive): Fusion => ({ ...a.natural, graph: Math.max(...SHAPES.map((s) => a[s].graph)) });
+
+/**
+ * Best grid configuration per query shape on the calibration split (graph-free ones only, if asked). Ties keep the grid
+ * order, which starts at vector alone, so an uninformative shape stays conservative.
+ */
+function calibrateByShape(calibration: Query[], ranked: (f: Fusion) => Ranker, graphFree: boolean): Adaptive {
+  const grid = GRID.filter((f) => !graphFree || f.graph === 0);
+  const pick = (shape: Shape): Fusion => {
+    const queries = calibration.filter((q) => shapeOf(q) === shape);
+    if (queries.length === 0) return { fn: 'rrf', text: 0, graph: 0 };
+    const evals = grid.map((f) => evaluate(queries, ranked(f), f, (q) => q.expected));
+    return (evals.sort((a, b) => b.mrr - a.mrr)[0] as FusionEval).fusion;
+  };
+  return { identifier: pick('identifier'), short: pick('short'), natural: pick('natural') };
+}
+
+/** How the detector splits the gold kinds, so a reader can see whether `identifier` really catches `exact`. */
+function printShapes(): void {
+  console.log('\nFormato detectado × tipo do gabarito (todas as consultas):');
+  for (const shape of SHAPES) {
+    const of = data.queries.filter((q) => shapeOf(q) === shape);
+    const kinds = KINDS.map((k) => `${k} ${of.filter((q) => q.kind === k).length}`).join(', ');
+    console.log(`- ${shape}: ${of.length} (${kinds})`);
+  }
+}
+
+/** Rankings from the cached legs: one fixed fusion, a per-shape fusion, or a single leg as is. */
+function rankers(legs: Map<string, Legs>) {
+  const ranked = (fusion: Fusion): Ranker => {
+    return (q) => combine(legs.get(q.id) as Legs, fusion).map((s) => s.id);
+  };
+  const adaptive = (a: Adaptive): Ranker => {
+    return (q) => ranked(a[shapeOf(q)])(q);
+  };
+  const leg = (name: 'vector' | 'text' | 'graph'): Ranker => {
+    return (q) => (legs.get(q.id)?.[name] ?? []).map((s) => s.id);
+  };
+  return { ranked, adaptive, leg };
+}
+
 async function main() {
   const config = { ...configFromEnv(), model: MODEL };
   if (!confirmRemote(config.baseUrl)) return;
@@ -185,40 +232,35 @@ async function main() {
   const twins = await twinsOf(spaceId);
   const calibration = data.queries.filter((q) => q.split === 'calibration');
   const test = data.queries.filter((q) => q.split === 'test');
-  const ranked =
-    (fusion: Fusion): Ranker =>
-    (q) =>
-      combine(legs.get(q.id) as Legs, fusion).map((s) => s.id);
-  const leg =
-    (name: 'vector' | 'text' | 'graph'): Ranker =>
-    (q) =>
-      (legs.get(q.id)?.[name] ?? []).map((s) => s.id);
+  const { ranked, adaptive, leg } = rankers(legs);
   const exact = (q: Query) => q.expected;
   const withTwins = (q: Query) => [...new Set(q.expected.flatMap((k) => [k, ...(twins.get(k) ?? [])]))];
 
-  const byCalibration = GRID.map((f) => evaluate(calibration, ranked(f), f, exact)).sort((a, b) => b.mrr - a.mrr);
-  const best = byCalibration[0] as FusionEval;
-  const bestNoGraph = byCalibration.find((e) => e.fusion.graph === 0) as FusionEval;
+  const best = calibrateByShape(calibration, ranked, false);
+  const bestNoGraph = calibrateByShape(calibration, ranked, true);
   const vectorOnly: Fusion = { fn: 'rrf', text: 0, graph: 0 };
-  const onTest = (f: Fusion) => evaluate(test, ranked(f), f, exact);
+  const evals = {
+    vectorOnly: evaluate(test, ranked(vectorOnly), vectorOnly, exact),
+    calibrated: evaluate(test, adaptive(best), summary(best), exact),
+    calibratedNoGraph: evaluate(test, adaptive(bestNoGraph), summary(bestNoGraph), exact),
+  };
   const timing = MEASURE_LATENCY ? await latency(config, spaceId, test) : { p50: Number.NaN, p95: 0 };
-  const decision = chooseFusion(
-    { vectorOnly: onTest(vectorOnly), calibrated: onTest(best.fusion), calibratedNoGraph: onTest(bestNoGraph.fusion) },
-    timing.p95,
-  );
+  const decision = chooseFusion(evals, timing.p95);
+  const chosen = { [evals.calibrated.mrr]: best, [evals.calibratedNoGraph.mrr]: bestNoGraph };
 
   console.log(
-    `Dataset: ${data.entities.length} entidades, ${data.relations.length} relações, ${data.queries.length} consultas (calibração ${calibration.length}, teste ${test.length}); gêmeos: ${twins.size} entidades`,
+    `Dataset: ${data.queries.length} consultas (calibração ${calibration.length}, teste ${test.length}); modelo ${MODEL}`,
   );
-  console.log('\nCalibração (MRR@10), 5 melhores de', GRID.length);
-  for (const e of byCalibration.slice(0, 5)) console.log(`- ${label(e.fusion)}: ${e.mrr.toFixed(3)}`);
+  printShapes();
+  console.log(`
+Calibrada por formato: ${adaptiveLabel(best)}
+Sem grafo: ${adaptiveLabel(bestNoGraph)}`);
   const rows: [string, Ranker][] = [
     ['só vetor', leg('vector')],
     ['só texto (BM25)', leg('text')],
-    ['só grafo', leg('graph')],
-    [`provisória: ${label(FUSION)}`, ranked(FUSION)],
-    [`calibrada: ${label(best.fusion)}`, ranked(best.fusion)],
-    [`calibrada sem grafo: ${label(bestNoGraph.fusion)}`, ranked(bestNoGraph.fusion)],
+    ['provisória (constantes atuais)', adaptive(FUSION)],
+    ['adaptativa calibrada', adaptive(best)],
+    ['adaptativa sem grafo', adaptive(bestNoGraph)],
   ];
   printTables(test, rows, { exact, withTwins });
   console.log(
@@ -226,7 +268,16 @@ async function main() {
       ? `\nBusca inteira (constantes atuais, ${test.length} consultas): p50 ${timing.p50.toFixed(0)} ms, p95 ${timing.p95.toFixed(0)} ms`
       : '\nLatência não medida (--no-latency): a decisão abaixo ainda precisa do corte de 300 ms, medido depois.',
   );
-  console.log(`Decisão pela regra: ${label(decision.chosen.fusion)} (${decision.reason}).`);
+  const picked = decision.chosen === evals.vectorOnly ? 'só vetor' : adaptiveLabel(chosen[decision.chosen.mrr] ?? best);
+  const quality = chooseFusion(evals, 0);
+  const mrr4 = (e: FusionEval) => e.mrr.toFixed(4);
+  console.log(
+    `MRR@10 de teste: só vetor ${mrr4(evals.vectorOnly)}, adaptativa ${mrr4(evals.calibrated)}, sem grafo ${mrr4(evals.calibratedNoGraph)}`,
+  );
+  console.log(
+    `Só pela qualidade: ${quality.chosen === evals.vectorOnly ? 'só vetor' : 'adaptativa'} (${quality.reason}).`,
+  );
+  console.log(`Decisão pela regra: ${picked} (${decision.reason}).`);
 }
 
 registerPresets();

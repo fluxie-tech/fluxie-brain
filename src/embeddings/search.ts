@@ -2,7 +2,7 @@ import { getTableColumns, inArray } from 'drizzle-orm';
 import { db, type Entity, type EntityStatus, entities, type GraphSlice, NotFoundError } from '../core-graph/index.ts';
 import { contextOf } from './context.ts';
 import { EmbeddingConfigError } from './errors.ts';
-import { combine, type Fusion, type Scored } from './fusion.ts';
+import { type AdaptiveFusion, combine, queryShape, type Scored } from './fusion.ts';
 import { type LegFilter, runLegs } from './legs.ts';
 import { configFromEnv, type ProviderConfig } from './provider.ts';
 import { type Anchor, scopeIds } from './scope.ts';
@@ -25,10 +25,15 @@ export type SearchHit = {
 export type SearchResult = { hits: SearchHit[]; context: GraphSlice; vector: 'ok' | 'unavailable' };
 
 /**
- * The fusion in production. Provisional until the dogfooding benchmark calibrates it (task T18 of the embeddings plan);
- * fixed in code on purpose, never read from the environment.
+ * The fusion in production, one configuration per query shape, calibrated on the dogfooding set (SPEC-embeddings.md,
+ * Emenda 3: test MRR@10 0.6725 vs 0.6522 for vector alone, p95 166 ms). Code-like and short queries lean on BM25;
+ * natural questions use the vector alone. The graph leg did not earn a weight. Fixed in code, never read from the env.
  */
-export const FUSION: Fusion = { fn: 'rrf', text: 1, graph: 1 };
+export const FUSION: AdaptiveFusion = {
+  identifier: { fn: 'convex', text: 0.5, graph: 0 },
+  short: { fn: 'convex', text: 1, graph: 0 },
+  natural: { fn: 'rrf', text: 0, graph: 0 },
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_QUERY = 2000;
@@ -59,8 +64,9 @@ export async function searchSpace(
     types: opts.types,
     ids: opts.anchor ? await scopeIds(spaceId, opts.anchor) : undefined,
   };
-  const legs = await runLegs(config, query, filter, { size: legSize(limit), graph: FUSION.graph > 0 });
-  const fused = combine(legs, FUSION).slice(0, limit);
+  const fusion = FUSION[queryShape(query)];
+  const legs = await runLegs(config, query, filter, { size: legSize(limit), graph: fusion.graph > 0 });
+  const fused = combine(legs, fusion).slice(0, limit);
   const byId = await loadEntities(fused.map((f) => f.id));
   const rankIn = (list: Scored[] | undefined, id: string) => {
     const i = list?.findIndex((s) => s.id === id) ?? -1;

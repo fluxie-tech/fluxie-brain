@@ -10,7 +10,7 @@ process.env.DATABASE_URL = testUrl;
 
 const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
-const { combine } = await import('../src/embeddings/fusion.ts');
+const { combine, queryShape } = await import('../src/embeddings/fusion.ts');
 const { LOCAL_MODELS, modelSpec } = await import('../src/embeddings/models.ts');
 const { configFromEnv, embed } = await import('../src/embeddings/provider.ts');
 const { runLegs } = await import('../src/embeddings/legs.ts');
@@ -65,7 +65,7 @@ async function rankAll(config: Config, spaceId: string, keyOf: Map<string, strin
   for (const query of queries) {
     const legs = await runLegs(config, query.text, filter, { size: legSize(10), graph: true });
     const ids = (list: { id: string }[] | undefined) => toKeys((list ?? []).map((s) => s.id));
-    const hybrid = ids(combine(legs, FUSION));
+    const hybrid = ids(combine(legs, FUSION[queryShape(query.text)]));
     ranked.push({ query, lists: { vector: ids(legs.vector), text: ids(legs.text), graph: ids(legs.graph), hybrid } });
   }
   return ranked;

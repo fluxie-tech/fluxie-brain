@@ -111,7 +111,9 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 ### Fase 4b: Emenda 2, embeddings pagos (aprovada em 26/11/2026)
 - [x] T20: `text-embedding-3-small` no catálogo, benchmarks prontos para modelo remoto (S)
 - [x] T19: spike da OpenRouter `/embeddings`, que depende da chave no `.env` e do id do modelo (XS)
-- [ ] T21: benchmark dos dois modelos no dataset do Haiku, com latência e CPU livre (S)
+- [x] T21: benchmark dos dois modelos no dataset do Haiku, com latência e CPU livre (S)
+
+- [x] T22: fusão adaptativa pelo formato da consulta (Emenda 3) (S). Passou pela regra: 0,6725 contra 0,6522, p95 de 166 ms
 
 ### Checkpoint G: modelo e fusão de produção
 - [ ] Os números estão no spec, e o modelo e a `FUSION` estão aplicados pela regra e aprovados pelo dono
@@ -207,6 +209,9 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 1 | Importar `src/presets/index.ts` exige `DATABASE_URL` | Fechada no `SPEC-embeddings.md`, sem código. Scripts importam o preset direto. |
 | 2 | A busca a partir de uma dependência compartilhada chega ao outro repo | Resolvida pela regra `scope` (T6, T7, T8) |
 | 3–5 | Metadata de relação, prompt injection, `getPreset` somente leitura | Continuam com o `mcp-server` |
+| 6 | Refrasear com limite: o roteiro orienta a nova tentativa (tradução PT ↔ EN, outras palavras), com limite rígido de chamadas de busca por tarefa | Para o `mcp-server` (SPEC-embeddings.md, Emenda 3) |
+| 7 | Log de consultas (consulta, hits, perna de origem, por space, sem conteúdo sensível) para recalibrar a fusão | Para o `mcp-server` (Emenda 3) |
+| 8 | Se um embedding remoto for usado: configuração por space, aviso ao usuário e custo | Para o `mcp-server` (Emenda 2) |
 
 ## Riscos e mitigações
 

@@ -546,3 +546,59 @@ conteúdo`, consulta crua).
 **Achados:**
 - No vetor sozinho, os dois modelos empatam (0,652 × 0,654), mas erram em coisas diferentes: a OpenAI ganha em en→pt (+0,10) e em paráfrase (+0,07), e perde em pt→en (−0,19) e em `exact` (−0,08).
 - A perna de grafo não melhorou o ranking em nenhum dos dois modelos. O grafo segue útil no contexto (vizinhos) e no escopo pela âncora.
+
+## Emenda 3: fusão adaptativa pelo formato da consulta (2026-11-26)
+
+**Por quê:** nas consultas `exact` do dogfooding, o BM25 sozinho fez 0,783, contra 0,680 do vetor, e nenhuma fusão de peso fixo guardou essa vantagem. O material de RAG que o dono trouxe recomenda o mesmo: mais peso para o texto quando a consulta tem códigos, nomes ou termos exatos, e mais peso para o vetor quando ela é descritiva. O dono aprovou testar (26/11).
+
+- **Detector:** `queryShape(consulta)`, puro e testado, olha só a consulta, nunca o rótulo do gabarito:
+  - `identifier`: algum termo com `_`, `::`, `/`, `.` ou `-` entre letras ou dígitos, com CamelCase ou com letras e dígitos misturados;
+  - senão `short`: 1 ou 2 palavras;
+  - senão `natural`.
+- **Configuração:** `FUSION` passa a ter uma configuração por formato (`{ identifier, short, natural }`), com o mesmo tipo de antes (função, peso do texto, peso do grafo). Com o provedor fora, segue valendo só o texto.
+- **Calibração:**
+  - o `bench:fusion` escolhe, para cada formato, a melhor das 30 configurações nas consultas de calibração daquele formato, e reporta a combinação nas de teste;
+  - ele também mostra quantas consultas de cada tipo do gabarito caem em cada formato, para conferir o detector.
+- **Regra:** a mesma da Emenda 1, aplicada à combinação adaptativa: +0,02 sobre o vetor sozinho e nenhum grupo caindo mais que 0,02. Se não passar, fica só vetor.
+- **Limite conhecido:** cada formato calibra com menos consultas, então há mais risco de sobreajuste. O número que vale é o do teste.
+
+**Pendências para o spec do `mcp-server`, vindas do mesmo material (dono, 26/11):**
+- **Refrasear com limite:** o roteiro publicado orienta o agente a tentar de novo quando não achar, traduzindo a consulta (PT ↔ EN) ou usando outras palavras, com um limite rígido de chamadas de busca por tarefa. Ataca o ponto mais fraco medido, que são as consultas entre idiomas.
+- **Log de consultas:** registrar a consulta, os hits e a perna de onde cada um veio, por space e sem conteúdo sensível, para recalibrar a fusão com o uso real.
+
+### Resultado da Emenda 3 (26/11/2026)
+
+`pnpm bench:fusion` com o Gemma 270m, no dataset do Haiku (284 consultas de teste) e com a CPU livre.
+
+**O detector:** separando todas as 575 consultas,
+- 117 das 132 `exact` caem em `identifier` e as outras 15 caem em `short`;
+- das 387 classificadas como `natural`, só 1 é `exact`.
+
+**A calibração por formato** (na metade de calibração):
+- `identifier`: convexa, texto 0,5, grafo 0,5;
+- `short`: convexa, texto 1, sem grafo;
+- `natural`: RRF, só vetor, grafo 0,25.
+
+**Teste, MRR@10:**
+
+| Configuração | todas | en→en | en→pt | pt→en | pt→pt | paráfrase | exact | multihop |
+|---|---|---|---|---|---|---|---|---|
+| só vetor | 0.6522 | 0.940 | 0.544 | 0.444 | 0.742 | 0.491 | 0.680 | 0.293 |
+| adaptativa | 0.6708 | 0.941 | 0.561 | 0.454 | 0.771 | 0.487 | 0.752 | 0.308 |
+| adaptativa sem grafo | 0.6725 | 0.943 | 0.571 | 0.453 | 0.766 | 0.490 | 0.768 | 0.292 |
+
+A busca inteira teve p50 de 102 ms e p95 de 166 ms. Uma rodada anterior, com a máquina carregada por fora, deu p95 de 3,4 s e foi descartada.
+
+**Pela regra:**
+- o grafo sai (+0,016 no multihop);
+- a adaptativa sem grafo entra: +0,0203 sobre o vetor sozinho, nenhum grupo cai, e o p95 fica dentro do corte;
+- a `FUSION` de produção fica assim:
+  - `identifier`: convexa, texto 0,5;
+  - `short`: convexa, texto 1;
+  - `natural`: só vetor;
+  - a perna de grafo não roda em produção (peso 0 nos três formatos).
+
+**Ressalvas:**
+- a margem é justa;
+- o ganho vem quase todo de `exact` (+0,088) e é coerente com a recomendação do material de RAG (mais peso para o texto em códigos e termos exatos);
+- recalibrar com o log de consultas do `mcp-server` (pendência 7).

@@ -55,6 +55,22 @@ export function combine(legs: Legs, fusion: Fusion): Scored[] {
   );
 }
 
+/** Query formats that get their own fusion weights (SPEC-embeddings.md, Emenda 3). */
+export type QueryShape = 'identifier' | 'short' | 'natural';
+export type AdaptiveFusion = Record<QueryShape, Fusion>;
+
+/** A code-like term: a separator between letters or digits, camelCase, or letters next to digits. */
+const IDENTIFIER = /[\p{L}\p{N}][_:./\\-]+[\p{L}\p{N}]|\p{Ll}\p{Lu}|\p{L}\p{N}|\p{N}\p{L}/u;
+
+/**
+ * Classifies a query by its form alone (never by labels): `identifier` if any term looks like code (config keys,
+ * class names, paths, error codes), else `short` for 1 or 2 words, else `natural`.
+ */
+export function queryShape(query: string): QueryShape {
+  if (query.split(/\s+/).some((term) => IDENTIFIER.test(term))) return 'identifier';
+  return queryWords(query).length <= 2 ? 'short' : 'natural';
+}
+
 /**
  * The query's words, lowercased and once each. Only letters, marks and digits survive, so no query syntax from the
  * user reaches the text search.

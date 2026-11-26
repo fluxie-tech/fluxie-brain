@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { combine, convex, fuse, queryWords } from '../../src/embeddings/fusion.ts';
+import { combine, convex, fuse, queryShape, queryWords } from '../../src/embeddings/fusion.ts';
 
 describe('fuse', () => {
   it('sums 1/(k + rank) over the lists and orders by score', () => {
@@ -73,6 +73,28 @@ describe('combine', () => {
     const down = { vector: undefined, text: legs.text, graph: legs.graph };
     expect(combine(down, { fn: 'rrf', text: 0, graph: 1 }).map((f) => f.id)).toEqual(['both', 't']);
     expect(combine(down, { fn: 'convex', text: 0.25, graph: 1 }).map((f) => f.id)).toEqual(['both', 't']);
+  });
+});
+
+describe('queryShape', () => {
+  it('flags code-like terms as identifier', () => {
+    for (const q of [
+      'config:cache faz o env() devolver null',
+      'ERR_AUTH_4017',
+      'BackupCatalogTest',
+      'pg_dump -Fc',
+      'OGG/Opus',
+      'v2',
+    ]) {
+      expect(queryShape(q), q).toBe('identifier');
+    }
+  });
+
+  it('calls 1 or 2 plain words short and longer plain questions natural', () => {
+    expect(queryShape('embeddings')).toBe('short');
+    expect(queryShape('fila notas')).toBe('short');
+    expect(queryShape('como evitar efeitos duplicados no modo estrito')).toBe('natural');
+    expect(queryShape('Faturação em 2026 sem atraso')).toBe('natural');
   });
 });
 
