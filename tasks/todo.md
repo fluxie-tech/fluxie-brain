@@ -123,17 +123,17 @@ Inclui o stub HTTP de teste.
 O contexto vem vazio até a T8.
 
 **Critérios de aceite:**
-- [ ] Unitário:
+- [x] Unitário:
   - `fuse` (ordem, desempate, uma lista vazia);
   - montagem da tsquery: OU, acentos, símbolos, consulta só com símbolos, que pula a perna de texto sem erro.
-- [ ] Integração:
+- [x] Integração:
   - consulta por termo exato acha pela perna de texto;
   - com o mapa do stub, consulta sem palavra em comum acha pela perna vetorial;
   - `ranks` por perna;
   - filtros de status e tipo;
   - `limit` fora de 1–50 e consulta fora de 1–2000 caracteres recusados;
   - provedor fora do ar dá `vector: 'unavailable'` e hits do texto.
-- [ ] Entidades sem vetor ainda aparecem pela perna de texto, e uma entidade de outro space nunca aparece.
+- [x] Entidades sem vetor ainda aparecem pela perna de texto, e uma entidade de outro space nunca aparece.
 
 **Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
 

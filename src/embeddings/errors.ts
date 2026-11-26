@@ -5,5 +5,5 @@ import { CoreGraphError } from '../core-graph/index.ts';
 /** The embeddings provider failed: network, HTTP status, or a response that does not validate. */
 export class EmbeddingProviderError extends CoreGraphError {}
 
-/** The embeddings configuration is invalid (unknown model, bad base URL). */
+/** The embeddings configuration or a call argument is invalid (unknown model, bad base URL, out-of-range limit). */
 export class EmbeddingConfigError extends CoreGraphError {}

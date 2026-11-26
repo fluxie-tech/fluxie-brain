@@ -3,7 +3,7 @@ import { db, entities, NotFoundError } from '../core-graph/index.ts';
 import { EmbeddingConfigError } from './errors.ts';
 import { modelSpec } from './models.ts';
 import { configFromEnv, embed, type ProviderConfig } from './provider.ts';
-import { entityEmbeddings } from './schema.ts';
+import { entityEmbeddings, vectorOf } from './schema.ts';
 
 export type SyncResult = { embedded: number; remaining: number };
 
@@ -51,8 +51,6 @@ export async function syncSpace(config: ProviderConfig, spaceId: string, batchSi
     .where(isStale(spaceId));
   return { embedded, remaining: left?.n ?? 0 };
 }
-
-const vectorOf = (model: string) => and(eq(entityEmbeddings.entityId, entities.id), eq(entityEmbeddings.model, model));
 
 /** In the space, with no vector for the model (left join miss) or one embedded from older title/content. */
 const isStale = (spaceId: string) =>

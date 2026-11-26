@@ -61,7 +61,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] Achados do spike revisados pelo dono (2026-11-25: Gemma `270m` no lugar da `570m`; pull no entrypoint)
 
 ### Fase 2: Busca
-- [ ] T5: busca híbrida sem âncora (M)
+- [x] T5: busca híbrida sem âncora (M)
 - [ ] T6: campo `scope` no presets (XS)
 - [ ] T7: filtro pelo escopo da âncora (M)
 - [ ] T8: vizinhos de contexto (S)
