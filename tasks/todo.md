@@ -311,7 +311,7 @@ Inclui também `pnpm dogfood:prepare` no `package.json`.
 
 ### Checkpoint D: base pronta
 - [x] A imagem nova funciona e as perguntas da emenda estão respondidas.
-- [ ] O dono viu os números do `dogfood:prepare` e liberou a extração.
+- [x] O dono viu os números do `dogfood:prepare` e liberou a extração.
 
 ### T13: perna de texto em BM25
 
@@ -350,9 +350,9 @@ Inclui também `pnpm dogfood:prepare` no `package.json`.
 4. Eu reviso a amostra (10%, no mínimo 30 entidades e 30 consultas) e registro a taxa de erro no `tasks/plan.md`.
 
 **Critérios de aceite:**
-- [ ] Testes do `dogfood-build` com lotes fictícios: descarta item inválido e relação órfã, deduplica keys, recusa paráfrase com palavra do título, e a divisão é determinística e estratificada.
-- [ ] O dataset real tem os quatro grupos de idioma e os quatro tipos de consulta, com contagens impressas; nada dele entra no git (`git status` limpo fora de `.dogfood/`).
-- [ ] A taxa de erro da amostra fica em até 20%, ou a extração é refeita com o prompt corrigido. A troca de modelo ou de esforço é perguntada ao dono.
+- [x] Testes do `dogfood-build` com lotes fictícios: descarta item inválido e relação órfã, deduplica keys, recusa paráfrase com palavra do título, e a divisão é determinística e estratificada.
+- [x] O dataset real tem os quatro grupos de idioma e os quatro tipos de consulta, com contagens impressas; nada dele entra no git (`git status` limpo fora de `.dogfood/`).
+- [x] A taxa de erro da amostra fica em até 20%, ou a extração é refeita com o prompt corrigido. A troca de modelo ou de esforço é perguntada ao dono.
 
 **Verificação:** `pnpm vitest run tests/scripts/dogfood-build.test.ts`; `pnpm dogfood:build`; `pnpm check:task`.
 

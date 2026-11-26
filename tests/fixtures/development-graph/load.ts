@@ -4,7 +4,7 @@ import { type Actor, type Entity, linkEntities, upsertEntity } from '../../../sr
 /** `lang` and `project` annotate the fictional corpus for tests and benchmarks; they are not stored. */
 export type CorpusEntity = {
   lang: 'pt' | 'en';
-  project: 'pebble' | 'quarry' | 'shared' | 'tern';
+  project: 'pebble' | 'quarry' | 'shared' | 'tern' | 'dogfood';
   type: string;
   key: string;
   title: string;

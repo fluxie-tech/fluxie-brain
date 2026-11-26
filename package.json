@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "bench:embeddings": "node --env-file=.env scripts/bench-embeddings.ts",
     "dogfood:prepare": "node scripts/dogfood-prepare.ts",
+    "dogfood:build": "node --env-file=.env scripts/dogfood-build.ts",
     "check:arch": "depcruise --validate .dependency-cruiser.cjs src",
     "check:fast": "pnpm typecheck && pnpm lint && gitleaks git --pre-commit --redact --no-banner && node scripts/floor-guard.mjs",
     "check:task": "pnpm check:fast && pnpm check:arch && pnpm test:coverage && node scripts/changed-coverage.ts",

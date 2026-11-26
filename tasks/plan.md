@@ -91,10 +91,10 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Checkpoint D: base pronta
 - [x] A suíte inteira passa na imagem nova; perguntas da emenda fechadas (achados abaixo)
-- [ ] O dono viu os números do `dogfood:prepare` (arquivos, lotes, tokens) e liberou a extração
+- [x] O dono viu os números do `dogfood:prepare` (arquivos, lotes, tokens) e liberou a extração
 
 - [ ] T13: perna de texto em BM25 (M)
-- [ ] T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra (M)
+- [x] T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra (M)
 - [ ] T16: perna de grafo (M)
 - [ ] T17: fusão calibrada no `search` (M)
 
@@ -150,6 +150,26 @@ Medido em 26/11/2026, no Docker Desktop local, com a imagem `fluxie-brain-db:pg1
 | 6 | Papel restrito | O `fluxie_app` consulta com `<@>`/`to_bm25query`. `create extension pg_textsearch` fica no `init-db.sh` (superusuário), como o `vector`. | A migração só cria os índices |
 | 7 | Suíte e SAST | `pnpm check:task`: 284 testes passam na imagem nova sem mudança de código. `pnpm check:sast` limpo com o Dockerfile. | O CI passa a construir a imagem (`build:` no compose). Confirmo no PR |
 | 8 | IDF entre spaces | As estatísticas são do índice inteiro (os 50 spaces da sonda). | Limite conhecido, já registrado no spec |
+
+## Dataset do dogfooding (T15)
+
+Gerado em 26/11/2026 por 1 subagente de âncoras e 19 subagentes de lote (Haiku 5.5, esforço `low`), a partir de 205 arquivos do chatbot. Os dados ficam em `.dogfood/`, fora do git, e aqui entram só números.
+
+| Medida | Valor |
+|---|---|
+| Brutos | 392 entidades (20 delas âncoras), 505 relações, 597 consultas |
+| Descartes | 0 entidades, 0 relações, 0 keys duplicadas; consultas: 6 paráfrases com palavra do título e 16 `exact` cujo identificador não está no texto |
+| Válidos | 392 entidades, 505 relações, 575 consultas; carga pelo core-graph sem nenhum `OntologyError` |
+| Por grupo | en→en 72, en→pt 213, pt→en 78, pt→pt 212 |
+| Por tipo | lexical 201, paraphrase 189, exact 132, multihop 53 |
+| Divisão | calibração 291, teste 284 (semente 20261126, estratificada por grupo e tipo) |
+
+**Revisão da amostra** (sorteada com semente fixa: 40 entidades de conhecimento e 58 consultas):
+- **Entidades:** 3 de 40 com problema (7,5%), todas duplicatas de conceito entre lotes (o mesmo assunto tirado do plano e do spec, ou do plano e do relatório). Nenhum tipo errado nem metadata inventada.
+- **Consultas:** 5 de 58 com problema (8,6%). Nenhuma tem gabarito errado: 4 ficaram ambíguas porque o alvo tem um gêmeo de outro lote, e 1 `multihop` ficou fraca.
+- **Resultado:** abaixo do corte de 20%, então não há nova extração.
+
+As duplicatas baixam o MRR absoluto igualmente em todas as configurações. Mesmo assim, a T18 reporta também uma leitura em que um gêmeo quase idêntico (mesmo tipo e cosseno ≥ 0,93 com o esperado) conta como acerto, para medir o efeito.
 
 ## Rastreabilidade: critérios do spec → testes
 
