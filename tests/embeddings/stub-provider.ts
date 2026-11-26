@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { MODELS } from '../../src/embeddings/models.ts';
 
 type Reply = { status: number; body: string };
-export type StubRequest = { model: string; input: string[]; authorization: string | undefined };
+export type StubRequest = { model: string; input: string[]; authorization: string | undefined; provider?: unknown };
 
 /** A local OpenAI-compatible /v1/embeddings server for tests: deterministic, no Ollama needed. */
 export type Stub = {
@@ -51,8 +51,13 @@ async function readBody(req: IncomingMessage): Promise<string> {
 export async function startStub(): Promise<Stub> {
   const stub: Stub = { baseUrl: '', requests: [], fixed: new Map(), respond: undefined, close: async () => {} };
   const server = createServer(async (req, res) => {
-    const parsed = JSON.parse(await readBody(req)) as { model: string; input: string[] };
-    const request = { model: parsed.model, input: parsed.input, authorization: req.headers.authorization };
+    const parsed = JSON.parse(await readBody(req)) as { model: string; input: string[]; provider?: unknown };
+    const request = {
+      model: parsed.model,
+      input: parsed.input,
+      authorization: req.headers.authorization,
+      provider: parsed.provider,
+    };
     stub.requests.push(request);
     const reply = stub.respond?.(request) ?? {
       status: 200,

@@ -497,6 +497,17 @@ conteúdo`, consulta crua).
   - um modelo com p95 da busca inteira acima de 300 ms está fora. O p95 é medido com a CPU livre e inclui a rede.
 - **Fusão de produção:** a decisão pendente da Emenda 1 (só vetor) é tomada junto, para o modelo escolhido. A `FUSION` segue como está até lá.
 
+### Roteamento na OpenRouter (dono, 26/11)
+
+- **Princípio do guia de produção do dono:** a escolha é sempre modelo + provedor, e a OpenRouter nunca roteia livremente. Toda chamada leva o bloco `provider` com um pool fechado (`only` + `order`). O código recusa uma chamada a `openrouter.ai` sem esse bloco, tanto ao ler a configuração quanto no envio, e o Zod valida os campos (`only`, `order`, `allow_fallbacks`, `data_collection`, `zdr`).
+- **Configuração:** `EMBEDDINGS_ROUTING` (JSON) no ambiente, do mesmo jeito que `EMBEDDINGS_BASE_URL` e `EMBEDDINGS_API_KEY`.
+- **Modelo e pool:**
+  - o modelo é `openai/text-embedding-3-small`;
+  - o pool é Azure primeiro e OpenAI como fallback, com `allow_fallbacks: true` e `data_collection: "deny"`;
+  - o ZDR é preferido, mas não é obrigatório (decisão do dono). Pela lista pública da OpenRouter (`/api/v1/endpoints/zdr`, 26/11), só o endpoint da Azure tem zero retenção, e o fallback para a OpenAI não tem;
+  - o guia pede 3 provedores, mas nenhum modelo de embeddings da OpenRouter tem 3. Este tem 2.
+- **Confirmar no spike:** a documentação só cita `order`, `allow_fallbacks` e `data_collection` para embeddings. O spike confere se `only` é aceito e se a OpenAI continua elegível com `data_collection: "deny"`.
+
 ### Privacidade e custo
 
 - **O que sai:** só os textos do dataset (as 392 entidades e as 575 consultas, derivados dos docs do chatbot) vão para o endpoint de embeddings da OpenRouter. Os arquivos originais e os `.env*` não saem. Nada do chatbot entra no git, e o spec só recebe números agregados.

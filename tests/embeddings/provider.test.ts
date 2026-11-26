@@ -55,6 +55,34 @@ describe('configFromEnv', () => {
     expect(configFromEnv({ EMBEDDINGS_API_KEY: '' }).apiKey).toBeUndefined();
   });
 
+  describe('OpenRouter routing', () => {
+    const OPENROUTER = 'https://openrouter.ai/api/v1';
+    const routing = {
+      only: ['azure', 'openai'],
+      order: ['azure', 'openai'],
+      allow_fallbacks: true,
+      data_collection: 'deny',
+    };
+
+    it('reads a closed provider pool from EMBEDDINGS_ROUTING', () => {
+      const env = { EMBEDDINGS_BASE_URL: OPENROUTER, EMBEDDINGS_ROUTING: JSON.stringify(routing) };
+      expect(configFromEnv(env).routing).toEqual(routing);
+    });
+
+    it('refuses OpenRouter without a routing block, so it never routes freely', () => {
+      expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: OPENROUTER })).toThrow(/closed provider pool/);
+    });
+
+    it('rejects routing that is not JSON, has unknown fields or no closed pool', () => {
+      const bad = ['not json', JSON.stringify({ ...routing, sort: 'price' }), JSON.stringify({ order: ['azure'] })];
+      for (const raw of bad) {
+        expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: OPENROUTER, EMBEDDINGS_ROUTING: raw })).toThrow(
+          EmbeddingConfigError,
+        );
+      }
+    });
+  });
+
   it('rejects an unknown model and a base URL that is not http(s)', () => {
     expect(() => configFromEnv({ EMBEDDINGS_MODEL: 'nope' })).toThrow(EmbeddingConfigError);
     expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: 'not a url' })).toThrow(EmbeddingConfigError);
@@ -114,6 +142,18 @@ describe('embed', () => {
     expect(err).toBeInstanceOf(CoreGraphError);
     expect((err as Error).message).toMatch(/HTTP 500/);
     expect((err as Error).message).not.toMatch(/XYZ/);
+  });
+
+  it('sends the routing block as `provider`, and nothing extra without one', async () => {
+    const routing = { only: ['azure'], order: ['azure'], data_collection: 'deny' as const };
+    await embed({ ...config, routing }, ['alpha']);
+    await embed(config, ['beta']);
+    expect(stub.requests.map((r) => r.provider)).toEqual([routing, undefined]);
+  });
+
+  it('refuses to call OpenRouter without a closed pool, before any request leaves', async () => {
+    const open = { baseUrl: 'https://openrouter.ai/api/v1', model: GEMMA, apiKey: 'k' };
+    await expect(embed(open, ['alpha'])).rejects.toThrow(EmbeddingConfigError);
   });
 
   it('rejects a body that is not JSON', async () => {

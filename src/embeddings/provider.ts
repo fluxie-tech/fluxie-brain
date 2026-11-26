@@ -2,8 +2,26 @@ import { z } from 'zod';
 import { EmbeddingConfigError, EmbeddingProviderError } from './errors.ts';
 import { DEFAULT_MODEL, modelSpec } from './models.ts';
 
+/**
+ * OpenRouter provider routing (sent as `provider` in the request body). Only the fields this project uses; see
+ * SPEC-embeddings.md, Emenda 2: a closed pool (`only` + `order`), fallbacks inside it, and the data policy.
+ */
+const routingSchema = z.strictObject({
+  only: z.array(z.string().min(1)).min(1),
+  order: z.array(z.string().min(1)).min(1),
+  allow_fallbacks: z.boolean().optional(),
+  data_collection: z.enum(['allow', 'deny']).optional(),
+  zdr: z.boolean().optional(),
+});
+export type ProviderRouting = z.infer<typeof routingSchema>;
+
 /** Where and how to embed. Public functions build it from the environment on every call; internals take it explicitly. */
-export type ProviderConfig = { baseUrl: string; model: string; apiKey: string | undefined };
+export type ProviderConfig = {
+  baseUrl: string;
+  model: string;
+  apiKey: string | undefined;
+  routing?: ProviderRouting | undefined;
+};
 
 // A CPU batch of 32 documents took ~8–18 s in the spike; this only stops a hung provider from blocking forever.
 const TIMEOUT_MS = 60_000;
@@ -20,7 +38,32 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ProviderCon
   }
   const model = env.EMBEDDINGS_MODEL || DEFAULT_MODEL;
   modelSpec(model);
-  return { baseUrl, model, apiKey: env.EMBEDDINGS_API_KEY || undefined };
+  const config = { baseUrl, model, apiKey: env.EMBEDDINGS_API_KEY || undefined, routing: parseRouting(env) };
+  requireClosedRouting(config);
+  return config;
+}
+
+function parseRouting(env: NodeJS.ProcessEnv): ProviderRouting | undefined {
+  const raw = env.EMBEDDINGS_ROUTING;
+  if (!raw) return undefined;
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new EmbeddingConfigError('EMBEDDINGS_ROUTING must be JSON.');
+  }
+  const parsed = routingSchema.safeParse(json);
+  if (!parsed.success) throw new EmbeddingConfigError(`Invalid EMBEDDINGS_ROUTING: ${z.prettifyError(parsed.error)}`);
+  return parsed.data;
+}
+
+/** Never let OpenRouter route freely: a call to it must carry a closed provider pool (only + order). */
+function requireClosedRouting(config: ProviderConfig): void {
+  const host = URL.parse(config.baseUrl)?.hostname ?? '';
+  const openRouter = host === 'openrouter.ai' || host.endsWith('.openrouter.ai');
+  if (openRouter && !config.routing) {
+    throw new EmbeddingConfigError('OpenRouter needs EMBEDDINGS_ROUTING with a closed provider pool (only + order).');
+  }
 }
 
 /** Embeds already-formatted texts in one request; returns one validated vector per text, in input order. */
@@ -52,6 +95,8 @@ export async function embed(config: ProviderConfig, texts: string[]): Promise<nu
 }
 
 async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
+  // Checked again here so no code path can reach OpenRouter with open routing, even with a hand-built config.
+  requireClosedRouting(config);
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
   let res: Response;
@@ -59,7 +104,7 @@ async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
     res = await fetch(`${config.baseUrl.replace(/\/+$/, '')}/embeddings`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: config.model, input: texts }),
+      body: JSON.stringify({ model: config.model, input: texts, ...(config.routing && { provider: config.routing }) }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (err) {
