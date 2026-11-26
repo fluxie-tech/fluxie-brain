@@ -110,7 +110,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 
 ### Fase 4b: Emenda 2, embeddings pagos (aprovada em 26/11/2026)
 - [x] T20: `text-embedding-3-small` no catálogo, benchmarks prontos para modelo remoto (S)
-- [ ] T19: spike da OpenRouter `/embeddings`, que depende da chave no `.env` e do id do modelo (XS)
+- [x] T19: spike da OpenRouter `/embeddings`, que depende da chave no `.env` e do id do modelo (XS)
 - [ ] T21: benchmark dos dois modelos no dataset do Haiku, com latência e CPU livre (S)
 
 ### Checkpoint G: modelo e fusão de produção
@@ -179,6 +179,20 @@ Gerado em 26/11/2026 por 1 subagente de âncoras e 19 subagentes de lote (Haiku 
 - **Resultado:** abaixo do corte de 20%, então não há nova extração.
 
 As duplicatas baixam o MRR absoluto igualmente em todas as configurações. Mesmo assim, a T18 reporta também uma leitura em que um gêmeo quase idêntico (mesmo tipo e cosseno ≥ 0,93 com o esperado) conta como acerto, para medir o efeito.
+
+## Achados do spike da Emenda 2 (T19, 26/11/2026)
+
+Chamadas com 2 textos fictícios a `https://openrouter.ai/api/v1/embeddings`, modelo `openai/text-embedding-3-small`, pelo `embed()` do projeto. A chave não foi impressa.
+
+| # | Pergunta | Achado | Efeito |
+|---|---|---|---|
+| 1 | Formato | Compatível com a OpenAI (`data[].index`, `data[].embedding`), mais os campos `provider`, `id` e `usage.cost` | O provider não muda |
+| 2 | Dimensão | 1536 | Catálogo certo |
+| 3 | `only` e `order` | Respeitados: o pool fechado funciona | A trava de roteamento fechado vale na prática |
+| 4 | OpenAI com `data_collection: "deny"` | **HTTP 404**: a OpenAI não é elegível com `deny` | Com `deny`, o pool Azure → OpenAI vira só Azure, sem fallback. Fallback para a OpenAI exige `allow` (decisão do dono) |
+| 5 | Azure com `zdr: true` | Passa | A Azure é o endpoint com zero retenção |
+| 6 | Latência (rede, do Brasil) | 1,6–1,9 s por chamada | Muito acima do corte de 300 ms da busca inteira: o modelo fica fora pela regra, se ela for mantida |
+| 7 | Custo | US$ 0,00000028 por 2 frases (14 tokens) | A rodada inteira custa menos de US$ 0,001 |
 
 ## Rastreabilidade: critérios do spec → testes
 

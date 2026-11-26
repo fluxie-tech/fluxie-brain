@@ -466,7 +466,7 @@ A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo
 - se o id ou o formato for outro, o catálogo é corrigido.
 
 **Critérios de aceite:**
-- [ ] Os achados ficam no `tasks/plan.md`, e a chave nunca é impressa.
+- [x] Os achados ficam no `tasks/plan.md`, e a chave nunca é impressa.
 
 **Tamanho:** XS.
 

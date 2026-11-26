@@ -503,10 +503,10 @@ conteúdo`, consulta crua).
 - **Configuração:** `EMBEDDINGS_ROUTING` (JSON) no ambiente, do mesmo jeito que `EMBEDDINGS_BASE_URL` e `EMBEDDINGS_API_KEY`.
 - **Modelo e pool:**
   - o modelo é `openai/text-embedding-3-small`;
-  - o pool é Azure primeiro e OpenAI como fallback, com `allow_fallbacks: true` e `data_collection: "deny"`;
+  - o pool é Azure primeiro e OpenAI como fallback, com `allow_fallbacks: true` e `data_collection: "allow"`. O spike mostrou que, com `"deny"`, a OpenAI não é elegível (HTTP 404) e o fallback não existe; o dono escolheu `"allow"` (26/11), aceitando que a OpenAI possa reter os dados quando o fallback for usado;
   - o ZDR é preferido, mas não é obrigatório (decisão do dono). Pela lista pública da OpenRouter (`/api/v1/endpoints/zdr`, 26/11), só o endpoint da Azure tem zero retenção, e o fallback para a OpenAI não tem;
   - o guia pede 3 provedores, mas nenhum modelo de embeddings da OpenRouter tem 3. Este tem 2.
-- **Confirmar no spike:** a documentação só cita `order`, `allow_fallbacks` e `data_collection` para embeddings. O spike confere se `only` é aceito e se a OpenAI continua elegível com `data_collection: "deny"`.
+- **Spike (T19):** o `only` é aceito; a resposta traz o provedor que atendeu (a Azure, nos testes); a latência de rede é de 1,6 a 1,9 s por chamada.
 
 ### Privacidade e custo
 
