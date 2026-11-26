@@ -10,11 +10,9 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 }
 
 /**
- * The query's words joined with OR, in to_tsquery syntax; undefined when it has no word at all.
- * plainto_tsquery would AND every word, and a natural-language question almost never matches all of them.
- * Only letters, marks and digits survive, so no tsquery operator from the user ever reaches Postgres.
+ * The query's words, lowercased and once each. Only letters, marks and digits survive, so no query syntax from the
+ * user reaches the text search.
  */
-export function orQuery(text: string): string | undefined {
-  const words = new Set(text.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu));
-  return words.size > 0 ? [...words].join(' | ') : undefined;
+export function queryWords(text: string): string[] {
+  return [...new Set(text.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu))];
 }

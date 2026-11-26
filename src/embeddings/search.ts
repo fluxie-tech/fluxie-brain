@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, getTableColumns, inArray, type SQL, sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, inArray, type SQL, sql } from 'drizzle-orm';
 import { db, type Entity, type EntityStatus, entities, type GraphSlice, NotFoundError } from '../core-graph/index.ts';
 import { contextOf } from './context.ts';
 import { EmbeddingConfigError, EmbeddingProviderError } from './errors.ts';
-import { fuse, orQuery } from './fusion.ts';
+import { fuse, queryWords } from './fusion.ts';
 import { modelSpec } from './models.ts';
 import { configFromEnv, embed, type ProviderConfig } from './provider.ts';
 import { entityEmbeddings, vectorLiteral, vectorOf } from './schema.ts';
@@ -125,18 +125,49 @@ export async function vectorLeg(config: ProviderConfig, query: string, filter: L
   return rows.map((r) => r.id);
 }
 
-/** Ids of the LEG_SIZE best full-text matches (any query word, ranked by ts_rank_cd); none for a query without words. */
-export async function textLeg(query: string, filter: LegFilter): Promise<string[]> {
-  const terms = orQuery(query);
-  if (!terms) return [];
-  const tsquery = sql`to_tsquery('simple', ${terms})`;
-  const rows = await db
-    .select({ id: entities.id })
+/** The BM25 indexes of migration 0008: same expression, one text search config each (Emenda 1). */
+const BM25_INDEXES = ['entities_bm25_pt', 'entities_bm25_en'] as const;
+
+/** Top BM25 matches in one index: pg_textsearch scores are negative (lower is better) and 0 means no term matched. */
+async function bm25Leg(query: string, filter: LegFilter, index: string) {
+  // Must stay the exact expression the indexes were built on, or the planner cannot use them.
+  const score = sql<number>`(${entities.title} || ' ' || ${entities.content}) <@> to_bm25query(${query}, ${index})`;
+  return db
+    .select({ id: entities.id, score })
     .from(entities)
-    .where(and(matches(filter), sql`${entities.tsv} @@ ${tsquery}`))
-    .orderBy(desc(sql`ts_rank_cd(${entities.tsv}, ${tsquery})`), asc(entities.id))
+    .where(and(matches(filter), sql`${score} < 0`))
+    .orderBy(score, asc(entities.id))
     .limit(LEG_SIZE);
-  return rows.map((r) => r.id);
+}
+
+/**
+ * The query's words that are not a stopword in either language. Each index drops only its own language's stopwords,
+ * so without this the English index would still match Portuguese "como", "de", "para" (and vice versa).
+ */
+async function contentWords(query: string): Promise<string> {
+  const words = queryWords(query);
+  if (words.length === 0) return '';
+  const { rows } = await db.execute<{ w: string }>(sql`
+    select w from unnest(${sql.param(words)}::text[]) as w
+     where to_tsvector('portuguese', w) <> ''::tsvector and to_tsvector('english', w) <> ''::tsvector`);
+  return rows.map((r) => r.w).join(' ');
+}
+
+/**
+ * Ids of the LEG_SIZE best BM25 matches, each entity at its best score across the Portuguese and English indexes
+ * (stopwords of both languages dropped, words reduced to their stem). A query with no content word matches nothing.
+ */
+export async function textLeg(query: string, filter: LegFilter): Promise<string[]> {
+  const words = await contentWords(query);
+  if (!words) return [];
+  const best = new Map<string, number>();
+  for (const rows of await Promise.all(BM25_INDEXES.map((index) => bm25Leg(words, filter, index)))) {
+    for (const { id, score } of rows) best.set(id, Math.min(score, best.get(id) ?? 0));
+  }
+  return [...best]
+    .sort(([a, x], [b, y]) => x - y || (a < b ? -1 : 1))
+    .slice(0, LEG_SIZE)
+    .map(([id]) => id);
 }
 
 async function loadEntities(ids: string[]): Promise<Map<string, Entity>> {

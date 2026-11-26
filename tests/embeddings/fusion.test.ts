@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fuse, orQuery } from '../../src/embeddings/fusion.ts';
+import { fuse, queryWords } from '../../src/embeddings/fusion.ts';
 
 describe('fuse', () => {
   it('sums 1/(k + rank) over the lists and orders by score', () => {
@@ -29,20 +29,20 @@ describe('fuse', () => {
   });
 });
 
-describe('orQuery', () => {
-  it('joins the lowercased words with OR, once each', () => {
-    expect(orQuery('Como faturar boletos? como')).toBe('como | faturar | boletos');
+describe('queryWords', () => {
+  it('lowercases and keeps each word once', () => {
+    expect(queryWords('Como faturar boletos? como')).toEqual(['como', 'faturar', 'boletos']);
   });
 
   it('keeps accented letters and digits', () => {
-    expect(orQuery('Faturação em 2026')).toBe('faturação | em | 2026');
+    expect(queryWords('Faturação em 2026')).toEqual(['faturação', 'em', '2026']);
   });
 
-  it('drops tsquery operators and quotes, so user text cannot change the query', () => {
-    expect(orQuery("foo & !bar | (baz) <-> 'qux':*")).toBe('foo | bar | baz | qux');
+  it('drops query operators and quotes, so user text cannot change the query', () => {
+    expect(queryWords("foo & !bar | (baz) <-> 'qux':*")).toEqual(['foo', 'bar', 'baz', 'qux']);
   });
 
-  it('gives undefined for a query with symbols only', () => {
-    expect(orQuery('¿?! -- && ||')).toBeUndefined();
+  it('gives no words for a query with symbols only', () => {
+    expect(queryWords('¿?! -- && ||')).toEqual([]);
   });
 });

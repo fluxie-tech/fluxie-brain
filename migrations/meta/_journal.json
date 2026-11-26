@@ -57,6 +57,13 @@
       "when": 1795640323195,
       "tag": "0007_entities_tsv_gin",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795699596385,
+      "tag": "0008_entities_bm25",
+      "breakpoints": true
     }
   ]
 }

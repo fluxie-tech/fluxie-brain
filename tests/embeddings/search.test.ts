@@ -168,6 +168,43 @@ describe('search', () => {
     });
   });
 
+  describe('BM25 text leg', () => {
+    const text = (query: string) =>
+      textLeg(query, { spaceId: space.id, statuses: ['approved', 'draft', 'deprecated'], types: undefined }).then(
+        (ids) => ids.map((id) => keyOf.get(id)),
+      );
+
+    beforeEach(async () => {
+      await add(space.id, 'learning', 'stopwords', 'como como como para de que');
+      await add(space.id, 'learning', 'efeitos', 'efeitos duplicados no modo estrito');
+      await add(space.id, 'learning', 'fila-a', 'fila de jobs do faturamento');
+      await add(space.id, 'learning', 'fila-b', 'fila de jobs das notas');
+      await add(space.id, 'learning', 'raro', 'zeppelin pousou na fila');
+      await add(space.id, 'learning', 'migration', 'migration of stored notes');
+    });
+
+    it('ignores stopwords: a document with only "como" never matches', async () => {
+      const keys = await text('como evitar efeitos duplicados');
+      expect(keys[0]).toBe('efeitos');
+      expect(keys).not.toContain('stopwords');
+      expect(await text('como de que para')).toEqual([]);
+    });
+
+    it('ranks a rare exact term above a common one', async () => {
+      expect((await text('fila zeppelin'))[0]).toBe('raro');
+    });
+
+    it('matches by stem in Portuguese and in English', async () => {
+      expect(await text('faturar')).toContain('fila-a');
+      expect(await text('migrating')).toContain('migration');
+    });
+
+    it('treats symbols and query operators as plain text', async () => {
+      expect(await text('¿?! -- && ||')).toEqual([]);
+      expect((await text("zeppelin & !pousou | (fila) <-> 'x':*"))[0]).toBe('raro');
+    });
+  });
+
   it('reads the provider from the environment in the public function', async () => {
     vi.stubEnv('EMBEDDINGS_BASE_URL', stub.baseUrl);
     try {

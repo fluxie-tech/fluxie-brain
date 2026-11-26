@@ -93,7 +93,7 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] A suíte inteira passa na imagem nova; perguntas da emenda fechadas (achados abaixo)
 - [x] O dono viu os números do `dogfood:prepare` (arquivos, lotes, tokens) e liberou a extração
 
-- [ ] T13: perna de texto em BM25 (M)
+- [x] T13: perna de texto em BM25 (M)
 - [x] T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra (M)
 - [ ] T16: perna de grafo (M)
 - [ ] T17: fusão calibrada no `search` (M)

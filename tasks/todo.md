@@ -322,9 +322,9 @@ Inclui também `pnpm dogfood:prepare` no `package.json`.
 - os testes de busca passam a cobrir o BM25.
 
 **Critérios de aceite:**
-- [ ] Teste: uma consulta com palavras vazias ("como evitar efeitos…") não põe no topo um documento que só contém "como"; um termo raro e exato vence um termo comum.
-- [ ] Teste: os textos em PT e em EN acham pelo radical (por exemplo, "faturar" × "faturamento" e "migrating" × "migration"), cada um pelo seu índice.
-- [ ] Os testes anteriores do `search.test.ts` e do `scope.test.ts` continuam passando, inclusive o do provedor fora do ar.
+- [x] Teste: uma consulta com palavras vazias ("como evitar efeitos…") não põe no topo um documento que só contém "como"; um termo raro e exato vence um termo comum.
+- [x] Teste: os textos em PT e em EN acham pelo radical (por exemplo, "faturar" × "faturamento" e "migrating" × "migration"), cada um pelo seu índice.
+- [x] Os testes anteriores do `search.test.ts` e do `scope.test.ts` continuam passando, inclusive o do provedor fora do ar.
 
 **Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
 
