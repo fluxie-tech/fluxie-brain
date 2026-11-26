@@ -367,15 +367,15 @@ Inclui também `pnpm dogfood:prepare` no `package.json`.
 **Descrição:** `src/embeddings/graph.ts` com um PageRank personalizado sobre as relações do space:
 - usa as relações nos dois sentidos e pesos iguais por tipo, dentro do escopo da âncora quando houver, e só com os status pedidos;
 - as sementes são os melhores resultados da perna vetorial, com peso proporcional à similaridade;
-- amortecimento de 0,85 e número fixo de iterações;
+- amortecimento de 0,5 (ver o spec) e número fixo de iterações;
 - devolve uma lista ordenada.
 
 A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo) é escolhida aqui, pela simplicidade. Uma escolha com limite conhecido de escala leva o comentário `shortcut:`.
 
 **Critérios de aceite:**
-- [ ] Unitário, num grafo pequeno à mão: a ordem esperada sai; com uma semente só, ela fica em 1º e os vizinhos diretos vêm antes dos de dois saltos; ciclos terminam.
-- [ ] Integração no corpus: com uma âncora, nada fora do escopo aparece; uma lição ligada a um component semente aparece entre os primeiros.
-- [ ] Sem sementes (perna vetorial vazia), devolve uma lista vazia.
+- [x] Unitário, num grafo pequeno à mão: a ordem esperada sai; com uma semente só, ela fica em 1º e os vizinhos diretos vêm antes dos de dois saltos; ciclos terminam.
+- [x] Integração no corpus: com uma âncora, nada fora do escopo aparece; uma lição ligada a um component semente aparece entre os primeiros.
+- [x] Sem sementes (perna vetorial vazia), devolve uma lista vazia.
 
 **Verificação:** `pnpm vitest run tests/embeddings/graph.test.ts`; `pnpm check:task`.
 

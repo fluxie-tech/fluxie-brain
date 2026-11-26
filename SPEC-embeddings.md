@@ -346,7 +346,7 @@ O dono decidiu melhorar a híbrida, em vez de abandoná-la, e medir num projeto 
 2. **Perna de grafo** (nova; só fica se vencer):
    - PageRank personalizado sobre as relações do space, dentro do escopo da âncora quando ela existe;
    - sementes: os melhores resultados da perna vetorial, com peso proporcional à similaridade;
-   - amortecimento de 0,85, número fixo de iterações, relações nos dois sentidos e pesos iguais por tipo;
+   - amortecimento de 0,5 (com 0,85, medido nos testes da T16, a caminhada vai para os nós com mais ligações, como o repo e as dependências compartilhadas, e eles passam na frente das sementes), número fixo de iterações, relações nos dois sentidos e pesos iguais por tipo;
    - devolve uma lista ordenada, que entra na fusão como as outras;
    - sem vetor (provedor fora do ar), ela não roda;
    - a implementação (SQL recursivo ou TypeScript sobre uma leitura das relações) é decidida no plano.
