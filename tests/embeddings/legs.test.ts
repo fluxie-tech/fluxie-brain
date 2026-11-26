@@ -71,34 +71,31 @@ describe('search legs', () => {
     }
   });
 
-  describe('BM25 text leg on a crowded table', () => {
-    // 1200 strong matches (24 x 50), so a filter applied after the index scan would drop the one entity that counts.
-    const crowd = async (spaceId: string, prefix: string) => {
-      for (let batch = 0; batch < 24; batch++) {
-        await Promise.all(
-          Array.from({ length: 50 }, (_, i) => add(spaceId, `${prefix}${batch}-${i}`, 'zeppelin zeppelin zeppelin')),
-        );
-      }
-    };
+  describe('BM25 text leg: the filters apply before the LIMIT, not to the top results', () => {
+    // The leg asks for SIZE candidates. If the space/status filter ran after taking the top SIZE, SIZE stronger
+    // matches outside the filter would crowd out the one entity that counts. SIZE of them is the smallest crowd that does.
+    const SIZE = 10;
+    const crowd = (spaceId: string) =>
+      Promise.all(Array.from({ length: SIZE }, (_, i) => add(spaceId, `crowd-${i}`, 'zeppelin zeppelin zeppelin')));
 
     it('finds the entity of a small space although another space matches the term much more strongly', async () => {
       const big = await createSpace({ slug: 'big', name: 'Big', preset: TEST_PRESET });
-      await crowd(big.id, 'b');
+      await crowd(big.id);
       await add(space.id, 'mine', 'a single zeppelin in a longer text about nothing else of note');
-      expect((await textLeg('zeppelin', filter(), 10)).length).toBe(1);
+      expect((await textLeg('zeppelin', filter(), SIZE)).map((h) => h.id)).toHaveLength(1);
     });
 
-    it('finds an approved entity although 1200 deprecated ones match the term more strongly', async () => {
-      await crowd(space.id, 'd');
+    it('finds an approved entity although stronger deprecated ones fill the top results', async () => {
+      await crowd(space.id);
       const owner = migratorClient();
       await owner.connect();
       try {
-        await owner.query(`update entities set status = 'deprecated' where key like 'd%'`);
+        await owner.query(`update entities set status = 'deprecated' where key like 'crowd-%'`);
       } finally {
         await owner.end();
       }
       await add(space.id, 'mine', 'one zeppelin here and some other words to dilute the score');
-      expect((await textLeg('zeppelin', filter(), 10)).length).toBe(1);
+      expect((await textLeg('zeppelin', filter(), SIZE)).map((h) => h.id)).toHaveLength(1);
     });
-  }, 120_000);
+  });
 });
