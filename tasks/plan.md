@@ -19,8 +19,17 @@ T1 Ollama no compose + spike (fecha as perguntas em aberto do spec)
                  └──────────────────────────────┴─ T7 filtro pelo escopo da âncora
                                                     └─ T8 vizinhos de contexto
 T9 fixtures do benchmark + métricas      (depende só do corpus; pode correr ao lado de T5–T8)
-T10 script do benchmark + execução + escolha do modelo   (depende de T8 e T9)
-T11 fechamento: rastreabilidade, pendências, check:task
+T10 script do benchmark + 1ª rodada + escolha do modelo  (feito: Gemma 270m; a híbrida perdeu → Emenda 1)
+
+Emenda 1 (SPEC-embeddings.md, aprovada em 26/11/2026):
+T12 spike: imagem do db com pg_textsearch 1.6.0 no PG19 (o risco primeiro; fecha as perguntas da emenda)
+ ├─ T13 perna de texto em BM25 (dois índices, portuguese e english)
+ └─ T14 dogfood:prepare (lista permitida + gitleaks + lotes)        (só precisa da T12 para carregar no banco)
+     └─ T15 extração com subagentes Haiku + dogfood:build + revisão da amostra
+T16 perna de grafo (PageRank personalizado)            (depende de T8; pode correr ao lado de T13–T15)
+T17 fusão calibrada no search (funções + constantes provisórias)   (depende de T13 e T16)
+ └─ T18 benchmark com calibração/teste no dogfooding + decisão     (depende de T15 e T17)
+T11 fechamento: rastreabilidade (17 critérios), pendências, pisos de cobertura, check:task
 ```
 
 ## Decisões de arquitetura
@@ -72,14 +81,38 @@ Detalhes, critérios de aceite e verificação em `tasks/todo.md`.
 - [x] Prova com o Ollama real (Gemma 270m, banco de testes, corpus): busca em 81–109 ms com vetor; com âncora em `repo:fictora/pebble-web`, nada do quarry
 - [x] Achado revisado pelo dono (2026-11-26: o benchmark decide; se a híbrida perder para o vetor sozinho, volta ao spec): a perna de texto (OU de todas as palavras, `simple`, sem stopwords) casa palavras vazias ("como", "do", "be", "an") e, no RRF, um documento nas duas pernas com ranks medianos passa na frente do 1º lugar de uma perna só. Em 2 de 3 consultas ao vivo o alvo certo saiu do top 3 (ex.: `invariant:quarry-nota-idempotente` é o 1º do vetor e ficou em 3º). O benchmark (T10) mede isso por perna
 
-### Fase 3: Benchmark e fechamento
+### Fase 3: Benchmark
 - [x] T9: fixtures do benchmark e métricas (M)
-- [ ] T10: script do benchmark, execução e escolha do modelo (M)
+- [x] T10: script do benchmark, 1ª rodada e escolha do modelo (M). O Gemma 270m venceu pela regra e foi confirmado pelo dono em 26/11. A híbrida perdeu para o vetor sozinho, o que levou à Emenda 1 do spec.
+
+### Fase 4: Emenda 1, híbrida melhorada
+- [ ] T12: spike da imagem do banco com pg_textsearch 1.6.0 (S)
+- [ ] T14: `dogfood:prepare` (S)
+
+### Checkpoint D: base pronta
+- [ ] A suíte inteira passa na imagem nova; perguntas da emenda fechadas (achados abaixo)
+- [ ] O dono viu os números do `dogfood:prepare` (arquivos, lotes, tokens) e liberou a extração
+
+- [ ] T13: perna de texto em BM25 (M)
+- [ ] T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra (M)
+- [ ] T16: perna de grafo (M)
+- [ ] T17: fusão calibrada no `search` (M)
+
+### Checkpoint E: pernas e dados prontos
+- [ ] Três pernas com teste; dataset do dogfooding validado, com a taxa de erro da amostra registrada
+- [ ] `pnpm check:task` verde
+
+- [ ] T18: benchmark com calibração e teste e decisão da fusão (M)
+
+### Checkpoint F: decisão
+- [ ] Resultado agregado no spec; configuração da fusão (ou só vetor) aplicada pela regra e aprovada pelo dono
+
+### Fase 5: Fechamento
 - [ ] T11: fechamento (S)
 
 ### Checkpoint C: completo
-- [ ] Resultado do benchmark no spec e modelo padrão aprovado pelo dono
-- [ ] Os 12 critérios do spec ligados a testes (tabela abaixo, preenchida na T11)
+- [x] Resultado do benchmark no spec e modelo padrão aprovado pelo dono (rodada 1, 26/11)
+- [ ] Os 17 critérios do spec ligados a testes (tabela abaixo, preenchida na T11)
 - [ ] `pnpm check:task` verde; pronto para a fase Verify
 
 ## Achados do spike (T1)
@@ -130,6 +163,20 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | Arquivo acima de 300 linhas (`search.ts`) | Baixo | Fusão e tsquery em `fusion.ts`, escopo em `scope.ts`, contexto em `context.ts` se passar |
 | Cobertura das linhas alteradas abaixo de 80% | Baixo | O stub cobre os caminhos de erro do provedor; o script do benchmark fica fora de `src`, e as métricas dele têm teste |
 
+### Riscos da Emenda 1
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| O suporte do pg_textsearch ao PG19 tem 3 dias e pode ter bugs | Alto: perna de texto e banco | T12 primeiro, com a suíte inteira na imagem nova. Se falhar, para e volta ao dono (as opções são o PG18 com a v1.5.1 ou o BM25 em SQL) |
+| `CREATE EXTENSION pg_textsearch` exige superusuário | Médio | O `init-db.sh` cria a extensão nos dois bancos (o principal e o de teste), e a migração só cria os índices. A T12 confere |
+| A extensão não aceita dois índices na mesma expressão | Médio | A T12 testa. Plano B: uma coluna gerada `search_text` no core-graph, que é mudança de schema e pede pergunta ao dono |
+| Compilar a extensão deixa o CI lento | Baixo | Dockerfile multi-stage com a versão fixada e o código conferido por checksum. O tempo é medido na T12 |
+| Os subagentes Haiku inventam keys ou relações para âncoras que não existem | Médio | As âncoras saem antes (T15, passo 1) e são passadas a cada lote; o `dogfood:build` descarta relações com pontas desconhecidas e conta |
+| Consultas geradas a partir do próprio texto ficam lexicais demais | Médio | Tipos separados, regra das paráfrases conferida por código e relatório por tipo |
+| Calibração sobreajustada a poucas consultas | Médio | Divisão 50/50 estratificada com semente fixa, grade pequena e número reportado só nas consultas de teste |
+| Texto do chatbot vazar para o repositório público | Alto | `.dogfood/` no `.gitignore`, o `gitleaks` no pre-commit, e o spec recebe só números agregados. Os testes usam só fixtures fictícias |
+| A latência da busca inteira passar de 300 ms | Médio | Medida na T18 com a configuração escolhida; a regra cai para a melhor configuração que couber |
+
 ## Perguntas em aberto
 
-- Nenhuma bloqueante. As do spec são fechadas pelo spike da T1.
+- As da Emenda 1 são fechadas pelo spike da T12 e pela revisão da amostra na T15.

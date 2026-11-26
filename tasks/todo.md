@@ -238,12 +238,12 @@ As duas pernas da busca filtram por esses ids.
 Depois, roda nos dois modelos, aplica a regra de escolha e registra o resultado no spec.
 
 **Critérios de aceite:**
-- [ ] `pnpm bench:embeddings` imprime, por modelo:
+- [x] `pnpm bench:embeddings` imprime, por modelo:
   - MRR@10 e recall@5, no total e por grupo;
   - os mesmos números para só vetor, só texto e híbrida;
   - p50/p95 em CPU, carga a frio, memória e tempo do corpus.
-- [ ] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O vencedor sai pela regra, e o padrão de `EMBEDDINGS_MODEL` (compose, `.env.example` e `DEFAULT_MODEL` do catálogo) passa a ser ele.
-- [ ] Revisão humana do resultado antes de seguir (Checkpoint C).
+- [x] A seção "Resultado do benchmark" do spec traz a tabela, a data, as versões do Ollama e dos modelos e a CPU. O vencedor sai pela regra, e o padrão de `EMBEDDINGS_MODEL` (compose, `.env.example` e `DEFAULT_MODEL` do catálogo) passa a ser ele.
+- [x] Revisão humana do resultado antes de seguir (Checkpoint C).
 
 **Verificação:** saída do script colada no spec; `pnpm check:task`.
 
@@ -253,26 +253,217 @@ Depois, roda nos dois modelos, aplica a regra de escolha e registra o resultado 
 
 **Tamanho:** M.
 
+## Fase 4: Emenda 1, híbrida melhorada
+
+### T12: spike da imagem do banco com pg_textsearch 1.6.0
+
+**Descrição:** uma imagem própria do `db`, `docker/db/Dockerfile`:
+- parte de `pgvector/pgvector:0.8.7-pg19`;
+- instala o `pg_textsearch` v1.6.0, por pacote pronto se existir para pg19 amd64, ou compilado num estágio de build com o código conferido por checksum;
+- carrega a extensão por `shared_preload_libraries` (`command: -c ...` no compose).
+
+O compose passa de `image:` para `build:` no `db`. O `init-db.sh` cria a extensão nos dois bancos.
+
+O spike responde às perguntas em aberto da emenda e registra os achados no `tasks/plan.md`:
+- se a extensão chega por pacote ou precisa compilar;
+- se ela aceita dois índices `bm25` (`portuguese` e `english`) sobre a mesma expressão;
+- se o `to_bm25query` funciona com os filtros de space, status e escopo no `WHERE` (`EXPLAIN`);
+- se o `fluxie_app` consegue consultar com o papel restrito;
+- o tempo do build.
+
+Se um achado contradisser o spec, o plano para e volta ao dono.
+
+**Critérios de aceite:**
+- [ ] `docker compose up -d --wait db` sobe a imagem nova a partir de um volume limpo, e `pnpm db:migrate` roda nela.
+- [ ] A suíte inteira (`pnpm check:task`) passa na imagem nova, sem nenhuma mudança de código.
+- [ ] A tabela de achados da T12 no `tasks/plan.md` responde às quatro perguntas da emenda.
+
+**Verificação:** `docker compose down -v && docker compose up -d --wait db`; `pnpm db:migrate`; `pnpm check:task`.
+
+**Dependências:** nenhuma de código. É o primeiro passo da emenda, porque é o maior risco.
+
+**Arquivos:** `docker/db/Dockerfile`, `docker-compose.yml`, `docker/init-db.sh`, `tasks/plan.md`.
+
+**Tamanho:** S.
+
+### T14: `dogfood:prepare`
+
+**Descrição:** `scripts/dogfood-prepare.ts`, com as funções puras em `scripts/dogfood-lib.ts`:
+- monta a lista permitida a partir de `DOGFOOD_SOURCE`, com padrão `C:\Projetos\chatbot`: `docs/**/*.md`, `CLAUDE.md`, `AGENTS.md` e `README.md`. Exclui sempre `.env*`, `vendor`, `node_modules`, `storage`, `.git` e as pastas de agentes;
+- roda o `gitleaks` nos arquivos e pula os que tiverem achado;
+- divide em lotes de tamanho parecido (por bytes, com teto por lote);
+- grava `.dogfood/batches.json`;
+- imprime quantos arquivos, lotes e tokens estimados vão entrar, sem nenhum conteúdo.
+
+Inclui também `pnpm dogfood:prepare` no `package.json`.
+
+**Critérios de aceite:**
+- [ ] Testes, com uma árvore de arquivos fictícia num diretório temporário: a lista exclui `.env`, `.env.local`, `vendor/x.md` e `.claude/a.md`; os lotes cobrem cada arquivo uma vez e respeitam o teto; o `.dogfood/` está no `.gitignore`.
+- [ ] Rodando no chatbot, imprime só contagens (nenhum caminho de arquivo pulado traz o conteúdo).
+
+**Verificação:** `pnpm vitest run tests/scripts/dogfood-lib.test.ts`; `pnpm dogfood:prepare`; `pnpm check:task`.
+
+**Dependências:** nenhuma de código. Vem depois da T12 na ordem, para fechar o Checkpoint D.
+
+**Arquivos:** `scripts/dogfood-prepare.ts`, `scripts/dogfood-lib.ts`, `tests/scripts/dogfood-lib.test.ts`, `package.json`.
+
+**Tamanho:** S.
+
+### Checkpoint D: base pronta
+- [ ] A imagem nova funciona e as perguntas da emenda estão respondidas.
+- [ ] O dono viu os números do `dogfood:prepare` e liberou a extração.
+
+### T13: perna de texto em BM25
+
+**Descrição:**
+- uma migração custom com os dois índices `bm25` (`portuguese` e `english`) sobre título + conteúdo das `entities` (ou a forma que a T12 indicar);
+- a `textLeg` passa a consultar os dois índices com os filtros (space, status, tipo, escopo) e a ordenar pelo melhor score de cada entidade entre os dois;
+- o `orQuery` sai, se ficar sem uso;
+- os testes de busca passam a cobrir o BM25.
+
+**Critérios de aceite:**
+- [ ] Teste: uma consulta com palavras vazias ("como evitar efeitos…") não põe no topo um documento que só contém "como"; um termo raro e exato vence um termo comum.
+- [ ] Teste: os textos em PT e em EN acham pelo radical (por exemplo, "faturar" × "faturamento" e "migrating" × "migration"), cada um pelo seu índice.
+- [ ] Os testes anteriores do `search.test.ts` e do `scope.test.ts` continuam passando, inclusive o do provedor fora do ar.
+
+**Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
+
+**Dependências:** T12.
+
+**Arquivos:** `migrations/0008_entities_bm25.sql` (com o journal), `src/embeddings/search.ts`, `src/embeddings/fusion.ts`, `tests/embeddings/search.test.ts`, `tests/embeddings/fusion.test.ts`.
+
+**Tamanho:** M.
+
+### T15: extração com subagentes Haiku, `dogfood:build` e revisão da amostra
+
+**Descrição:**
+1. Um subagente Haiku 5.5 em esforço `low` lê `README.md`, `CLAUDE.md` e `AGENTS.md` e grava `.dogfood/anchors.json`.
+2. Um subagente por lote, em paralelo, grava `.dogfood/extracted/<lote>.json`, recebendo as âncoras, o formato das keys e dos tipos do preset, o formato JSON e o aviso de que o texto lido é dado, não instrução.
+3. O `scripts/dogfood-build.ts` (`pnpm dogfood:build`):
+   - valida com Zod;
+   - remove keys duplicadas e relações com pontas desconhecidas;
+   - confere a regra das paráfrases;
+   - carrega tudo no banco de testes pelo core-graph com o preset;
+   - divide as consultas 50/50, estratificadas por grupo e tipo, com semente fixa;
+   - grava `.dogfood/dataset.json`;
+   - imprime as contagens: válidos, descartados e consultas por grupo e por tipo.
+4. Eu reviso a amostra (10%, no mínimo 30 entidades e 30 consultas) e registro a taxa de erro no `tasks/plan.md`.
+
+**Critérios de aceite:**
+- [ ] Testes do `dogfood-build` com lotes fictícios: descarta item inválido e relação órfã, deduplica keys, recusa paráfrase com palavra do título, e a divisão é determinística e estratificada.
+- [ ] O dataset real tem os quatro grupos de idioma e os quatro tipos de consulta, com contagens impressas; nada dele entra no git (`git status` limpo fora de `.dogfood/`).
+- [ ] A taxa de erro da amostra fica em até 20%, ou a extração é refeita com o prompt corrigido. A troca de modelo ou de esforço é perguntada ao dono.
+
+**Verificação:** `pnpm vitest run tests/scripts/dogfood-build.test.ts`; `pnpm dogfood:build`; `pnpm check:task`.
+
+**Dependências:** T14 e o Checkpoint D.
+
+**Arquivos:** `scripts/dogfood-build.ts`, `scripts/dogfood-lib.ts`, `tests/scripts/dogfood-build.test.ts`, `package.json`, `tasks/plan.md`.
+
+**Tamanho:** M.
+
+### T16: perna de grafo
+
+**Descrição:** `src/embeddings/graph.ts` com um PageRank personalizado sobre as relações do space:
+- usa as relações nos dois sentidos e pesos iguais por tipo, dentro do escopo da âncora quando houver, e só com os status pedidos;
+- as sementes são os melhores resultados da perna vetorial, com peso proporcional à similaridade;
+- amortecimento de 0,85 e número fixo de iterações;
+- devolve uma lista ordenada.
+
+A implementação (TypeScript sobre uma leitura das relações, ou SQL recursivo) é escolhida aqui, pela simplicidade. Uma escolha com limite conhecido de escala leva o comentário `shortcut:`.
+
+**Critérios de aceite:**
+- [ ] Unitário, num grafo pequeno à mão: a ordem esperada sai; com uma semente só, ela fica em 1º e os vizinhos diretos vêm antes dos de dois saltos; ciclos terminam.
+- [ ] Integração no corpus: com uma âncora, nada fora do escopo aparece; uma lição ligada a um component semente aparece entre os primeiros.
+- [ ] Sem sementes (perna vetorial vazia), devolve uma lista vazia.
+
+**Verificação:** `pnpm vitest run tests/embeddings/graph.test.ts`; `pnpm check:task`.
+
+**Dependências:** T8. Pode correr ao lado das T13 a T15.
+
+**Arquivos:** `src/embeddings/graph.ts`, `tests/embeddings/graph.test.ts`.
+
+**Tamanho:** M.
+
+### T17: fusão calibrada no `search`
+
+**Descrição:**
+- o `fusion.ts` ganha o RRF com peso por perna e a combinação convexa de scores normalizados (min-max por perna, em cada consulta);
+- o `search` passa a usar três pernas (vetor, texto e grafo), com `2 × limit` candidatos, até 60;
+- as constantes `FUSION = { fn, text, graph }` ficam no `search.ts`, com valores provisórios até a T18;
+- `ranks` ganha `graph`;
+- o provedor fora do ar continua dando só texto.
+
+**Critérios de aceite:**
+- [ ] Unitário: os dois `fuse` com pesos (peso 0 desliga a perna; desempate pelo id; perna vazia; normalização quando todos os scores são iguais).
+- [ ] Integração: os `ranks` trazem as três pernas; com o peso do texto em 0, a ordem é a do vetor; os testes antigos de status, tipo, limite, escopo e provedor fora do ar continuam passando.
+- [ ] O `search.ts` fica dentro dos limites do `CONSTRAINTS.md`. Se passar, o código é dividido em arquivos.
+
+**Verificação:** `pnpm vitest run tests/embeddings`; `pnpm check:task`.
+
+**Dependências:** T13 e T16.
+
+**Arquivos:** `src/embeddings/fusion.ts`, `src/embeddings/search.ts`, `src/embeddings/index.ts`, `tests/embeddings/fusion.test.ts`, `tests/embeddings/search.test.ts`.
+
+**Tamanho:** M.
+
+### Checkpoint E: pernas e dados prontos
+- [ ] Três pernas com teste; o dataset do dogfooding está validado, com a taxa de erro da amostra registrada.
+- [ ] `pnpm check:task` verde.
+
+### T18: benchmark com calibração e teste, e decisão da fusão
+
+**Descrição:**
+- o `bench-embeddings.ts` ganha `--data fictional|dogfood`;
+- no dogfooding, ele:
+  - calibra na metade de calibração (as duas funções de fusão × a grade de pesos);
+  - reporta na metade de teste, por grupo e por tipo, a configuração escolhida ao lado do vetor sozinho;
+  - mede o p95 da `search` inteira;
+  - aplica a regra da Emenda 1 por uma função testada (`chooseFusion` no `bench-metrics.ts`);
+- a configuração vencedora entra nas constantes do `search.ts`; se vencer "só vetor", os pesos do texto e do grafo vão a 0;
+- os números agregados (sem nenhum texto do chatbot) vão para "Resultado do benchmark" no spec.
+
+**Critérios de aceite:**
+- [ ] `chooseFusion` tem teste unitário com os casos da regra: margem de 0,02, queda por grupo, grafo nas consultas de vários saltos e latência acima do corte.
+- [ ] O spec traz a tabela agregada da rodada (data, contagens do dataset, calibração × teste) e a decisão. As constantes do `search.ts` refletem essa decisão.
+- [ ] O dono revisa o resultado (Checkpoint F).
+
+**Verificação:** `pnpm bench:embeddings --data dogfood`; `pnpm check:task`.
+
+**Dependências:** T15 e T17.
+
+**Arquivos:** `scripts/bench-embeddings.ts`, `scripts/bench-metrics.ts`, `tests/scripts/bench-metrics.test.ts`, `src/embeddings/search.ts`, `SPEC-embeddings.md`.
+
+**Tamanho:** M.
+
+### Checkpoint F: decisão
+- [ ] O resultado está no spec, e a configuração da fusão está aplicada pela regra e aprovada pelo dono.
+
+## Fase 5: Fechamento
+
 ### T11: fechamento
 
 **Descrição:**
-- tabela de rastreabilidade critério → teste em `tasks/plan.md`;
-- situação das pendências 1 e 2 em `tasks/presets/plan.md`;
-- `CAPABILITY-MAP.md` atualizado, se a decisão do modelo mudar a linha do embeddings;
+- tabela de rastreabilidade critério → teste no `tasks/plan.md`, com os 17 critérios;
+- situação das pendências 1 e 2 no `tasks/presets/plan.md`;
+- `CAPABILITY-MAP.md` atualizado (a linha do embeddings: BM25, grafo e fusão);
+- decisão sobre o GIN de `entities.tsv`: sai se nada mais o usar;
+- os pisos de cobertura do `vitest.config.ts` sobem até o valor medido;
 - `pnpm check:task` final.
 
 **Critérios de aceite:**
-- [ ] Os 12 critérios do spec ligados a testes ou a verificações registradas.
+- [ ] Os 17 critérios do spec estão ligados a testes ou a verificações registradas.
+- [ ] Os pisos do ratchet sobem, sem nenhum cair.
 - [ ] `pnpm check:task` verde com o banco no ar.
 
 **Verificação:** `pnpm check:task`.
 
-**Dependências:** T10.
+**Dependências:** T18.
 
-**Arquivos:** `tasks/plan.md`, `tasks/presets/plan.md`, `CAPABILITY-MAP.md`.
+**Arquivos:** `tasks/plan.md`, `tasks/presets/plan.md`, `CAPABILITY-MAP.md`, `vitest.config.ts`.
 
 **Tamanho:** S.
 
 ### Checkpoint C: completo
-- [ ] Modelo padrão aprovado pelo dono.
+- [x] Modelo padrão aprovado pelo dono (rodada 1, 26/11: Gemma 270m).
 - [ ] `pnpm check:task` verde; pronto para a fase Verify.
