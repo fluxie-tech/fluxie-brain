@@ -64,6 +64,7 @@ Mesma regra dos outros módulos: versão estável mais recente, fixada com núme
   - `qwen3-embedding:0.6b`: 639 MB, 1024 dims, 32K de contexto, Apache 2.0;
   - `embeddinggemma-2:270m`: ~0,5 GB carregado, 768 dims (truncável para 512/256/128), Apache 2.0, lançado em 06/10/2026. É a tag só de texto. A `570m` é o mesmo modelo de texto mais um codificador de áudio, e os vetores de texto das duas são idênticos (spike da T1).
 - **Cliente do provedor:** o `fetch` nativo do Node 26 contra `POST {base}/embeddings`, com a resposta validada por Zod. Não entra SDK; o Ollama aceita `input` em lote, `dimensions` e `encoding_format`.
+- **pg_textsearch 1.6.0** (Emenda 1): BM25 no Postgres, sob a PostgreSQL License, lançado em 23/11/2026 com suporte completo ao Postgres 19. Não tem imagem oficial, então o `db` usa uma imagem própria em cima de `pgvector/pgvector:0.8.7-pg19`. O ParadeDB `pg_search` ficou de fora: é AGPL-3.0 e usa tokenizadores próprios, sem stemmer português confirmado.
 - **pgvector 0.8.7** (já no compose). Coluna `vector` sem dimensão fixa. Os dois modelos ficam bem abaixo do limite de 2000 dims do HNSW, que continua possível depois.
 - **Nenhuma dependência npm nova prevista.** Se o Drizzle não aceitar `vector` sem dimensão, usa-se um `customType`, como o `tsvector` do core-graph.
 
@@ -250,14 +251,23 @@ export function fuse(lists: string[][], k = 60): { id: string; score: number }[]
 2. `pnpm db:migrate` cria a `entity_embeddings` e o GIN em `entities.tsv`, e o `fluxie_app` consegue ler e escrever na tabela nova.
 3. `syncEmbeddings` gera vetores para todas as entidades do space e devolve `remaining: 0`. Uma segunda chamada não faz nada. Depois de mudar `title` ou `content` (update, aceite ou revert), só aquela entidade é regenerada; depois de mudar só `metadata`, nenhuma.
 4. Uma resposta inválida do provedor (contagem, dimensão, NaN, HTTP de erro, rede) lança `EmbeddingProviderError` e não grava nada. Um modelo fora do catálogo lança `EmbeddingConfigError`.
-5. `search` devolve `hits` ordenados pelo RRF das duas pernas, com `ranks` por perna. Uma consulta sem palavra em comum com o alvo o encontra pelo vetor; uma consulta por termo exato o encontra pelo texto.
+5. `search` devolve `hits` ordenados pela fusão que a Emenda 1 escolher, com `ranks` por perna. Uma consulta sem palavra em comum com o alvo o encontra pelo vetor; uma consulta por termo exato o encontra pelo texto.
 6. Por padrão, só entidades `approved` e `draft`; `statuses` e `types` filtram; `limit` (1–50) e uma consulta (1–2000 caracteres) fora do limite são recusados.
 7. Com âncora e a regra do Development Graph, no corpus: nenhuma entidade do outro projeto aparece em `hits` nem em `context`, a partir de `repo:fictora/pebble-web`, de `repo:fictora/quarry-api` e de um component; os itens `shared` aparecem nos dois; as lições sobre dependências de componentes aparecem.
 8. Com o provedor fora do ar, `search` responde só pelo texto, com `vector: 'unavailable'`.
 9. O `context` traz os vizinhos dos `hits` até `depth`, sem repetir `hits`, respeitando o escopo e os status.
-10. O benchmark roda para os dois modelos e imprime MRR@10 e recall@5 (total e por grupo de idioma, por perna) e latência p50/p95 em CPU. O resultado e o modelo escolhido pela regra estão registrados neste spec.
+10. O benchmark roda para os dois modelos e imprime MRR@10 e recall@5 (total e por grupo de idioma, por perna) e latência p50/p95 em CPU. O resultado e o modelo escolhido pela regra estão registrados neste spec. Feito em 26/11/2026: `embeddinggemma-2:270m`, confirmado pelo dono.
 11. O `Preset` tem o campo opcional `scope`; o Development Graph declara `{ containment: ['part_of'], usage: ['depends_on'] }`; o core-graph exporta `db`, `entities` e `relations`, e nada mais muda nele.
 12. O embeddings só importa `src/core-graph/index.ts` (`pnpm check:arch`), e o `pnpm check:task` passa.
+13. **Emenda 1, imagem do banco:** `docker compose up -d --wait db` sobe a imagem própria com `pg_textsearch` 1.6.0 e `pgvector` 0.8.7 no Postgres 19, e a suíte inteira passa nela, localmente e no CI.
+14. **Emenda 1, texto:** a perna de texto usa BM25 nos dois índices (`portuguese` e `english`), e uma palavra vazia da consulta ("como", "do") não puxa mais documentos para o topo. O `entities.tsv` e o código do core-graph não mudam.
+15. **Emenda 1, dogfooding:** `pnpm dogfood:extract` gera, da lista permitida do chatbot:
+    - entidades e relações válidas para o Development Graph, sem nenhum `OntologyError`;
+    - consultas com gabarito nos quatro grupos de idioma e nos tipos `lexical`, `paraphrase`, `exact` e `multihop`.
+
+    Tudo fica em `.dogfood/`, fora do git, e a taxa de erro da amostra revisada está no `tasks/plan.md`.
+16. **Emenda 1, decisão:** o benchmark calibra nas consultas de calibração e reporta nas de teste. A configuração escolhida aparece ao lado do vetor sozinho, por grupo e por tipo de consulta, e a busca segue a regra da Emenda 1.
+17. **Emenda 1, latência:** com o modelo carregado, o p95 da `search` inteira (consulta, pernas, fusão e contexto) fica em até 300 ms em CPU, com os limites da VPS, no dataset do dogfooding.
 
 ## Perguntas em aberto
 
@@ -298,3 +308,119 @@ Desempenho:
 **Pela regra:** os dois ficam abaixo de 300 ms de p95, e a diferença de MRR@10 híbrido (0,650 × 0,642) é menor que 0,02, então vence o mais rápido em CPU: **`embeddinggemma-2:270m`**, que já era o padrão. O Gemma também vence só pelo vetor (0,921 × 0,861).
 
 **Achado:** a híbrida perde para o vetor sozinho nos dois modelos (Gemma 0,642 × 0,921). A perna de texto só ajuda em PT→PT, e nas consultas entre idiomas é quase só ruído. Pela decisão do dono no Checkpoint B, isso volta ao spec. A perna de texto também varia entre rodadas (0,487 × 0,508 com as mesmas consultas), porque o `ts_rank_cd` empata muito e o desempate é pelo id, que é aleatório a cada carga.
+
+**Variantes descartáveis** (só Gemma; MRR@10 / recall@5):
+
+| Variante | todas | lexical | paráfrase | PT→PT | entre idiomas |
+|---|---|---|---|---|---|
+| só vetor | 0.921 / 1.00 | 1.000 / 1.00 | 0.868 / 1.00 | 0.933 / 1.00 | 0.908 / 1.00 |
+| híbrida atual (pernas de 50) | 0.642 / 0.70 | 1.000 / 1.00 | 0.403 / 0.50 | 0.950 / 1.00 | 0.434 / 0.45 |
+| pernas de 10 | 0.701 / 0.95 | 1.000 / 1.00 | 0.502 / 0.92 | 0.950 / 1.00 | 0.539 / 0.90 |
+| texto só com palavras de mais de 3 letras | 0.730 / 0.90 | 1.000 / 1.00 | 0.551 / 0.83 | 0.950 / 1.00 | 0.598 / 0.85 |
+| as duas mudanças juntas | 0.753 / 1.00 | 1.000 / 1.00 | 0.589 / 1.00 | 0.950 / 1.00 | 0.634 / 1.00 |
+
+## Emenda 1: busca híbrida melhorada (2026-11-26)
+
+**Por quê:** a híbrida perdeu para o vetor sozinho, mesmo nas variantes corrigidas (acima). Há três causas medidas:
+- **Perna de texto:** o `ts_rank_cd` com `simple` não tem IDF, então uma palavra vazia vale tanto quanto um termo raro.
+- **Fusão sem peso:** o RRF dá o mesmo peso a uma perna fraca e a uma forte, e 50 candidatos num corpus de 64 põem quase tudo nas duas listas.
+- **Dados:** são 64 documentos fictícios, e cada consulta tem um único alvo.
+
+O dono decidiu melhorar a híbrida, em vez de abandoná-la, e medir num projeto real.
+
+**Pesquisa que embasa:**
+- [Supabase hybrid search](https://supabase.com/docs/guides/ai/hybrid-search): RRF com peso por perna e `least(match_count, 30) * 2` candidatos.
+- [Bruch et al.](https://arxiv.org/abs/2210.11934): a combinação convexa de scores normalizados supera o RRF e se calibra com poucas consultas.
+- [Elastic](https://www.elastic.co/search-labs/blog/improving-information-retrieval-elastic-stack-hybrid): pesos ajustados vencem o RRF com ~40 consultas, mas o peso ideal muda de um conjunto de dados para outro. Daí a separação entre calibração e teste.
+- [LightRAG](https://github.com/HKUDS/LightRAG), [RAG-Anything](https://github.com/hkuds/rag-anything) e [HippoRAG](https://arxiv.org/abs/2405.14831): acham entidades pelo vetor e espalham a relevância pelo grafo (PageRank personalizado).
+
+### O que muda na busca
+
+1. **Perna de texto em BM25** (`pg_textsearch` 1.6.0):
+   - dois índices `bm25` sobre título + conteúdo das `entities`, um com `text_config='portuguese'` e outro com `'english'`;
+   - a consulta roda nos dois, e o benchmark escolhe entre o melhor score dos dois e a fusão dos dois;
+   - os filtros (space, status, tipo, escopo) continuam valendo;
+   - o `entities.tsv` e o GIN da migração 0007 ficam; se nada mais usar o GIN, a retirada é decidida no plano.
+
+   Limite conhecido: as estatísticas do BM25 são da tabela inteira, de todos os spaces.
+2. **Perna de grafo** (nova; só fica se vencer):
+   - PageRank personalizado sobre as relações do space, dentro do escopo da âncora quando ela existe;
+   - sementes: os melhores resultados da perna vetorial, com peso proporcional à similaridade;
+   - amortecimento de 0,85, número fixo de iterações, relações nos dois sentidos e pesos iguais por tipo;
+   - devolve uma lista ordenada, que entra na fusão como as outras;
+   - sem vetor (provedor fora do ar), ela não roda;
+   - a implementação (SQL recursivo ou TypeScript sobre uma leitura das relações) é decidida no plano.
+3. **Fusão calibrada:**
+   - **candidatos:** cada perna traz `2 × limit` candidatos, até 60;
+   - **funções comparadas:**
+     - RRF com peso por perna (k=60);
+     - combinação convexa de scores normalizados (min-max por perna, em cada consulta);
+   - **grade de pesos** (relativos ao vetor, que vale 1): texto ∈ {0; 0,25; 0,5; 0,75; 1} e grafo ∈ {0; 0,25; 0,5}. Peso 0 desliga a perna, então "só vetor" faz parte da grade;
+   - **o que fica:** a melhor combinação nas consultas de **calibração**, fixada em constantes no `search.ts` (sem env). O número que vale é o das consultas de **teste**.
+4. **`ranks`** ganha `graph?: number`.
+5. **Provedor fora do ar:** sem mudança, a busca responde pela perna de texto, com `vector: 'unavailable'`.
+
+### Regra de decisão (nas consultas de teste do dogfooding)
+
+- **A fusão entra se cumprir as duas condições:**
+  - o MRR@10 dela supera o do vetor sozinho em pelo menos 0,02;
+  - nenhum grupo de idioma cai mais que 0,02.
+
+  Se não cumprir, a busca ordena só pelo vetor, e o texto fica de reserva para quando o provedor cair.
+- **A perna de grafo fica se cumprir as duas condições:**
+  - o peso calibrado dela é maior que 0;
+  - nas consultas de vários saltos, ela melhora o MRR@10 em pelo menos 0,02, sem derrubar o total.
+- **Latência:** o limite do critério 17 vale para a configuração escolhida. Se ela não couber, vale a melhor que couber.
+- **Corpus fictício:** continua no CI e no benchmark para comparação, mas não decide.
+
+### Dogfooding com o `C:\Projetos\chatbot`
+
+- **Lista permitida:**
+  - entra: `docs/**/*.md`, `CLAUDE.md`, `AGENTS.md` e `README.md`;
+  - fica de fora, sempre: `.env*`, `vendor/`, `node_modules/`, `storage/`, `.git/` e as pastas de agentes (`.claude`, `.agents`, `.codex`, `.gemini`, `.kiro`, `.superpowers`, `.referencias`, `.codegraph`).
+- **Segredos:** o `gitleaks` varre a lista antes de qualquer envio. Arquivo com achado é pulado e listado.
+- **Extração** (`scripts/dogfood-extract.ts`, `pnpm dogfood:extract`): cada documento vai para um modelo da OpenRouter (API compatível com a da OpenAI, saída JSON validada por Zod), que devolve:
+  - **entidades** do Development Graph e as relações entre elas e com as âncoras do chatbot (repo, components e dependências);
+  - **consultas com gabarito**, nos quatro grupos de idioma e nos tipos:
+    - `lexical`;
+    - `paraphrase`: não divide palavra de conteúdo com os títulos esperados, conferido por código;
+    - `exact`: um identificador exato, como nome de job, de classe ou de chave de config;
+    - `multihop`: o alvo só se liga à consulta por uma relação.
+- **Validação:** tudo carrega no banco de testes pelo core-graph com o preset. Item inválido é descartado e contado.
+- **Separação:** as consultas são divididas 50/50 entre calibração e teste, estratificadas por grupo e tipo, com semente fixa.
+- **Revisão:**
+  - eu reviso uma amostra (10% das entidades e 10% das consultas, no mínimo 30 de cada) antes da primeira rodada, e a taxa de erro entra no `tasks/plan.md`;
+  - mais de 20% de erros manda corrigir o prompt e extrair de novo.
+- **Configuração:**
+  - `OPENROUTER_API_KEY` vai no `.env`, preenchida pelo dono e nunca impressa;
+  - `DOGFOOD_MODEL` é o modelo da OpenRouter;
+  - `DOGFOOD_SOURCE` é o caminho do chatbot.
+- **Custo:** o `--dry-run` lista os arquivos e estima os tokens sem chamar a API, e há um teto de documentos por rodada.
+- **Onde os dados ficam:** em `.dogfood/`, que fica no `.gitignore`. O repositório é público, então nenhum texto do chatbot entra em commit, PR, spec ou log do CI; o spec recebe só números agregados.
+- **Escopo:** o dogfooding é só para medir e não grava no `fluxie_brain` nem no chatbot.
+
+### Fronteiras (acréscimos)
+
+- **Sempre:**
+  - varrer os arquivos com o `gitleaks` antes de enviar;
+  - deixar `.dogfood/` fora do git;
+  - reportar o número das consultas de teste.
+- **Perguntar antes:**
+  - trocar o modelo de extração ou subir o teto de custo;
+  - mudar a regra de decisão depois de ver os números de teste.
+- **Nunca:**
+  - ler ou enviar os `.env*` do chatbot;
+  - commitar texto do chatbot;
+  - calibrar olhando as consultas de teste.
+
+### Mudanças em módulos prontos
+
+- **Infra do `db`:** o compose e o CI trocam a imagem `pgvector/pgvector:0.8.7-pg19` por uma própria (`docker/db/Dockerfile`), que adiciona o `pg_textsearch` 1.6.0 e o carrega por `shared_preload_libraries`. O código do core-graph não muda.
+- **Migrações:** uma migração custom cria a extensão e os dois índices BM25 e dá ao `fluxie_app` o que ele precisar para consultar.
+
+### Perguntas em aberto (fechadas no spike da emenda)
+
+- A v1.6.0 tem pacote pronto para pg19 amd64, ou precisa compilar? A página de releases não mostrou a lista inteira.
+- A extensão aceita dois índices `bm25` (`portuguese` e `english`) sobre a mesma expressão? Ela indexa expressão, ou exige uma coluna?
+- O `to_bm25query` combina com os filtros de space, status e escopo no mesmo `WHERE` sem perder o índice?
+- Qual modelo da OpenRouter extrai melhor pelo custo? O dono escolhe entre 2–3 opções, com o custo estimado pelo `--dry-run`.
