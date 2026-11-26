@@ -19,4 +19,9 @@ export type Preset = {
   name: string;
   description: string;
   ontology: { entityTypes: Record<string, EntityTypeDef>; relationTypes: Record<string, RelationTypeDef> };
+  /**
+   * How search scopes to an anchor (SPEC-embeddings.md): `containment` relations are followed both ways,
+   * transitively; `usage` relations one hop outward. Presets without anchors leave it out.
+   */
+  scope?: { containment: string[]; usage: string[] };
 };

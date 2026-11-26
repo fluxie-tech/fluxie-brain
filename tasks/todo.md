@@ -148,8 +148,8 @@ O contexto vem vazio até a T8.
 **Descrição:** `Preset` ganha `scope?: { containment: string[]; usage: string[] }`, e o Development Graph declara `{ containment: ['part_of'], usage: ['depends_on'] }`.
 
 **Critérios de aceite:**
-- [ ] Teste: toda relação citada em `scope` existe nas `relationTypes` do preset, e as duas listas não se cruzam.
-- [ ] Os exports do presets não mudam; muda só o tipo.
+- [x] Teste: toda relação citada em `scope` existe nas `relationTypes` do preset, e as duas listas não se cruzam.
+- [x] Os exports do presets não mudam; muda só o tipo.
 
 **Verificação:** `pnpm vitest run tests/presets`; `pnpm check:task`.
 

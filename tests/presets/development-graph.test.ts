@@ -96,6 +96,13 @@ describe('development graph ontology', () => {
     for (const [type, def] of Object.entries(entityTypes)) expect(def.instruction).toContain(`Key: ${type}:`);
   });
 
+  it('declares the anchor scope rule with existing, non-overlapping relations', () => {
+    expect(developmentGraph.scope).toEqual({ containment: ['part_of'], usage: ['depends_on'] });
+    const { containment, usage } = developmentGraph.scope;
+    for (const relation of [...containment, ...usage]) expect(Object.keys(relationTypes)).toContain(relation);
+    expect(containment.filter((r) => usage.includes(r))).toEqual([]);
+  });
+
   it('names and describes the preset', () => {
     expect(developmentGraph.name.trim()).not.toBe('');
     expect(developmentGraph.description.trim()).not.toBe('');
