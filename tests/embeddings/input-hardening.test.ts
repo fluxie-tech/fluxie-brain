@@ -4,7 +4,7 @@ import { EmbeddingConfigError, EmbeddingProviderError } from '../../src/embeddin
 import { textLeg } from '../../src/embeddings/legs.ts';
 import { modelSpec } from '../../src/embeddings/models.ts';
 import { embed, type ProviderConfig } from '../../src/embeddings/provider.ts';
-import { searchSpace } from '../../src/embeddings/search.ts';
+import { FUSION, searchSpace } from '../../src/embeddings/search.ts';
 import { TEST_PRESET, testOntology } from '../fixtures/ontology.ts';
 import { truncateAll } from '../setup/db.ts';
 import { type Stub, startStub } from './stub-provider.ts';
@@ -24,6 +24,7 @@ describe('input hardening (owner decisions of the Verify phase)', () => {
   beforeEach(async () => {
     await truncateAll();
     stub.respond = undefined;
+    stub.requests.length = 0;
     stub.fixed.clear();
     gemma = { baseUrl: stub.baseUrl, model: GEMMA, apiKey: undefined };
     space = await createSpace({ slug: 'dev', name: 'Dev', preset: TEST_PRESET });
@@ -36,6 +37,15 @@ describe('input hardening (owner decisions of the Verify phase)', () => {
     const decomposed = await textLeg('faturação'.normalize('NFD'), filter, 10);
     expect(composed).toHaveLength(1);
     expect(decomposed.map((h) => h.id)).toEqual(composed.map((h) => h.id));
+  });
+
+  it('embeds a decomposed (NFD) query in its composed form, so the vector matches what was stored', async () => {
+    await searchSpace(gemma, space.id, 'faturação mensal'.normalize('NFD'), {});
+    expect(stub.requests.at(-1)?.input).toEqual([modelSpec(GEMMA).query('faturação mensal'.normalize('NFC'))]);
+  });
+
+  it('keeps the production fusion immutable, at every level', () => {
+    expect([FUSION, ...Object.values(FUSION)].every(Object.isFrozen)).toBe(true);
   });
 
   describe('statuses and types', () => {

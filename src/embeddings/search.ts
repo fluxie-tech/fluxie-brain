@@ -29,11 +29,11 @@ export type SearchResult = { hits: SearchHit[]; context: GraphSlice; vector: 'ok
  * Emenda 3: test MRR@10 0.6725 vs 0.6522 for vector alone, p95 166 ms). Code-like and short queries lean on BM25;
  * natural questions use the vector alone. The graph leg did not earn a weight. Fixed in code, never read from the env.
  */
-export const FUSION: AdaptiveFusion = {
-  identifier: { fn: 'convex', text: 0.5, graph: 0 },
-  short: { fn: 'convex', text: 1, graph: 0 },
-  natural: { fn: 'rrf', text: 0, graph: 0 },
-};
+export const FUSION: AdaptiveFusion = Object.freeze({
+  identifier: Object.freeze({ fn: 'convex', text: 0.5, graph: 0 } as const),
+  short: Object.freeze({ fn: 'convex', text: 1, graph: 0 } as const),
+  natural: Object.freeze({ fn: 'rrf', text: 0, graph: 0 } as const),
+});
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_QUERY = 2000;
@@ -59,14 +59,16 @@ export async function searchSpace(
   const depth = opts.depth ?? 1;
   validate(spaceId, query, limit, depth);
   validateFilters(opts);
+  // One canonical form for every use of the query: the vector, the shape detector and the text leg alike.
+  const text = query.normalize('NFC');
   const filter: LegFilter = {
     spaceId,
     statuses: opts.statuses ?? ['approved', 'draft'],
     types: opts.types,
     ids: opts.anchor ? await scopeIds(spaceId, opts.anchor) : undefined,
   };
-  const fusion = FUSION[queryShape(query)];
-  const legs = await runLegs(config, query, filter, { size: legSize(limit), graph: fusion.graph > 0 });
+  const fusion = FUSION[queryShape(text)];
+  const legs = await runLegs(config, text, filter, { size: legSize(limit), graph: fusion.graph > 0 });
   const fused = combine(legs, fusion).slice(0, limit);
   const byId = await loadEntities(fused.map((f) => f.id));
   const rankIn = (list: Scored[] | undefined, id: string) => {
