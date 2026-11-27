@@ -38,7 +38,7 @@ jobs:
               -e "s/fluxie_app:change-me/fluxie_app:$ap/g" \
               -e "s/fluxie_migrator:change-me/fluxie_migrator:$mi/g" .env.example > .env
 
-      - name: Start Postgres + pgvector
+      - name: Start Postgres + pgvector + pg_textsearch
         run: docker compose up -d --wait db
 
       - run: pnpm install --frozen-lockfile

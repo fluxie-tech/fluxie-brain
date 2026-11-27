@@ -207,14 +207,18 @@ Os arquivos são separados por responsabilidade. Os limites do `CONSTRAINTS.md` 
 
 ## Estilo de código
 
-O mesmo do core-graph: funções exportadas, sem classes, erros tipados, nomes em inglês e documentação em português. SQL cru (`sql```) só onde o Drizzle não alcança (distância vetorial, `ts_rank_cd`, CTE recursiva do escopo).
+O mesmo do core-graph: funções exportadas, sem classes, erros tipados, nomes em inglês e documentação em português. SQL cru (`sql```) só onde o Drizzle não alcança (distância vetorial, pontuação BM25 `<@>`, CTE recursiva do escopo).
 
 ```ts
-/** Reciprocal Rank Fusion: each list contributes 1/(k + rank); ties break by id for stable output. */
-export function fuse(lists: string[][], k = 60): { id: string; score: number }[] {
+/** Reciprocal Rank Fusion: each list contributes weight/(k + rank); ties break by id for stable output. */
+export function fuse(lists: string[][], k = 60, weights: number[] = []): Scored[] {
   const scores = new Map<string, number>();
-  for (const list of lists) list.forEach((id, i) => scores.set(id, (scores.get(id) ?? 0) + 1 / (k + i + 1)));
-  return [...scores].map(([id, score]) => ({ id, score })).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  lists.forEach((list, l) => {
+    const weight = weights[l] ?? 1; // a weight of 0 (or less) leaves the list out
+    if (weight <= 0) return;
+    for (const [i, id] of list.entries()) scores.set(id, (scores.get(id) ?? 0) + weight / (k + i + 1));
+  });
+  return [...scores].map(([id, score]) => ({ id, score })).sort(byScoreThenId);
 }
 ```
 
