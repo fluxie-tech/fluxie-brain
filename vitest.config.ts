@@ -17,8 +17,8 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       reporter: ['text-summary', 'lcov'],
-      // Ratchet (CONSTRAINTS.md): measured 2026-11-25 minus 0.5 tolerance. Raise when it improves; never lower.
-      thresholds: { lines: 96.8, statements: 92.6, functions: 91.6, branches: 87.3 },
+      // Ratchet (CONSTRAINTS.md): measured 2026-11-27 minus a tolerance of 0.1 to 1.1 points. Raise when it improves; never lower.
+      thresholds: { lines: 98.5, statements: 96.5, functions: 96.6, branches: 91.5 },
     },
   },
 });

@@ -21,4 +21,6 @@ export const developmentGraph = {
     'apply to. One space can hold many repos: stack-specific knowledge stays with its anchors, shared knowledge ' +
     'is reached through shared dependencies.',
   ontology: { entityTypes, relationTypes },
+  // A repo owns its components (part_of); a dependency is used, so its siblings stay out (depends_on, one hop).
+  scope: { containment: ['part_of'], usage: ['depends_on'] },
 } satisfies Preset;

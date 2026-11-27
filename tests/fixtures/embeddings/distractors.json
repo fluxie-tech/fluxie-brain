@@ -1,0 +1,361 @@
+{
+  "entities": [
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "repo",
+      "key": "repo:fictora/tern-android",
+      "title": "tern-android",
+      "content": "Android app for field technicians who record equipment inspections on site, written in Kotlin.",
+      "metadata": { "host": "github", "ref": "fictora/tern-android", "defaultBranch": "main", "visibility": "private" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "component",
+      "key": "component:fictora/tern-android/inspections",
+      "title": "Inspections",
+      "content": "Checklist screens filled in by technicians, stored in a local Room database until they are uploaded.",
+      "metadata": { "path": "app/src/main/java/inspections", "criticality": "high" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "component",
+      "key": "component:fictora/tern-android/upload",
+      "title": "Upload worker",
+      "content": "Background worker that sends finished inspections and their photos to the back office when the device has network.",
+      "metadata": { "path": "app/src/main/java/upload", "criticality": "critical" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "dependency",
+      "key": "dependency:language/kotlin",
+      "title": "Kotlin",
+      "content": "Language of the whole Android app.",
+      "metadata": { "ecosystem": "language", "version": "2.3.0" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "dependency",
+      "key": "dependency:maven/androidx-room",
+      "title": "Room",
+      "content": "SQLite persistence library behind the local inspection database.",
+      "metadata": { "ecosystem": "maven", "version": "2.8.1" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "dependency",
+      "key": "dependency:maven/androidx-work",
+      "title": "WorkManager",
+      "content": "Schedules background jobs that survive app restarts and reboots.",
+      "metadata": { "ecosystem": "maven", "version": "2.11.0" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "spec",
+      "key": "spec:fictora/tern-android/docs/SPEC-upload.md",
+      "title": "Upload specification",
+      "content": "Retry, ordering and photo compression rules for inspection uploads.",
+      "metadata": { "location": "docs/SPEC-upload.md" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "decision",
+      "key": "decision:tern-upload-with-workmanager",
+      "title": "Upload inspections with WorkManager instead of a foreground service",
+      "content": "Context: battery savers killed the foreground service and uploads were lost. Decision: enqueue one unique work per inspection with a network constraint. Consequences: uploads may wait for hours on idle devices.",
+      "metadata": {}
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "principle",
+      "key": "principle:tern-no-network-on-main-thread",
+      "title": "Never call the network from the main thread",
+      "content": "Blocking calls on the main thread froze the checklist screens and triggered app-not-responding dialogs. Correct alternative: run requests in a coroutine on the IO dispatcher.",
+      "metadata": { "polarity": "forbids" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "invariant",
+      "key": "invariant:tern-inspection-uploaded-once",
+      "title": "An inspection reaches the back office exactly once",
+      "content": "If this breaks, supervisors see duplicated inspections and equipment is flagged twice. The upload carries the inspection id as its deduplication key.",
+      "metadata": { "state": "holds", "guardRef": "app/src/test/UploadOnceTest.kt" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "learning",
+      "key": "learning:tern-room-migration-crash",
+      "title": "Ship a Room migration for every schema change",
+      "content": "Release 3.2 renamed a column without a migration and the app crashed on start for every upgraded user. Add a migration test per database version.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "learning",
+      "key": "learning:tern-upload-backlog-alert",
+      "title": "Alert when pending uploads pile up",
+      "content": "Technicians worked without signal for a week and nobody noticed thousands of inspections waiting on their phones. A metric on pending uploads now pages the team.",
+      "metadata": { "kind": "retro" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "gap",
+      "key": "gap:tern-photos-on-metered",
+      "title": "Photos wait for Wi-Fi on metered connections",
+      "content": "Current behavior: photos stay on the phone while the device is on mobile data. Target: send compressed previews right away and the originals later. Workaround: technicians connect to Wi-Fi at the depot.",
+      "metadata": { "state": "narrowing" }
+    },
+    {
+      "lang": "en",
+      "project": "tern",
+      "type": "gap",
+      "key": "gap:tern-dark-mode",
+      "title": "Checklist screens ignore the system dark theme",
+      "content": "Current behavior: forms stay bright at night. Target: follow the system theme. Workaround: none.",
+      "metadata": { "state": "narrowing" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "learning",
+      "key": "learning:react-useeffect-stale-closure",
+      "title": "A missing effect dependency keeps reading old state",
+      "content": "The editor toolbar kept the selection from the first render because the effect left it out of its dependency list. List every value the effect reads.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "decision",
+      "key": "decision:pebble-autosave-debounce",
+      "title": "Save drafts every two seconds instead of on each keystroke",
+      "content": "Context: saving on every keystroke flooded the sync service. Decision: debounce local saves to two seconds. Consequences: a crash can lose the last two seconds of typing.",
+      "metadata": {}
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "decision",
+      "key": "decision:pebble-crdt-snapshots",
+      "title": "Store a compacted snapshot every hundred updates",
+      "content": "Context: replaying the full update history made large notes slow to open. Decision: persist a compacted document snapshot in Postgres every hundred updates. Consequences: history before the snapshot is no longer replayable.",
+      "metadata": {}
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "assumption",
+      "key": "assumption:browser-storage-kept",
+      "title": "The browser keeps offline notes until the user clears them",
+      "content": "Offline notes live in IndexedDB and we assumed the browser never evicts them. Safari evicts site data after seven days without a visit.",
+      "metadata": { "kind": "runtime", "state": "violated" }
+    },
+    {
+      "lang": "en",
+      "project": "pebble",
+      "type": "learning",
+      "key": "learning:typescript-strict-null-migration",
+      "title": "Turn on strictNullChecks one folder at a time",
+      "content": "Enabling it for the whole web app at once produced two thousand errors and the branch rotted for a month. Next time, enable it per folder.",
+      "metadata": { "kind": "hindsight" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-boletos-por-job",
+      "title": "Gerar boletos num job assíncrono",
+      "content": "Contexto: a geração do boleto demorava e travava o checkout. Decisão: gerar o boleto num job e avisar o cliente por e-mail quando ficar pronto. Consequências: o cliente não vê o boleto na hora.",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-ultima-gravacao-vence-cadastro",
+      "title": "No cadastro de clientes, a última gravação vence",
+      "content": "Contexto: dois atendentes raramente editam o mesmo cliente ao mesmo tempo. Decisão: aceitar a última gravação e mostrar um aviso de conflito. Consequências: uma edição simultânea pode sobrescrever a outra.",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "decision",
+      "key": "decision:quarry-cache-tabela-precos",
+      "title": "Guardar a tabela de preços no cache por cinco minutos",
+      "content": "Contexto: cada pedido lia a tabela de preços inteira do banco. Decisão: manter a tabela no cache do Laravel por cinco minutos. Consequências: um reajuste leva até cinco minutos para valer.",
+      "metadata": {}
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "principle",
+      "key": "principle:quarry-escritas-de-job-em-transacao",
+      "title": "Toda escrita feita por um job roda numa transação",
+      "content": "Um job que caiu no meio deixou pedidos cobrados sem baixa no estoque. Alternativa correta: abrir uma transação para todas as escritas do job.",
+      "metadata": { "polarity": "prescribes" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "principle",
+      "key": "principle:quarry-valores-em-centavos",
+      "title": "Guardar valores monetários em centavos inteiros",
+      "content": "Contas em ponto flutuante geraram diferenças de um centavo na conciliação. Alternativa correta: inteiros em centavos e arredondamento só na exibição.",
+      "metadata": { "polarity": "prescribes" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "invariant",
+      "key": "invariant:quarry-pedido-cobrado-uma-vez",
+      "title": "Um pedido fechado gera exatamente uma cobrança",
+      "content": "Se quebrar, o financeiro precisa estornar manualmente. A cobrança é única por pedido no banco.",
+      "metadata": { "state": "holds", "guardRef": "tests/Feature/ChargeOnceTest.php" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "learning",
+      "key": "learning:quarry-nota-cancelada-fora-do-prazo",
+      "title": "Notas fiscais só podem ser canceladas dentro do prazo da prefeitura",
+      "content": "Um cancelamento fora do prazo foi rejeitado e a cobrança ficou em aberto. Conferir o prazo antes de oferecer o cancelamento ao cliente.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "learning",
+      "key": "learning:laravel-retry-after-menor-que-timeout",
+      "title": "O retry_after da fila precisa ser maior que o timeout do job",
+      "content": "Jobs longos de emissão rodaram duas vezes porque o retry_after estava abaixo do tempo de execução. Ajustar os dois juntos em config/queue.php.",
+      "metadata": { "kind": "gotcha" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "assumption",
+      "key": "assumption:php-fuso-do-servidor",
+      "title": "O servidor roda no fuso horário de São Paulo",
+      "content": "As datas de vencimento usam o fuso padrão do PHP. Se o servidor mudar de fuso, boletos vencem um dia antes.",
+      "metadata": { "kind": "runtime", "state": "holds" }
+    },
+    {
+      "lang": "pt",
+      "project": "quarry",
+      "type": "gap",
+      "key": "gap:quarry-conciliacao-pix-manual",
+      "title": "A conciliação de pagamentos Pix ainda é manual",
+      "content": "Comportamento atual: o financeiro baixa o extrato e marca os pagamentos à mão. Alvo: conciliar pelo webhook do banco. Contorno: planilha diária.",
+      "metadata": { "state": "widened" }
+    },
+    {
+      "lang": "pt",
+      "project": "shared",
+      "type": "learning",
+      "key": "learning:postgres-prepared-statements-no-pooler",
+      "title": "Prepared statements falham atrás de um pooler em modo transação",
+      "content": "Com o pooler em modo transação, cada comando pode cair numa conexão diferente e o prepared statement deixa de existir. Desligar os prepared statements no driver.",
+      "metadata": { "kind": "incident_review" }
+    },
+    {
+      "lang": "en",
+      "project": "shared",
+      "type": "principle",
+      "key": "principle:pin-base-images-by-digest",
+      "title": "Pin CI base images by digest",
+      "content": "A rebuilt base image changed the compiler under a green pipeline. Reference CI images by their sha256 digest and bump them in a reviewed change.",
+      "metadata": { "polarity": "prescribes" }
+    },
+    {
+      "lang": "en",
+      "project": "shared",
+      "type": "learning",
+      "key": "learning:wait-for-database-healthcheck",
+      "title": "Wait for the database healthcheck before running migrations",
+      "content": "Migrations started while the database container was still booting and failed half of the deploys. Start them only after the healthcheck passes.",
+      "metadata": { "kind": "gotcha" }
+    }
+  ],
+  "relations": [
+    { "from": "component:fictora/tern-android/inspections", "to": "repo:fictora/tern-android", "type": "part_of" },
+    { "from": "component:fictora/tern-android/upload", "to": "repo:fictora/tern-android", "type": "part_of" },
+    { "from": "repo:fictora/tern-android", "to": "dependency:language/kotlin", "type": "depends_on" },
+    {
+      "from": "component:fictora/tern-android/inspections",
+      "to": "dependency:maven/androidx-room",
+      "type": "depends_on"
+    },
+    { "from": "component:fictora/tern-android/upload", "to": "dependency:maven/androidx-work", "type": "depends_on" },
+    {
+      "from": "spec:fictora/tern-android/docs/SPEC-upload.md",
+      "to": "component:fictora/tern-android/upload",
+      "type": "describes"
+    },
+    {
+      "from": "decision:tern-upload-with-workmanager",
+      "to": "component:fictora/tern-android/upload",
+      "type": "applies_to"
+    },
+    { "from": "principle:tern-no-network-on-main-thread", "to": "repo:fictora/tern-android", "type": "applies_to" },
+    {
+      "from": "invariant:tern-inspection-uploaded-once",
+      "to": "component:fictora/tern-android/upload",
+      "type": "about"
+    },
+    { "from": "learning:tern-room-migration-crash", "to": "dependency:maven/androidx-room", "type": "about" },
+    { "from": "learning:tern-upload-backlog-alert", "to": "component:fictora/tern-android/upload", "type": "about" },
+    { "from": "gap:tern-photos-on-metered", "to": "component:fictora/tern-android/upload", "type": "about" },
+    { "from": "gap:tern-dark-mode", "to": "component:fictora/tern-android/inspections", "type": "about" },
+    { "from": "learning:react-useeffect-stale-closure", "to": "dependency:npm/react", "type": "about" },
+    { "from": "decision:pebble-autosave-debounce", "to": "component:fictora/pebble-web/editor", "type": "applies_to" },
+    { "from": "decision:pebble-crdt-snapshots", "to": "component:fictora/pebble-web/sync", "type": "applies_to" },
+    { "from": "assumption:browser-storage-kept", "to": "component:fictora/pebble-web/sync", "type": "about" },
+    { "from": "learning:typescript-strict-null-migration", "to": "dependency:language/typescript", "type": "about" },
+    {
+      "from": "decision:quarry-boletos-por-job",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "applies_to"
+    },
+    { "from": "decision:quarry-ultima-gravacao-vence-cadastro", "to": "repo:fictora/quarry-api", "type": "applies_to" },
+    {
+      "from": "decision:quarry-cache-tabela-precos",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "applies_to"
+    },
+    { "from": "principle:quarry-escritas-de-job-em-transacao", "to": "repo:fictora/quarry-api", "type": "applies_to" },
+    {
+      "from": "principle:quarry-valores-em-centavos",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "applies_to"
+    },
+    {
+      "from": "invariant:quarry-pedido-cobrado-uma-vez",
+      "to": "component:fictora/quarry-api/faturamento",
+      "type": "about"
+    },
+    {
+      "from": "learning:quarry-nota-cancelada-fora-do-prazo",
+      "to": "component:fictora/quarry-api/emissor-nf",
+      "type": "about"
+    },
+    { "from": "learning:laravel-retry-after-menor-que-timeout", "to": "dependency:composer/laravel", "type": "about" },
+    { "from": "assumption:php-fuso-do-servidor", "to": "dependency:language/php", "type": "about" },
+    { "from": "gap:quarry-conciliacao-pix-manual", "to": "component:fictora/quarry-api/faturamento", "type": "about" },
+    { "from": "learning:postgres-prepared-statements-no-pooler", "to": "dependency:docker/postgres", "type": "about" },
+    { "from": "principle:pin-base-images-by-digest", "to": "dependency:docker/postgres", "type": "applies_to" },
+    { "from": "learning:wait-for-database-healthcheck", "to": "dependency:docker/postgres", "type": "about" }
+  ]
+}

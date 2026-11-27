@@ -1,3 +1,6 @@
+// `db`, `entities` and `relations` are read-only handles for the embeddings module (SPEC-embeddings.md);
+// every write still goes through this module's functions.
+export { db } from './db.ts';
 export {
   type Entity,
   type EntityDetail,
@@ -12,5 +15,6 @@ export { type ChangeLogEntry, history, revertEntity } from './history.ts';
 export { type EntityStatus, type Ontology, registerOntology } from './ontology.ts';
 export { acceptProposal, listProposals, type Proposal, rejectProposal } from './proposals.ts';
 export { type GraphSlice, type LinkInput, linkEntities, neighbors, type Relation, unlink } from './relations.ts';
+export { entities, relations } from './schema.ts';
 export { createSpace, type Space } from './spaces.ts';
 export type { Actor } from './types.ts';

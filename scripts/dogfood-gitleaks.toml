@@ -1,0 +1,3 @@
+# The scanned folder's own .gitleaks.toml must not decide what counts as a leak: this config only extends the defaults.
+[extend]
+useDefault = true

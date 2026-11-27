@@ -18,6 +18,8 @@ SQL
   psql -v ON_ERROR_STOP=1 -U postgres -d "$db" <<'SQL'
 -- pgvector is not a trusted extension, so the superuser installs it here.
 create extension if not exists vector;
+-- BM25 index access method for the embeddings text leg (SPEC-embeddings.md, Emenda 1); also superuser-only.
+create extension if not exists pg_textsearch;
 revoke all on schema public from public;
 grant usage on schema public to fluxie_app;
 alter default privileges for role fluxie_migrator in schema public
