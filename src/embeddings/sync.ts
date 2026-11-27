@@ -1,11 +1,12 @@
 import { and, asc, count, eq, gt, isNull, ne, or, sql } from 'drizzle-orm';
 import { db, entities, NotFoundError } from '../core-graph/index.ts';
-import { EmbeddingConfigError } from './errors.ts';
+import { EmbeddingConfigError, EmbeddingProviderError } from './errors.ts';
 import { modelSpec } from './models.ts';
 import { configFromEnv, embed, type ProviderConfig } from './provider.ts';
 import { entityEmbeddings, vectorOf } from './schema.ts';
 
-export type SyncResult = { embedded: number; remaining: number };
+/** `failed`: ids of entities the provider kept refusing even alone; they stay stale and the next sync retries them. */
+export type SyncResult = { embedded: number; remaining: number; failed: string[] };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BATCH = 256;
@@ -21,35 +22,69 @@ export async function syncSpace(config: ProviderConfig, spaceId: string, batchSi
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > MAX_BATCH) {
     throw new EmbeddingConfigError(`batchSize must be an integer between 1 and ${MAX_BATCH}, got ${batchSize}.`);
   }
-  const { document } = modelSpec(config.model);
   let embedded = 0;
-  // Keyset pagination: one pass over the stale set, so concurrent edits cannot keep the loop alive.
+  const failed: string[] = [];
+  let lastError: EmbeddingProviderError | undefined;
+  // Keyset pagination: one pass over the stale set, so concurrent edits cannot keep the loop alive. A batch the
+  // provider refuses is split and retried; an entity refused alone is skipped (and reported), so it cannot block the
+  // entities after it.
   let after = '';
   for (;;) {
     const batch = await staleEntities(spaceId, config.model, after, batchSize);
     if (batch.length === 0) break;
-    const vectors = await embed(
-      config,
-      batch.map((e) => document(e.title, e.content)),
-    );
-    await db
-      .insert(entityEmbeddings)
-      .values(
-        batch.map((e, i) => ({ entityId: e.id, model: config.model, sourceHash: e.hash, embedding: vectors[i] ?? [] })),
-      )
-      .onConflictDoUpdate({
-        target: [entityEmbeddings.entityId, entityEmbeddings.model],
-        set: { sourceHash: sql`excluded.source_hash`, embedding: sql`excluded.embedding`, updatedAt: sql`now()` },
-      });
-    embedded += batch.length;
+    const result = await embedSplitting(config, batch);
+    await store(config.model, result.done);
+    embedded += result.done.length;
+    failed.push(...result.failed);
+    lastError = result.error ?? lastError;
     after = batch.at(-1)?.id ?? after;
   }
+  // Nothing embedded and something refused: that is the provider being down, not one bad entity.
+  if (embedded === 0 && lastError) throw lastError;
   const [left] = await db
     .select({ n: count() })
     .from(entities)
     .leftJoin(entityEmbeddings, vectorOf(config.model))
     .where(isStale(spaceId));
-  return { embedded, remaining: left?.n ?? 0 };
+  return { embedded, remaining: left?.n ?? 0, failed };
+}
+
+type Row = { id: string; title: string; content: string; hash: string };
+type Embedded = { done: { row: Row; vector: number[] }[]; failed: string[]; error?: EmbeddingProviderError };
+
+/** Embeds the rows in one request; if the provider refuses, halves the batch and retries, down to single entities. */
+async function embedSplitting(config: ProviderConfig, rows: Row[]): Promise<Embedded> {
+  const { document } = modelSpec(config.model);
+  try {
+    const vectors = await embed(
+      config,
+      rows.map((r) => document(r.title, r.content)),
+    );
+    return { done: rows.map((row, i) => ({ row, vector: vectors[i] ?? [] })), failed: [] };
+  } catch (err) {
+    if (!(err instanceof EmbeddingProviderError)) throw err;
+    const [only] = rows;
+    if (only && rows.length === 1) return { done: [], failed: [only.id], error: err };
+    const middle = rows.length >> 1;
+    const left = await embedSplitting(config, rows.slice(0, middle));
+    const right = await embedSplitting(config, rows.slice(middle));
+    return {
+      done: [...left.done, ...right.done],
+      failed: [...left.failed, ...right.failed],
+      error: right.error ?? left.error ?? err,
+    };
+  }
+}
+
+async function store(model: string, done: Embedded['done']): Promise<void> {
+  if (done.length === 0) return;
+  await db
+    .insert(entityEmbeddings)
+    .values(done.map(({ row, vector }) => ({ entityId: row.id, model, sourceHash: row.hash, embedding: vector })))
+    .onConflictDoUpdate({
+      target: [entityEmbeddings.entityId, entityEmbeddings.model],
+      set: { sourceHash: sql`excluded.source_hash`, embedding: sql`excluded.embedding`, updatedAt: sql`now()` },
+    });
 }
 
 /** In the space, with no vector for the model (left join miss) or one embedded from older title/content. */

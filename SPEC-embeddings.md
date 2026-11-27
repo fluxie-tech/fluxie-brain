@@ -91,7 +91,7 @@ entity_embeddings                      (migração do embeddings)
 type ScopeRule = { containment: string[]; usage: string[] };
 
 syncEmbeddings(spaceId, opts?: { batchSize? })                      // padrão 32
-  : Promise<{ embedded: number; remaining: number }>
+  : Promise<{ embedded: number; remaining: number; failed: string[] }>
   // Gera ou regenera os vetores ausentes ou desatualizados do modelo ativo, todas as entidades do space.
   // É idempotente; chamadas concorrentes não duplicam (upsert por entity_id+model).
 
@@ -110,6 +110,8 @@ type SearchResult = {
   vector: 'ok' | 'unavailable';   // 'unavailable': o provedor falhou e a busca usou só o texto
 };
 ```
+
+> **Falha do provedor no sync:** um lote que o provedor recusa é dividido ao meio e tentado de novo, até a entidade sozinha. Uma entidade que falha sozinha é pulada: o sync avança, ela entra em `failed` (os ids) e continua desatualizada, então a próxima chamada tenta de novo (`remaining` a conta). Se nada foi embutido e algo falhou, o provedor está fora do ar: o sync lança `EmbeddingProviderError`. Erros que não são do provedor (configuração, banco) propagam. Antes, um lote que falhava sempre travava o sync, e as entidades de id maior nunca ganhavam vetor.
 
 > **`SearchHit.score` não é comparável entre consultas.** A escala muda com o formato da consulta (Emenda 3): em `natural` é o RRF do vetor (Σ 1/(60 + rank)), em `short` e `identifier` é a soma convexa dos scores normalizados em [0, 1] por consulta. Serve só para ordenar os hits de uma mesma resposta, nunca para comparar consultas nem para um corte fixo.
 

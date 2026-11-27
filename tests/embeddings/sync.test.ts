@@ -54,7 +54,7 @@ describe('syncEmbeddings', () => {
   });
 
   it('embeds every entity of the space in batches, with the model document template', async () => {
-    expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 3, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 3, remaining: 0, failed: [] });
     expect(stub.requests.map((r) => r.input.length)).toEqual([2, 1]);
     expect(embeddedTexts()).toContain(modelSpec(GEMMA).document('A', 'alpha'));
     expect(await stored()).toEqual([
@@ -67,7 +67,7 @@ describe('syncEmbeddings', () => {
   it('does nothing when every vector is fresh', async () => {
     await syncSpace(gemma, space.id, 32);
     stub.requests.length = 0;
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 0, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 0, remaining: 0, failed: [] });
     expect(stub.requests).toHaveLength(0);
   });
 
@@ -80,7 +80,7 @@ describe('syncEmbeddings', () => {
       agent,
     );
     stub.requests.length = 0;
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0, failed: [] });
     expect(embeddedTexts()).toEqual([modelSpec(GEMMA).document('B', 'beta, revised')]);
   });
 
@@ -97,12 +97,12 @@ describe('syncEmbeddings', () => {
       agent,
     );
     await acceptProposal(space.id, proposal?.id ?? '', 'human:owner');
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0, failed: [] });
 
     const created = (await history(space.id, rule.id)).find((c) => c.action === 'create');
     await revertEntity(space.id, rule.id, created?.id ?? 0, 'human:owner');
     stub.requests.length = 0;
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0, failed: [] });
     expect(embeddedTexts()).toEqual([modelSpec(GEMMA).document('R', 'v1')]);
   });
 
@@ -124,18 +124,47 @@ describe('syncEmbeddings', () => {
     expect(await queryRows('select 1 from entity_embeddings')).toHaveLength(3);
   });
 
-  it('keeps finished batches when the provider fails, and resumes on the next call', async () => {
+  it('keeps finished batches when one entity keeps failing, and retries it on the next call', async () => {
     stub.respond = () => (stub.requests.length > 1 ? { status: 500, body: '{}' } : undefined);
-    await expect(syncSpace(gemma, space.id, 2)).rejects.toThrow(EmbeddingProviderError);
+    const [last] = await queryRows<{ id: string }>('select id from entities order by id desc limit 1');
+    // The first batch is stored; the entity with the greatest id fails alone, so it is skipped and reported instead of aborting the sync.
+    expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 2, remaining: 1, failed: [last?.id] });
     expect(await stored()).toHaveLength(2);
     stub.respond = undefined;
-    expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 1, remaining: 0, failed: [] });
+  });
+
+  it('an entity that always fails does not keep the ones with a greater id from getting a vector', async () => {
+    const [first] = await queryRows<{ id: string; title: string; content: string }>(
+      'select id, title, content from entities order by id limit 1',
+    );
+    const poison = modelSpec(GEMMA).document(first?.title ?? '', first?.content ?? '');
+    stub.respond = (req) => (req.input.includes(poison) ? { status: 500, body: '{}' } : undefined);
+    expect(await syncSpace(gemma, space.id, 1)).toEqual({ embedded: 2, remaining: 1, failed: [first?.id] });
+    expect(await stored()).toHaveLength(2);
+    expect((await stored()).every((r) => r.fresh)).toBe(true);
+  });
+
+  it('splits a failing batch in halves: a transient failure costs nothing but a retry', async () => {
+    stub.respond = () => (stub.requests.length === 1 ? { status: 500, body: '{}' } : undefined);
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 3, remaining: 0, failed: [] });
+    expect(stub.requests.map((r) => r.input.length)).toEqual([3, 1, 2]);
+  });
+
+  it('still rejects when nothing at all could be embedded (the provider is down)', async () => {
+    stub.respond = () => ({ status: 500, body: '{}' });
+    await expect(syncSpace(gemma, space.id, 32)).rejects.toThrow(EmbeddingProviderError);
+  });
+
+  it('does not swallow a configuration error: it is not the provider failing', async () => {
+    await expect(syncSpace({ ...gemma, model: 'nope' }, space.id, 32)).rejects.toThrow(EmbeddingConfigError);
+    expect(stub.requests).toHaveLength(0);
   });
 
   it('only touches the given space', async () => {
     const other = await createSpace({ slug: 'other', name: 'Other', preset: TEST_PRESET });
     await upsertEntity(other.id, { type: 'learning', key: 'z', title: 'Z', content: 'zeta' }, agent);
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 3, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 3, remaining: 0, failed: [] });
     expect((await stored()).map((r) => r.key)).toEqual(['a', 'b', 'c']);
   });
 
@@ -143,20 +172,24 @@ describe('syncEmbeddings', () => {
     await syncSpace(gemma, space.id, 32);
     await upsertEntity(space.id, { type: 'learning', key: 'a', title: 'A, renamed', content: 'alpha' }, agent);
     stub.requests.length = 0;
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0, failed: [] });
     expect(embeddedTexts()).toEqual([modelSpec(GEMMA).document('A, renamed', 'alpha')]);
   });
 
   it('answers zero for an empty space and for a well-formed but unknown space id', async () => {
     const empty = await createSpace({ slug: 'empty', name: 'Empty', preset: TEST_PRESET });
-    expect(await syncSpace(gemma, empty.id, 32)).toEqual({ embedded: 0, remaining: 0 });
-    expect(await syncSpace(gemma, '00000000-0000-4000-8000-000000000000', 32)).toEqual({ embedded: 0, remaining: 0 });
+    expect(await syncSpace(gemma, empty.id, 32)).toEqual({ embedded: 0, remaining: 0, failed: [] });
+    expect(await syncSpace(gemma, '00000000-0000-4000-8000-000000000000', 32)).toEqual({
+      embedded: 0,
+      remaining: 0,
+      failed: [],
+    });
     expect(stub.requests).toHaveLength(0);
   });
 
   it('accepts a batch of 256 and rejects 257', async () => {
     await expect(syncSpace(gemma, space.id, 257)).rejects.toThrow(EmbeddingConfigError);
-    await expect(syncSpace(gemma, space.id, 256)).resolves.toEqual({ embedded: 3, remaining: 0 });
+    await expect(syncSpace(gemma, space.id, 256)).resolves.toEqual({ embedded: 3, remaining: 0, failed: [] });
   });
 
   it('leaves an entity stale, never fresh, when it is edited while its batch is in flight', async () => {
@@ -174,20 +207,21 @@ describe('syncEmbeddings', () => {
     await running;
     expect((await stored()).find((r) => r.key === 'b')).toEqual({ key: 'b', fresh: false });
     stub.respond = undefined;
-    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0 });
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 1, remaining: 0, failed: [] });
     expect((await stored()).every((r) => r.fresh)).toBe(true);
   });
 
   describe('a malformed provider response writes nothing', () => {
     const okRow = (index: number, dims = 768) => ({ index, embedding: new Array(dims).fill(0.1) });
-    const bodies: [string, string][] = [
-      ['wrong dimension', JSON.stringify({ data: [okRow(0, 3), okRow(1, 3), okRow(2, 3)] })],
-      ['wrong count', JSON.stringify({ data: [okRow(0)] })],
-      ['null (NaN from the model)', JSON.stringify({ data: [{ index: 0, embedding: [null] }, okRow(1), okRow(2)] })],
-      ['not JSON', 'oops'],
+    // Each case answers any number of inputs wrongly, so no split of the batch can make it right.
+    const bodies: [string, (inputs: number) => string][] = [
+      ['wrong dimension', (n) => JSON.stringify({ data: Array.from({ length: n }, (_, i) => okRow(i, 3)) })],
+      ['wrong count', (n) => JSON.stringify({ data: Array.from({ length: n + 1 }, (_, i) => okRow(i)) })],
+      ['null (NaN from the model)', () => JSON.stringify({ data: [{ index: 0, embedding: [null] }] })],
+      ['not JSON', () => 'oops'],
     ];
     it.each(bodies)('%s', async (_name, body) => {
-      stub.respond = () => ({ status: 200, body });
+      stub.respond = (req) => ({ status: 200, body: body(req.input.length) });
       await expect(syncSpace(gemma, space.id, 32)).rejects.toThrow(EmbeddingProviderError);
       expect(await queryRows('select 1 from entity_embeddings')).toHaveLength(0);
     });
@@ -221,7 +255,7 @@ describe('syncEmbeddings', () => {
     vi.stubEnv('EMBEDDINGS_BASE_URL', stub.baseUrl);
     vi.stubEnv('EMBEDDINGS_MODEL', QWEN);
     try {
-      expect(await syncEmbeddings(space.id)).toEqual({ embedded: 3, remaining: 0 });
+      expect(await syncEmbeddings(space.id)).toEqual({ embedded: 3, remaining: 0, failed: [] });
       expect(stub.requests.every((r) => r.model === QWEN)).toBe(true);
     } finally {
       vi.unstubAllEnvs();
