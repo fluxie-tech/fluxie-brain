@@ -110,7 +110,17 @@ describe('bench metrics', () => {
     for (const url of ['http://127.0.0.1:11434/v1', 'http://localhost/v1', 'http://[::1]:11434/v1']) {
       expect(isLocalProvider(url), url).toBe(true);
     }
-    for (const url of ['http://localhost:1@host-remoto/v1', 'https://openrouter.ai/localhost/', 'nonsense']) {
+    const lookalikes = [
+      'http://notlocalhost/v1',
+      'http://localhost.evil.example/v1',
+      'http://127.0.0.1.evil.example/v1',
+    ];
+    for (const url of [
+      'http://localhost:1@host-remoto/v1',
+      'https://openrouter.ai/localhost/',
+      'nonsense',
+      ...lookalikes,
+    ]) {
       expect(isLocalProvider(url), url).toBe(false);
     }
   });

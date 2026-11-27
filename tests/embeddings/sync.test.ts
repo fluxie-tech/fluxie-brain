@@ -207,6 +207,16 @@ describe('syncEmbeddings', () => {
     await expect(syncSpace(gemma, space.id, 1.5)).rejects.toThrow(EmbeddingConfigError);
   });
 
+  it('gives each batch the long timeout (60 s), not the one of a search query', async () => {
+    const timeouts = vi.spyOn(AbortSignal, 'timeout');
+    try {
+      await syncSpace(gemma, space.id, 2);
+      expect(timeouts.mock.calls.map(([ms]) => ms)).toEqual([60_000, 60_000]);
+    } finally {
+      timeouts.mockRestore();
+    }
+  });
+
   it('reads the provider from the environment in the public function', async () => {
     vi.stubEnv('EMBEDDINGS_BASE_URL', stub.baseUrl);
     vi.stubEnv('EMBEDDINGS_MODEL', QWEN);

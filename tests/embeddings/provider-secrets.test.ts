@@ -28,4 +28,25 @@ describe('credentials in EMBEDDINGS_BASE_URL', () => {
     expect((err as Error).message).toMatch(/unreachable/);
     expect((err as Error).message).not.toMatch(/s3cret|user|127\.0\.0\.1/);
   });
+
+  it('keeps the API key and the provider address out of every provider error', async () => {
+    const stub = await startStub();
+    try {
+      const config = { baseUrl: stub.baseUrl, model: GEMMA, apiKey: 'sk-s3cret-key' };
+      const replies = [
+        { status: 401, body: '{"error":"bad key sk-s3cret-key"}' },
+        { status: 200, body: 'not json' },
+        { status: 200, body: JSON.stringify({ data: [{ index: 0, embedding: [0.1] }] }) },
+        { status: 200, body: JSON.stringify({ data: [] }) },
+      ];
+      for (const reply of replies) {
+        stub.respond = () => reply;
+        const err = await embed(config, ['x']).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(EmbeddingProviderError);
+        expect((err as Error).message).not.toMatch(/sk-s3cret|127\.0\.0\.1/);
+      }
+    } finally {
+      await stub.close();
+    }
+  });
 });

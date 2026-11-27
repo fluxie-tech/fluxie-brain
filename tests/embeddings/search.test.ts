@@ -131,6 +131,21 @@ describe('search', () => {
       const { hits } = await run(q);
       expect(hits[0]?.entity.key).toBe('exact');
     });
+
+    it('reads the shape of a decomposed (NFD) query as the composed one: same weights, same order', async () => {
+      // "café-x" is code-like only in NFC: in NFD an accent mark sits between the letter and the "-".
+      const nfc = 'café-x';
+      stub.fixed.set(query(nfc), unit(1));
+      stub.fixed.set(document('closer', 'unrelated prose'), unit(0.8));
+      stub.fixed.set(document('textual', 'café x'), unit(0.2));
+      await add(space.id, 'learning', 'closer', 'unrelated prose');
+      await add(space.id, 'learning', 'textual', 'café x');
+      await syncSpace(gemma, space.id, 32);
+      // With the identifier weight (text 0.5) the closer vector wins; with the "short" weight (text 1) the text would.
+      const order = async (q: string) => (await run(q)).hits.map((h) => h.entity.key);
+      expect((await order(nfc))[0]).toBe('closer');
+      expect(await order(nfc.normalize('NFD'))).toEqual(await order(nfc));
+    });
   });
 
   it('filters by status (approved and draft by default) and by type', async () => {
@@ -186,13 +201,27 @@ describe('search', () => {
     });
   });
 
-  it('gives up on a slow provider within the query timeout and answers from the text', async () => {
-    stub.delayMs = QUERY_TIMEOUT_MS + 500;
-    const started = performance.now();
-    const result = await run('redis cache eviction policy');
-    expect(performance.now() - started).toBeLessThan(QUERY_TIMEOUT_MS + 400);
-    expect(result.vector).toBe('unavailable');
-    expect(keys(result)).toEqual(['cache']);
+  it('gives up on a slow provider after the query timeout and answers from the text', async () => {
+    // The real 3 s would only cost wall time: the same timer runs at 1/30 of the speed (100 ms) against a 2 s reply,
+    // and the test checks that the search asked for exactly the query timeout.
+    const asked: number[] = [];
+    const timeouts = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+      asked.push(ms);
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException('timed out', 'TimeoutError')), ms / 30);
+      return controller.signal;
+    });
+    stub.delayMs = 2000;
+    try {
+      const started = performance.now();
+      const result = await run('redis cache eviction policy');
+      expect(performance.now() - started).toBeLessThan(1500);
+      expect(result.vector).toBe('unavailable');
+      expect(keys(result)).toEqual(['cache']);
+      expect(asked).toEqual([QUERY_TIMEOUT_MS]);
+    } finally {
+      timeouts.mockRestore();
+    }
   });
 
   it('still finds an entity that has no vector yet, through the text leg', async () => {
