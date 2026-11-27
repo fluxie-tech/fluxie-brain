@@ -77,7 +77,7 @@ entity_embeddings                      (migração do embeddings)
   updated_at timestamptz
   primary key (entity_id, model)
 
-índice GIN em entities(tsv)            (migração SQL custom do embeddings; o spec do core-graph já previa)
+índice GIN em entities(tsv)            (migração SQL custom do embeddings; o spec do core-graph já previa) -- substituído pela Emenda 1: a perna de texto usa os índices BM25 da migração 0008
 ```
 
 - **GIN sem mexer no core-graph:** o Drizzle declara índices dentro da tabela, e a tabela `entities` é do `src/core-graph/schema.ts`. Por isso o GIN entra numa migração SQL custom (`drizzle-kit generate --custom`), como a `0000_enable_pgvector.sql`. O `drizzle-kit` compara só snapshots do schema, então gerações futuras não tentam remover o índice.
@@ -111,14 +111,16 @@ type SearchResult = {
 };
 ```
 
+> **`SearchHit.score` não é comparável entre consultas.** A escala muda com o formato da consulta (Emenda 3): em `natural` é o RRF do vetor (Σ 1/(60 + rank)), em `short` e `identifier` é a soma convexa dos scores normalizados em [0, 1] por consulta. Serve só para ordenar os hits de uma mesma resposta, nunca para comparar consultas nem para um corte fixo.
+
 **Comportamento da busca:**
 1. Valida a entrada: consulta não vazia de até 2000 caracteres, `limit` entre 1 e 50, e uma âncora que exista no space. `statuses` vazio ou fora do enum do core-graph e `types` vazio lançam `EmbeddingConfigError`. Senão, lança o erro do core-graph correspondente (`NotFoundError` para a âncora).
 2. Calcula o escopo, se houver âncora.
-3. **Perna vetorial:** embute a consulta com o template de consulta do modelo e pega os 50 mais próximos por distância de cosseno, entre as entidades do space no escopo, nos status e tipos pedidos (busca exata).
-4. **Perna de texto:** `tsv` contra os termos da consulta combinados com OU (o `plainto_tsquery` exige todos os termos, e uma pergunta em linguagem natural quase nunca casa), ordenados por `ts_rank_cd`, com os mesmos filtros; os 50 primeiros.
-5. **RRF:** `score = Σ 1/(60 + rank)` nas duas listas; desempate pelo `id`, para o resultado ser determinístico.
+3. **Perna vetorial:** embute a consulta com o template de consulta do modelo e pega os 50 mais próximos por distância de cosseno, entre as entidades do space no escopo, nos status e tipos pedidos (busca exata).  *(Substituído pela Emenda 3: com o formato da consulta, `natural` usa só o vetor.)*
+4. **Perna de texto:** `tsv` contra os termos da consulta combinados com OU (o `plainto_tsquery` exige todos os termos, e uma pergunta em linguagem natural quase nunca casa), ordenados por `ts_rank_cd`, com os mesmos filtros; os 50 primeiros.  *(Substituído pela Emenda 1: a perna de texto é BM25 (`pg_textsearch`), não `tsv` com `ts_rank_cd`.)*
+5. **RRF:** `score = Σ 1/(60 + rank)` nas duas listas; desempate pelo `id`, para o resultado ser determinístico.  *(Substituído pela Emenda 3: a fusão é adaptativa por formato da consulta, não mais RRF fixa nas duas listas.)*
 6. **Contexto:** vizinhos dos `hits` até `depth`, com o mesmo escopo e os mesmos status, e as relações entre eles.
-7. **Provedor fora do ar:** a perna vetorial é pulada, o resultado sai só do texto e vem com `vector: 'unavailable'`. A busca não falha por causa do Ollama.
+7. **Provedor fora do ar:** a perna vetorial é pulada, o resultado sai só do texto e vem com `vector: 'unavailable'`. A busca não falha por causa do Ollama.  *(Desde a revisão: uma perna vetorial vazia, como um modelo ainda sem vetores, também conta como indisponível.)*
 
 **Configuração** (lida do ambiente a cada chamada pública, o que é barato; nunca na importação nem guardada em cache). Por dentro, as funções recebem um objeto de configuração explícito: os testes apontam para o stub numa porta qualquer, e o benchmark troca de modelo no mesmo processo.
 - `EMBEDDINGS_BASE_URL`: padrão `http://127.0.0.1:11434/v1`;
@@ -188,10 +190,10 @@ src/embeddings/
   provider.ts    → cliente /v1/embeddings (fetch + validação Zod), configuração por env
   sync.ts        → syncEmbeddings
   scope.ts       → ScopeRule → ids no escopo (SQL)
-  search.ts      → pernas vetor e texto, RRF, contexto
+  search.ts      → pernas vetor e texto, RRF, contexto -- agora também `legs.ts` (pernas), `fusion.ts` (fusão), `graph.ts`, `context.ts` (Emendas 1 e 3)
   errors.ts
   index.ts       → API pública
-migrations/      → 0006_entity_embeddings.sql (tabela + GIN em tsv), gerada pelo drizzle-kit
+migrations/      → 0006_entity_embeddings.sql (tabela + GIN em tsv), gerada pelo drizzle-kit -- o GIN foi substituído pelos índices BM25 da 0008 (Emenda 1)
 scripts/bench-embeddings.ts
 tests/embeddings/                  → integração com um stub HTTP do provedor (node:http)
 tests/fixtures/embeddings/         → queries.json, distractors.json
