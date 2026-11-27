@@ -32,9 +32,13 @@ const responseSchema = z.object({
 
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ProviderConfig {
   const baseUrl = env.EMBEDDINGS_BASE_URL || 'http://127.0.0.1:11434/v1';
-  const protocol = URL.parse(baseUrl)?.protocol;
-  if (protocol !== 'http:' && protocol !== 'https:') {
-    throw new EmbeddingConfigError(`EMBEDDINGS_BASE_URL must be an http(s) URL, got "${baseUrl}".`);
+  const url = URL.parse(baseUrl);
+  // Never echo the URL: it may carry credentials, and an error message can reach an agent or a log.
+  if (url?.protocol !== 'http:' && url?.protocol !== 'https:') {
+    throw new EmbeddingConfigError('EMBEDDINGS_BASE_URL must be an http(s) URL.');
+  }
+  if (url.username || url.password) {
+    throw new EmbeddingConfigError('EMBEDDINGS_BASE_URL must not contain credentials; use EMBEDDINGS_API_KEY.');
   }
   const model = env.EMBEDDINGS_MODEL || DEFAULT_MODEL;
   modelSpec(model);
@@ -97,6 +101,13 @@ export async function embed(config: ProviderConfig, texts: string[]): Promise<nu
   return vectors;
 }
 
+/** Error name and system code only: the raw fetch message can include the URL, credentials and all. */
+function failureKind(err: unknown): string {
+  const name = err instanceof Error ? err.name : 'error';
+  const code = (err as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof code === 'string' ? `${name}: ${code}` : name;
+}
+
 async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
   // Checked again here so no code path can reach OpenRouter with open routing, even with a hand-built config.
   requireClosedRouting(config);
@@ -111,7 +122,7 @@ async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (err) {
-    throw new EmbeddingProviderError(`Embeddings provider unreachable: ${(err as Error).message}.`);
+    throw new EmbeddingProviderError(`Embeddings provider unreachable (${failureKind(err)}).`);
   }
   // The body may echo internals (paths, prompts); keep it out of messages that reach agents.
   if (!res.ok) throw new EmbeddingProviderError(`Embeddings provider returned HTTP ${res.status}.`);
