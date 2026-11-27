@@ -111,7 +111,7 @@ type SearchResult = {
 };
 ```
 
-> **Falha do provedor no sync:** um lote que o provedor recusa é dividido ao meio e tentado de novo, até a entidade sozinha. Uma entidade que falha sozinha é pulada: o sync avança, ela entra em `failed` (os ids) e continua desatualizada, então a próxima chamada tenta de novo (`remaining` a conta). Se nada foi embutido e algo falhou, o provedor está fora do ar: o sync lança `EmbeddingProviderError`. Erros que não são do provedor (configuração, banco) propagam. Antes, um lote que falhava sempre travava o sync, e as entidades de id maior nunca ganhavam vetor.
+> **Falha do provedor no sync:** um lote que o provedor recusa é dividido ao meio e tentado de novo, até a entidade sozinha. Uma entidade que falha sozinha é pulada: o sync avança, ela entra em `failed` (os ids) e continua desatualizada, então a próxima chamada tenta de novo (`remaining` a conta). Enquanto nenhuma entidade foi embutida neste sync, uma entidade sozinha que falha prova que o provedor está fora do ar: o sync lança o `EmbeddingProviderError` na hora, sem seguir a árvore nem o lote seguinte (no máximo log2(lote)+1 chamadas, 6 para 32). Só depois que alguma entidade foi embutida é que uma folha que falha é pulada e vai para `failed`. Erros que não são do provedor (configuração, banco) propagam. Antes, um lote que falhava sempre travava o sync, e as entidades de id maior nunca ganhavam vetor.
 
 > **`SearchHit.score` não é comparável entre consultas.** A escala muda com o formato da consulta (Emenda 3): em `natural` é o RRF do vetor (Σ 1/(60 + rank)), em `short` e `identifier` é a soma convexa dos scores normalizados em [0, 1] por consulta. Serve só para ordenar os hits de uma mesma resposta, nunca para comparar consultas nem para um corte fixo.
 

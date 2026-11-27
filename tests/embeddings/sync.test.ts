@@ -134,15 +134,24 @@ describe('syncEmbeddings', () => {
     expect(await syncSpace(gemma, space.id, 2)).toEqual({ embedded: 1, remaining: 0, failed: [] });
   });
 
-  it('an entity that always fails does not keep the ones with a greater id from getting a vector', async () => {
-    const [first] = await queryRows<{ id: string; title: string; content: string }>(
-      'select id, title, content from entities order by id limit 1',
+  it('an entity that always fails, between good ones, is reported and does not keep the greater ids from a vector', async () => {
+    const rows = await queryRows<{ id: string; title: string; content: string }>(
+      'select id, title, content from entities order by id',
     );
-    const poison = modelSpec(GEMMA).document(first?.title ?? '', first?.content ?? '');
+    const middle = rows[1];
+    const poison = modelSpec(GEMMA).document(middle?.title ?? '', middle?.content ?? '');
     stub.respond = (req) => (req.input.includes(poison) ? { status: 500, body: '{}' } : undefined);
-    expect(await syncSpace(gemma, space.id, 1)).toEqual({ embedded: 2, remaining: 1, failed: [first?.id] });
-    expect(await stored()).toHaveLength(2);
+    expect(await syncSpace(gemma, space.id, 32)).toEqual({ embedded: 2, remaining: 1, failed: [middle?.id] });
     expect((await stored()).every((r) => r.fresh)).toBe(true);
+    expect(await stored()).toHaveLength(2);
+  });
+
+  it('a provider that always fails is detected on the first lone entity: at most log2(batch)+1 calls, no next batch', async () => {
+    for (const key of ['d', 'e', 'f', 'g', 'h']) await learning(key, `content ${key}`);
+    stub.respond = () => ({ status: 500, body: '{}' });
+    await expect(syncSpace(gemma, space.id, 4)).rejects.toThrow(EmbeddingProviderError);
+    expect(stub.requests.map((r) => r.input.length)).toEqual([4, 2, 1]);
+    expect(await stored()).toHaveLength(0);
   });
 
   it('splits a failing batch in halves: a transient failure costs nothing but a retry', async () => {

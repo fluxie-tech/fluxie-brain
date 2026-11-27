@@ -22,57 +22,56 @@ export async function syncSpace(config: ProviderConfig, spaceId: string, batchSi
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > MAX_BATCH) {
     throw new EmbeddingConfigError(`batchSize must be an integer between 1 and ${MAX_BATCH}, got ${batchSize}.`);
   }
-  let embedded = 0;
+  const progress = { embedded: 0 };
   const failed: string[] = [];
-  let lastError: EmbeddingProviderError | undefined;
   // Keyset pagination: one pass over the stale set, so concurrent edits cannot keep the loop alive. A batch the
   // provider refuses is split and retried; an entity refused alone is skipped (and reported), so it cannot block the
-  // entities after it.
+  // entities after it. Unless nothing was embedded yet: then the provider itself is down, and the sync stops at once.
   let after = '';
   for (;;) {
     const batch = await staleEntities(spaceId, config.model, after, batchSize);
     if (batch.length === 0) break;
-    const result = await embedSplitting(config, batch);
+    const result = await embedSplitting(config, batch, progress);
     await store(config.model, result.done);
-    embedded += result.done.length;
     failed.push(...result.failed);
-    lastError = result.error ?? lastError;
     after = batch.at(-1)?.id ?? after;
   }
-  // Nothing embedded and something refused: that is the provider being down, not one bad entity.
-  if (embedded === 0 && lastError) throw lastError;
   const [left] = await db
     .select({ n: count() })
     .from(entities)
     .leftJoin(entityEmbeddings, vectorOf(config.model))
     .where(isStale(spaceId));
-  return { embedded, remaining: left?.n ?? 0, failed };
+  return { embedded: progress.embedded, remaining: left?.n ?? 0, failed };
 }
 
 type Row = { id: string; title: string; content: string; hash: string };
-type Embedded = { done: { row: Row; vector: number[] }[]; failed: string[]; error?: EmbeddingProviderError };
+type Embedded = { done: { row: Row; vector: number[] }[]; failed: string[] };
 
-/** Embeds the rows in one request; if the provider refuses, halves the batch and retries, down to single entities. */
-async function embedSplitting(config: ProviderConfig, rows: Row[]): Promise<Embedded> {
+/**
+ * Embeds the rows in one request; if the provider refuses, halves the batch and retries, down to single entities. A
+ * lone entity that fails is skipped, but only once something was embedded in this sync (`progress`): before that, a
+ * lone failure means the provider is down, and the error is thrown right away (at most log2(batch)+1 calls).
+ */
+async function embedSplitting(config: ProviderConfig, rows: Row[], progress: { embedded: number }): Promise<Embedded> {
   const { document } = modelSpec(config.model);
   try {
     const vectors = await embed(
       config,
       rows.map((r) => document(r.title, r.content)),
     );
+    progress.embedded += rows.length;
     return { done: rows.map((row, i) => ({ row, vector: vectors[i] ?? [] })), failed: [] };
   } catch (err) {
     if (!(err instanceof EmbeddingProviderError)) throw err;
     const [only] = rows;
-    if (only && rows.length === 1) return { done: [], failed: [only.id], error: err };
+    if (only && rows.length === 1) {
+      if (progress.embedded === 0) throw err;
+      return { done: [], failed: [only.id] };
+    }
     const middle = rows.length >> 1;
-    const left = await embedSplitting(config, rows.slice(0, middle));
-    const right = await embedSplitting(config, rows.slice(middle));
-    return {
-      done: [...left.done, ...right.done],
-      failed: [...left.failed, ...right.failed],
-      error: right.error ?? left.error ?? err,
-    };
+    const left = await embedSplitting(config, rows.slice(0, middle), progress);
+    const right = await embedSplitting(config, rows.slice(middle), progress);
+    return { done: [...left.done, ...right.done], failed: [...left.failed, ...right.failed] };
   }
 }
 
