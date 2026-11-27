@@ -40,9 +40,14 @@ export const gitleaksScan: Scan = (target) => {
   }
 };
 
-/** Maps a finding's file (absolute, or relative to the cwd) to a source-relative path with forward slashes. */
+/**
+ * Maps a finding's file (absolute, or relative to the cwd) to a source-relative path with forward slashes. Both sides
+ * are put in forward-slash form first, so the result is the same on any OS (gitleaks may report either spelling).
+ */
 const relativeTo = (source: string, file: string): string =>
-  relative(resolve(source), resolve(file)).replaceAll('\\', '/');
+  relative(resolve(slashes(source)), resolve(slashes(file))).replaceAll('\\', '/');
+
+const slashes = (path: string): string => path.replaceAll('\\', '/');
 
 /**
  * Source-relative paths of the allowlisted files that gitleaks flags, scanning `docs` and the root files.

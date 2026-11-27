@@ -22,6 +22,11 @@ describe('dogfooding leak scan', () => {
     }
   });
 
+  it('maps a finding spelled with backslashes in its relative part, on any OS', () => {
+    const scan = (target: string) => (target.endsWith('docs') ? [{ File: `${root}/docs\\sub\\b.md` }] : []);
+    expect([...leakyFiles(root, files, scan)]).toEqual(['docs/sub/b.md']);
+  });
+
   it('maps findings when the source is relative to the cwd', () => {
     const source = relative(process.cwd(), root);
     const scan = () => [{ File: join(root, 'README.md') }];
