@@ -28,10 +28,15 @@ describe('dogfooding leak scan', () => {
     expect([...leakyFiles(source, files, scan)]).toEqual(['README.md']);
   });
 
-  it('aborts when a finding does not match a file of the list', () => {
-    const scan = () => [{ File: join(root, 'docs', 'secret.txt') }];
-    expect(() => leakyFiles(root, files, scan)).toThrow('outside the allowlist (docs/secret.txt)');
-    expect(() => leakyFiles(root, files, () => [{ File: join(tmpdir(), 'elsewhere.md') }])).toThrow(/outside/);
+  it('ignores a finding in a file inside the source that is off the list (it is never sent to an agent)', () => {
+    const scan = () => [{ File: join(root, 'docs', 'secret.txt') }, { File: join(root, 'README.md') }];
+    expect([...leakyFiles(root, files, scan)]).toEqual(['README.md']);
+  });
+
+  it('aborts when a finding cannot be mapped into the source', () => {
+    expect(() => leakyFiles(root, files, () => [{ File: join(tmpdir(), 'elsewhere.md') }])).toThrow(
+      /outside the source/,
+    );
   });
 
   it('skips a missing docs folder instead of failing', () => {

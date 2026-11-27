@@ -3,7 +3,11 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Our own config, so a .gitleaks.toml or .gitleaksignore inside the scanned folder cannot silence findings.
+const CONFIG = fileURLToPath(new URL('./dogfood-gitleaks.toml', import.meta.url));
 
 export type Finding = { File: string };
 /** Scans one path and returns gitleaks' findings; throws if gitleaks did not run. */
@@ -24,6 +28,10 @@ export const gitleaksScan: Scan = (target) => {
       '--report-format',
       'json',
       '--ignore-gitleaks-allow',
+      '--config',
+      CONFIG,
+      '--gitleaks-ignore-path',
+      dir,
     ];
     execFileSync('gitleaks', [...args, '--report-path', report], { stdio: 'ignore' });
     return JSON.parse(readFileSync(report, 'utf8')) as Finding[];
@@ -38,7 +46,8 @@ const relativeTo = (source: string, file: string): string =>
 
 /**
  * Source-relative paths of the allowlisted files that gitleaks flags, scanning `docs` and the root files.
- * Throws if gitleaks cannot run or if a finding does not match a file of the list.
+ * Throws if gitleaks cannot run or a finding's path cannot be mapped into the source. A finding in a file that is
+ * inside the source but off the list (never sent to an agent) is ignored.
  */
 export function leakyFiles(source: string, files: { path: string }[], scan: Scan = gitleaksScan): Set<string> {
   const known = new Set(files.map((f) => f.path));
@@ -56,8 +65,10 @@ export function leakyFiles(source: string, files: { path: string }[], scan: Scan
     }
     for (const { File } of findings) {
       const rel = relativeTo(source, File);
-      if (!known.has(rel)) throw new Error(`gitleaks flagged a file outside the allowlist (${rel}); resolve it first.`);
-      leaky.add(rel);
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        throw new Error(`gitleaks reported a file outside the source (${rel}); the mapping failed, resolve it first.`);
+      }
+      if (known.has(rel)) leaky.add(rel);
     }
   }
   return leaky;
