@@ -233,6 +233,9 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 9 | Escopo da âncora com mais de 65.535 ids: o `inArray` estoura o limite de parâmetros do Postgres (erro bruto do banco, na perna vetorial e na de texto); a saída é filtrar o escopo em SQL | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 | 10 | Consulta sem acento não acha texto acentuado na perna BM25 (`faturacao` × `faturação`); exigiria a extensão `unaccent` e novos índices | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 | 11 | Uma entidade isolada sem vetor num space que já tem vetores continua invisível para a consulta `natural` (a fusão ignora o texto); só o sync a corrige | O `mcp-server` garante o sync depois das escritas (achado da Review) |
+| 12 | N+1 em `context.ts` (`neighbors` por hit: ~350 consultas com `limit` 50 e `depth` 2) | `neighbors` em lote no core-graph, para o `mcp-server` (achado da Review) |
+| 13 | O detector `queryShape` classifica hífen, datas e ordinais como `identifier` ("e-mail", "follow-up", "26/11", "1º passo"), o que muda o peso do texto | Recalibrar com o log de consultas (pendência 7), no `mcp-server` (achado da Review) |
+| 14 | Deploy na VPS: a imagem do banco usa a tag `pgvector/pgvector:0.8.7-pg19` e o `shared_preload_libraries` vem do `command` do compose | Fixar a imagem por digest e pôr o `CMD` com `shared_preload_libraries=pg_textsearch` no `docker/db/Dockerfile` (achado da Review) |
 
 ## Riscos e mitigações
 
