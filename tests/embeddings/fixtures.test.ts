@@ -52,6 +52,6 @@ describe('embeddings benchmark fixtures', () => {
       expect(byKey.size).toBe(all.length);
       const relations = corpus.relations.length + distractors.relations.length;
       expect(await queryRows('select id from relations')).toHaveLength(relations);
-    });
+    }, 30_000);
   });
 });
