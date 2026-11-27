@@ -475,6 +475,8 @@ A decisão final é do dono, no Checkpoint F.
 
 ## Emenda 2: embeddings pagos pela OpenRouter (2026-11-26)
 
+> **Código do OpenRouter removido em 2026-11-27 por decisão do dono** (não oferece o EmbeddingGemma; nenhum uso em produção). Saíram o modelo `openai/text-embedding-3-small`, o `EMBEDDINGS_ROUTING` e a checagem de host. Os resultados do benchmark ficam registrados acima e abaixo. Ficam o provedor genérico compatível com OpenAI e a `EMBEDDINGS_API_KEY` opcional, recusada com URL `http:` fora de loopback. A pendência 8 do plano diz como reintroduzir.
+
 **Por quê:** na rodada 1 da Emenda 1, nenhuma fusão superou o vetor sozinho pela margem, e o ponto mais fraco são as consultas entre idiomas (pt→en 0,444; en→pt 0,544). A pergunta é se um modelo de embeddings maior melhora isso. O dono pediu para testar um modelo pago pela OpenRouter **como candidato a produção**.
 
 **A extração fica de fora desta emenda** (dono, 26/11). No produto, a extração é mista:

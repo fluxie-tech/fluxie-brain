@@ -229,7 +229,7 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 3–5 | Metadata de relação, prompt injection, `getPreset` somente leitura | Continuam com o `mcp-server` |
 | 6 | Refrasear com limite: o roteiro orienta a nova tentativa (tradução PT ↔ EN, outras palavras), com limite rígido de chamadas de busca por tarefa | Para o `mcp-server` (SPEC-embeddings.md, Emenda 3) |
 | 7 | Log de consultas (consulta, hits, perna de origem, por space, sem conteúdo sensível) para recalibrar a fusão | Para o `mcp-server` (Emenda 3) |
-| 8 | Se um embedding remoto for usado: configuração por space, aviso ao usuário e custo | Para o `mcp-server` (Emenda 2) |
+| 8 | Se um modelo remoto for adotado: reintroduzir do histórico (2fee0cc, bcae9a5), com configuração por space, aviso, custo e política de dados (zdr/data_collection) | Para o `mcp-server` (Emenda 2) |
 | 9 | Escopo da âncora com mais de 65.535 ids: o `inArray` estoura o limite de parâmetros do Postgres (erro bruto do banco, na perna vetorial e na de texto); a saída é filtrar o escopo em SQL | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 | 10 | Consulta sem acento não acha texto acentuado na perna BM25 (`faturacao` × `faturação`); exigiria a extensão `unaccent` e novos índices | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 | 11 | Uma entidade isolada sem vetor num space que já tem vetores continua invisível para a consulta `natural` (a fusão ignora o texto); só o sync a corrige | O `mcp-server` garante o sync depois das escritas (achado da Review) |

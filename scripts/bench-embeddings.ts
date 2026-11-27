@@ -11,8 +11,8 @@ process.env.DATABASE_URL = testUrl;
 const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
 const { combine, queryShape } = await import('../src/embeddings/fusion.ts');
-const { LOCAL_MODELS, modelSpec } = await import('../src/embeddings/models.ts');
-const { configFromEnv, embed } = await import('../src/embeddings/provider.ts');
+const { MODELS, modelSpec } = await import('../src/embeddings/models.ts');
+const { configFromEnv, embed, isLocalProvider } = await import('../src/embeddings/provider.ts');
 const { runLegs } = await import('../src/embeddings/legs.ts');
 const { FUSION, legSize } = await import('../src/embeddings/search.ts');
 const { syncSpace } = await import('../src/embeddings/sync.ts');
@@ -48,7 +48,7 @@ async function prepareSpace(): Promise<{ spaceId: string; keyOf: Map<string, str
 
 /** Unloads every model, then times the first embedding call: the cold load. */
 async function coldLoad(config: Config): Promise<number> {
-  for (const model of LOCAL_MODELS) {
+  for (const model of Object.keys(MODELS)) {
     try {
       ollama('stop', model);
     } catch {
@@ -151,10 +151,17 @@ function printPerformance(results: Result[]): void {
   }
 }
 
+// A remote provider costs money and receives the benchmark texts: stop unless --yes. Never prints the API key.
+const baseUrl = configFromEnv().baseUrl;
+if (!isLocalProvider(baseUrl) && !process.argv.includes('--yes')) {
+  console.log(`Provedor remoto (${new URL(baseUrl).host}): nada foi enviado. Rode de novo com --yes para seguir.`);
+  process.exit(0);
+}
+
 registerPresets();
 try {
   const results: Result[] = [];
-  for (const model of LOCAL_MODELS) {
+  for (const model of Object.keys(MODELS)) {
     console.error(`benchmarking ${model}...`);
     results.push(await benchModel(model));
   }

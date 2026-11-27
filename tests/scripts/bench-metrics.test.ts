@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  chooseFusion,
-  chooseModel,
-  isLocalProvider,
-  mean,
-  percentile,
-  recall,
-  reciprocalRank,
-} from '../../scripts/bench-metrics.ts';
+import { chooseFusion, chooseModel, mean, percentile, recall, reciprocalRank } from '../../scripts/bench-metrics.ts';
 
 describe('bench metrics', () => {
   it('reciprocal rank uses the first expected key within the top k', () => {
@@ -104,24 +96,5 @@ describe('bench metrics', () => {
     expect(() => mean([])).toThrow(RangeError);
     expect(() => percentile([], 50)).toThrow(RangeError);
     expect(() => percentile([1], 101)).toThrow(RangeError);
-  });
-
-  it('decides local or remote by the real hostname, not by text in the URL', () => {
-    for (const url of ['http://127.0.0.1:11434/v1', 'http://localhost/v1', 'http://[::1]:11434/v1']) {
-      expect(isLocalProvider(url), url).toBe(true);
-    }
-    const lookalikes = [
-      'http://notlocalhost/v1',
-      'http://localhost.evil.example/v1',
-      'http://127.0.0.1.evil.example/v1',
-    ];
-    for (const url of [
-      'http://localhost:1@host-remoto/v1',
-      'https://openrouter.ai/localhost/',
-      'nonsense',
-      ...lookalikes,
-    ]) {
-      expect(isLocalProvider(url), url).toBe(false);
-    }
   });
 });

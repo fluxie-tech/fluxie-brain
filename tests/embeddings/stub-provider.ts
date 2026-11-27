@@ -8,7 +8,6 @@ export type StubRequest = {
   model: string;
   input: string[];
   authorization: string | undefined;
-  provider?: unknown;
 };
 
 /** A local OpenAI-compatible /v1/embeddings server for tests: deterministic, no Ollama needed. */
@@ -66,13 +65,12 @@ export async function startStub(): Promise<Stub> {
     close: async () => {},
   };
   const server = createServer(async (req, res) => {
-    const parsed = JSON.parse(await readBody(req)) as { model: string; input: string[]; provider?: unknown };
+    const parsed = JSON.parse(await readBody(req)) as { model: string; input: string[] };
     const request = {
       path: req.url,
       model: parsed.model,
       input: parsed.input,
       authorization: req.headers.authorization,
-      provider: parsed.provider,
     };
     stub.requests.push(request);
     if (stub.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, stub.delayMs));

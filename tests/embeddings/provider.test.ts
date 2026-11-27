@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CoreGraphError } from '../../src/core-graph/index.ts';
 import { EmbeddingConfigError, EmbeddingProviderError } from '../../src/embeddings/index.ts';
-import { LOCAL_MODELS, MODELS, modelSpec } from '../../src/embeddings/models.ts';
-import { configFromEnv, embed, type ProviderConfig } from '../../src/embeddings/provider.ts';
+import { MODELS, modelSpec } from '../../src/embeddings/models.ts';
+import { configFromEnv, embed, isLocalProvider, type ProviderConfig } from '../../src/embeddings/provider.ts';
 import { type Stub, startStub } from './stub-provider.ts';
 
 const GEMMA = 'embeddinggemma-2:270m';
@@ -26,15 +26,6 @@ describe('model catalog', () => {
     );
   });
 
-  it('sends OpenAI text-embedding-3-small raw text at its native 1536 dimensions', () => {
-    const openai = 'openai/text-embedding-3-small';
-    expect(MODELS[openai].dimensions).toBe(1536);
-    expect(modelSpec(openai).document('Sync engine', 'Merges notes.')).toBe('Sync engine\nMerges notes.');
-    expect(modelSpec(openai).query('sync notes')).toBe('sync notes');
-    expect(LOCAL_MODELS).not.toContain(openai);
-    for (const local of LOCAL_MODELS) expect(Object.hasOwn(MODELS, local)).toBe(true);
-  });
-
   it('rejects a model outside the catalog with a config error', () => {
     expect(() => modelSpec('nomic-embed-text')).toThrow(EmbeddingConfigError);
     expect(() => modelSpec('nomic-embed-text')).toThrow(/nomic-embed-text/);
@@ -55,32 +46,41 @@ describe('configFromEnv', () => {
     expect(configFromEnv({ EMBEDDINGS_API_KEY: '' }).apiKey).toBeUndefined();
   });
 
-  describe('OpenRouter routing', () => {
-    const OPENROUTER = 'https://openrouter.ai/api/v1';
-    const routing = {
-      only: ['azure', 'openai'],
-      order: ['azure', 'openai'],
-      allow_fallbacks: true,
-      data_collection: 'deny',
-    };
-
-    it('reads a closed provider pool from EMBEDDINGS_ROUTING', () => {
-      const env = { EMBEDDINGS_BASE_URL: OPENROUTER, EMBEDDINGS_ROUTING: JSON.stringify(routing) };
-      expect(configFromEnv(env).routing).toEqual(routing);
+  describe('EMBEDDINGS_API_KEY', () => {
+    it('is refused over plain http to a host that is not loopback, without echoing the URL', () => {
+      const env = { EMBEDDINGS_BASE_URL: 'http://emb.remote.example/v1', EMBEDDINGS_API_KEY: 'k' };
+      expect(() => configFromEnv(env)).toThrow(EmbeddingConfigError);
+      expect(() => configFromEnv(env)).not.toThrow(/remote\.example/);
     });
 
-    it('refuses OpenRouter without a routing block, so it never routes freely', () => {
-      expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: OPENROUTER })).toThrow(/closed provider pool/);
-    });
-
-    it('rejects routing that is not JSON, has unknown fields or no closed pool', () => {
-      const bad = ['not json', JSON.stringify({ ...routing, sort: 'price' }), JSON.stringify({ order: ['azure'] })];
-      for (const raw of bad) {
-        expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: OPENROUTER, EMBEDDINGS_ROUTING: raw })).toThrow(
-          EmbeddingConfigError,
-        );
+    it('is accepted over https, and over http to a loopback host', () => {
+      for (const baseUrl of ['https://emb.remote.example/v1', 'http://127.0.0.1:11434/v1', 'http://localhost/v1']) {
+        expect(configFromEnv({ EMBEDDINGS_BASE_URL: baseUrl, EMBEDDINGS_API_KEY: 'k' }).apiKey).toBe('k');
       }
     });
+
+    it('does not matter without a key: plain http to a remote host stays allowed', () => {
+      expect(configFromEnv({ EMBEDDINGS_BASE_URL: 'http://emb.remote.example/v1' }).apiKey).toBeUndefined();
+    });
+  });
+
+  it('decides local or remote by the real hostname, not by text in the URL', () => {
+    for (const url of ['http://127.0.0.1:11434/v1', 'http://localhost/v1', 'http://[::1]:11434/v1']) {
+      expect(isLocalProvider(url), url).toBe(true);
+    }
+    const lookalikes = [
+      'http://notlocalhost/v1',
+      'http://localhost.evil.example/v1',
+      'http://127.0.0.1.evil.example/v1',
+    ];
+    for (const url of [
+      'http://localhost:1@host-remoto/v1',
+      'https://remote.example/localhost/',
+      'nonsense',
+      ...lookalikes,
+    ]) {
+      expect(isLocalProvider(url), url).toBe(false);
+    }
   });
 
   it('rejects an unknown model and a base URL that is not http(s)', () => {
@@ -146,18 +146,6 @@ describe('embed', () => {
     expect((err as Error).message).not.toMatch(/XYZ/);
   });
 
-  it('sends the routing block as `provider`, and nothing extra without one', async () => {
-    const routing = { only: ['azure'], order: ['azure'], data_collection: 'deny' as const };
-    await embed({ ...config, routing }, ['alpha']);
-    await embed(config, ['beta']);
-    expect(stub.requests.map((r) => r.provider)).toEqual([routing, undefined]);
-  });
-
-  it('refuses to call OpenRouter without a closed pool, before any request leaves', async () => {
-    const open = { baseUrl: 'https://openrouter.ai/api/v1', model: GEMMA, apiKey: 'k' };
-    await expect(embed(open, ['alpha'])).rejects.toThrow(EmbeddingConfigError);
-  });
-
   it('rejects a body that is not JSON', async () => {
     stub.respond = fail(200, 'not json');
     await expect(embed(config, ['alpha'])).rejects.toThrow(EmbeddingProviderError);
@@ -214,20 +202,11 @@ describe('embed', () => {
   });
 });
 
-describe('catalog and OpenRouter guards', () => {
+describe('catalog guards', () => {
   it('refuses a model named like an inherited Object property', () => {
     for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
       expect(() => modelSpec(name), name).toThrow(EmbeddingConfigError);
       expect(() => configFromEnv({ EMBEDDINGS_MODEL: name }), name).toThrow(EmbeddingConfigError);
     }
-  });
-
-  it('demands a closed pool for every OpenRouter host spelling, but not for a lookalike domain', () => {
-    for (const host of ['openrouter.ai', 'api.openrouter.ai', 'OPENROUTER.AI']) {
-      expect(() => configFromEnv({ EMBEDDINGS_BASE_URL: `https://${host}/api/v1` }), host).toThrow(
-        /closed provider pool/,
-      );
-    }
-    expect(configFromEnv({ EMBEDDINGS_BASE_URL: 'https://notopenrouter.ai/v1' }).routing).toBeUndefined();
   });
 });

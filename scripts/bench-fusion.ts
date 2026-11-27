@@ -1,15 +1,7 @@
 // Fusion calibration on the dogfooding dataset (SPEC-embeddings.md, Emenda 1). Run by hand with Ollama up:
 // `pnpm bench:fusion`. Wipes and fills the TEST database. Prints aggregates only, never text from the dataset.
 import { readFileSync } from 'node:fs';
-import {
-  chooseFusion,
-  type FusionEval,
-  isLocalProvider,
-  mean,
-  percentile,
-  recall,
-  reciprocalRank,
-} from './bench-metrics.ts';
+import { chooseFusion, type FusionEval, mean, percentile, recall, reciprocalRank } from './bench-metrics.ts';
 
 const testUrl = process.env.TEST_DATABASE_URL;
 if (!testUrl) throw new Error('Missing TEST_DATABASE_URL. Copy .env.example to .env.');
@@ -20,7 +12,7 @@ const { createSpace } = await import('../src/core-graph/index.ts');
 const { pool } = await import('../src/core-graph/db.ts');
 const { combine, queryShape } = await import('../src/embeddings/fusion.ts');
 const { runLegs } = await import('../src/embeddings/legs.ts');
-const { configFromEnv } = await import('../src/embeddings/provider.ts');
+const { configFromEnv, isLocalProvider } = await import('../src/embeddings/provider.ts');
 const { FUSION, legSize, searchSpace } = await import('../src/embeddings/search.ts');
 const { syncSpace } = await import('../src/embeddings/sync.ts');
 const { DEVELOPMENT_GRAPH, registerPresets } = await import('../src/presets/index.ts');
