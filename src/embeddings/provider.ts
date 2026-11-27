@@ -14,6 +14,9 @@ const SYNC_TIMEOUT_MS = 60_000;
 /** Embedding one search query is a single short text: past this, search answers from the text leg instead of waiting. */
 export const QUERY_TIMEOUT_MS = 3000;
 
+const FLOAT32_MAX = 3.4028234663852886e38;
+const FLOAT32_MIN_NORMAL = 1.1754943508222875e-38;
+
 const responseSchema = z.object({
   data: z.array(z.object({ index: z.int().nonnegative(), embedding: z.array(z.number()) })),
 });
@@ -67,6 +70,10 @@ export async function embed(config: ProviderConfig, texts: string[], timeoutMs =
         `Embeddings provider returned ${embedding.length} dimensions; ${config.model} has ${dimensions}.`,
       );
     }
+    // pgvector stores float32: it refuses a value beyond that range, or a subnormal, with a raw database error.
+    if (embedding.some((x) => Math.abs(x) > FLOAT32_MAX || (x !== 0 && Math.abs(x) < FLOAT32_MIN_NORMAL))) {
+      throw new EmbeddingProviderError('Embeddings provider returned a value outside the float32 range.');
+    }
     // Cosine distance is undefined for a zero vector (NaN), which would silently degrade the fusion.
     if (embedding.every((x) => x === 0))
       throw new EmbeddingProviderError('Embeddings provider returned a zero vector.');
@@ -92,6 +99,8 @@ async function post(config: ProviderConfig, texts: string[], timeoutMs: number):
       headers,
       body: JSON.stringify({ model: config.model, input: texts }),
       signal: AbortSignal.timeout(timeoutMs),
+      // A redirect would resend the Authorization header to wherever it points: refuse it.
+      redirect: 'error',
     });
   } catch (err) {
     throw new EmbeddingProviderError(`Embeddings provider unreachable (${failureKind(err)}).`);

@@ -72,3 +72,61 @@ describe('a timeout while reading the response body', () => {
     }
   });
 });
+
+describe('provider hardening', () => {
+  it('refuses a redirect (it would resend the key): the target is never called', async () => {
+    let targetHits = 0;
+    const target = createServer((_req, res) => {
+      targetHits++;
+      res.writeHead(200).end('{}');
+    });
+    await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve));
+    const targetUrl = `http://127.0.0.1:${(target.address() as AddressInfo).port}/steal`;
+    const server = createServer((_req, res) => res.writeHead(307, { location: targetUrl }).end());
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
+    try {
+      const err = await embed({ baseUrl, model: GEMMA, apiKey: 'k' }, ['x']).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbeddingProviderError);
+      expect((err as Error).message).not.toMatch(/steal|127\.0\.0\.1/);
+      expect(targetHits).toBe(0);
+    } finally {
+      await Promise.all([server, target].map((s) => new Promise((resolve) => s.close(resolve))));
+    }
+  });
+
+  it.each([
+    ['above the float32 maximum', 3.5e38],
+    ['below the float32 maximum', -3.5e38],
+    ['subnormal', 1e-39],
+  ])('rejects a vector with a value %s, which pgvector would refuse', async (_name, bad) => {
+    const stub = await startStub();
+    const dims = 768;
+    stub.respond = () => ({
+      status: 200,
+      body: JSON.stringify({ data: [{ index: 0, embedding: [bad, ...new Array(dims - 1).fill(0.1)] }] }),
+    });
+    try {
+      await expect(embed({ baseUrl: stub.baseUrl, model: GEMMA, apiKey: undefined }, ['x'])).rejects.toThrow(/float32/);
+    } finally {
+      await stub.close();
+    }
+  });
+
+  it('accepts the float32 limits themselves and exact zeros', async () => {
+    const stub = await startStub();
+    stub.respond = () => ({
+      status: 200,
+      body: JSON.stringify({
+        data: [
+          { index: 0, embedding: [3.4028234663852886e38, 1.1754943508222875e-38, 0, ...new Array(765).fill(0.1)] },
+        ],
+      }),
+    });
+    try {
+      await expect(embed({ baseUrl: stub.baseUrl, model: GEMMA, apiKey: undefined }, ['x'])).resolves.toHaveLength(1);
+    } finally {
+      await stub.close();
+    }
+  });
+});
