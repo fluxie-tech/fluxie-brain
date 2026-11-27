@@ -43,7 +43,7 @@ Atalhos no `package.json`, que espelham esta tabela (em caso de divergência, va
 
 ## Measured, not yet enforced as targets (ratchet)
 
-Cobertura total do projeto, medida em 2026-11-27 (pisos subidos com o módulo embeddings). O `vitest.config.ts` trava o valor medido menos uma tolerância de cerca de 0,3 a 1,1 ponto, para variações de arquivos não relacionados não quebrarem o build. Quando um número subir, sobe-se o piso; ele nunca desce.
+Cobertura total do projeto, medida em 2026-11-27 (pisos subidos com o módulo embeddings). O `vitest.config.ts` trava o valor medido menos uma tolerância de 0,1 a 1,1 ponto, para variações de arquivos não relacionados não quebrarem o build. Quando um número subir, sobe-se o piso; ele nunca desce.
 
 | Métrica | Hoje | Piso em `vitest.config.ts` | Direção |
 |---|---|---|---|
