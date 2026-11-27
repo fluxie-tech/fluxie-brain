@@ -24,7 +24,9 @@ export type ProviderConfig = {
 };
 
 // A CPU batch of 32 documents took ~8–18 s in the spike; this only stops a hung provider from blocking forever.
-const TIMEOUT_MS = 60_000;
+const SYNC_TIMEOUT_MS = 60_000;
+/** Embedding one search query is a single short text: past this, search answers from the text leg instead of waiting. */
+export const QUERY_TIMEOUT_MS = 3000;
 
 const responseSchema = z.object({
   data: z.array(z.object({ index: z.int().nonnegative(), embedding: z.array(z.number()) })),
@@ -71,10 +73,10 @@ function requireClosedRouting(config: ProviderConfig): void {
 }
 
 /** Embeds already-formatted texts in one request; returns one validated vector per text, in input order. */
-export async function embed(config: ProviderConfig, texts: string[]): Promise<number[][]> {
+export async function embed(config: ProviderConfig, texts: string[], timeoutMs = SYNC_TIMEOUT_MS): Promise<number[][]> {
   if (texts.length === 0) return [];
   const { dimensions } = modelSpec(config.model);
-  const body = await post(config, texts);
+  const body = await post(config, texts, timeoutMs);
   const parsed = responseSchema.safeParse(body);
   if (!parsed.success) throw new EmbeddingProviderError('Embeddings provider returned an invalid response.');
   const { data } = parsed.data;
@@ -108,7 +110,7 @@ function failureKind(err: unknown): string {
   return typeof code === 'string' ? `${name}: ${code}` : name;
 }
 
-async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
+async function post(config: ProviderConfig, texts: string[], timeoutMs: number): Promise<unknown> {
   // Checked again here so no code path can reach OpenRouter with open routing, even with a hand-built config.
   requireClosedRouting(config);
   const headers: Record<string, string> = { 'content-type': 'application/json' };
@@ -119,7 +121,7 @@ async function post(config: ProviderConfig, texts: string[]): Promise<unknown> {
       method: 'POST',
       headers,
       body: JSON.stringify({ model: config.model, input: texts, ...(config.routing && { provider: config.routing }) }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     throw new EmbeddingProviderError(`Embeddings provider unreachable (${failureKind(err)}).`);

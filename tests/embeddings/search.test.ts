@@ -12,7 +12,7 @@ import { queryShape } from '../../src/embeddings/fusion.ts';
 import { EmbeddingConfigError, search } from '../../src/embeddings/index.ts';
 import { textLeg } from '../../src/embeddings/legs.ts';
 import { modelSpec } from '../../src/embeddings/models.ts';
-import type { ProviderConfig } from '../../src/embeddings/provider.ts';
+import { type ProviderConfig, QUERY_TIMEOUT_MS } from '../../src/embeddings/provider.ts';
 import { FUSION, searchSpace } from '../../src/embeddings/search.ts';
 import { syncSpace } from '../../src/embeddings/sync.ts';
 import { TEST_PRESET, testOntology } from '../fixtures/ontology.ts';
@@ -52,6 +52,7 @@ describe('search', () => {
   beforeEach(async () => {
     await truncateAll();
     stub.respond = undefined;
+    stub.delayMs = 0;
     gemma = { baseUrl: stub.baseUrl, model: GEMMA, apiKey: undefined };
     space = await createSpace({ slug: 'dev', name: 'Dev', preset: TEST_PRESET });
     await add(space.id, 'learning', 'cache', 'redis cache eviction policy');
@@ -183,6 +184,15 @@ describe('search', () => {
         EmbeddingConfigError,
       );
     });
+  });
+
+  it('gives up on a slow provider within the query timeout and answers from the text', async () => {
+    stub.delayMs = QUERY_TIMEOUT_MS + 500;
+    const started = performance.now();
+    const result = await run('redis cache eviction policy');
+    expect(performance.now() - started).toBeLessThan(QUERY_TIMEOUT_MS + 400);
+    expect(result.vector).toBe('unavailable');
+    expect(keys(result)).toEqual(['cache']);
   });
 
   it('still finds an entity that has no vector yet, through the text leg', async () => {

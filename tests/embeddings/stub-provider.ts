@@ -19,6 +19,8 @@ export type Stub = {
   fixed: Map<string, number[]>;
   /** Overrides the next replies (e.g. an HTTP 500); return undefined to answer normally. */
   respond: ((req: StubRequest) => Reply | undefined) | undefined;
+  /** Holds every reply back this many milliseconds (a slow provider). */
+  delayMs: number;
   close(): Promise<void>;
 };
 
@@ -55,7 +57,14 @@ async function readBody(req: IncomingMessage): Promise<string> {
 }
 
 export async function startStub(): Promise<Stub> {
-  const stub: Stub = { baseUrl: '', requests: [], fixed: new Map(), respond: undefined, close: async () => {} };
+  const stub: Stub = {
+    baseUrl: '',
+    requests: [],
+    fixed: new Map(),
+    respond: undefined,
+    delayMs: 0,
+    close: async () => {},
+  };
   const server = createServer(async (req, res) => {
     const parsed = JSON.parse(await readBody(req)) as { model: string; input: string[]; provider?: unknown };
     const request = {
@@ -66,6 +75,7 @@ export async function startStub(): Promise<Stub> {
       provider: parsed.provider,
     };
     stub.requests.push(request);
+    if (stub.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, stub.delayMs));
     const reply = stub.respond?.(request) ?? {
       status: 200,
       body: JSON.stringify({

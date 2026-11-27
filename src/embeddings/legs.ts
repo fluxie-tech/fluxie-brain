@@ -4,7 +4,7 @@ import { EmbeddingProviderError } from './errors.ts';
 import { type Legs, queryWords, type Scored } from './fusion.ts';
 import { graphLeg } from './graph.ts';
 import { modelSpec } from './models.ts';
-import { embed, type ProviderConfig } from './provider.ts';
+import { embed, type ProviderConfig, QUERY_TIMEOUT_MS } from './provider.ts';
 import { entityEmbeddings, vectorLiteral, vectorOf } from './schema.ts';
 
 /** Which entities a leg may return: the space, the requested statuses and, if given, the types and scope ids. */
@@ -28,7 +28,7 @@ const matches = (filter: LegFilter): SQL | undefined =>
 
 /** The `size` nearest entities by cosine similarity, among the active model's vectors only (exact search). */
 export async function vectorLeg(config: ProviderConfig, query: string, filter: LegFilter, size: number) {
-  const [vector = []] = await embed(config, [modelSpec(config.model).query(query)]);
+  const [vector = []] = await embed(config, [modelSpec(config.model).query(query)], QUERY_TIMEOUT_MS);
   const distance = sql<number>`${entityEmbeddings.embedding} <=> ${vectorLiteral(vector)}::vector`;
   const rows = await db
     .select({ id: entities.id, distance })
