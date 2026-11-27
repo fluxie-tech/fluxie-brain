@@ -512,7 +512,7 @@ conteúdo`, consulta crua).
 
 - **O que sai:** só os textos do dataset (as 392 entidades e as 575 consultas, derivados dos docs do chatbot) vão para o endpoint de embeddings da OpenRouter. Os arquivos originais e os `.env*` não saem. Nada do chatbot entra no git, e o spec só recebe números agregados.
 - **Chave:**
-  - `OPENROUTER_API_KEY` vai no `.env`, preenchida pelo dono;
+  - a chave vai no `.env` como `EMBEDDINGS_API_KEY` (a mesma que o código de produção lê via `configFromEnv`; o `bench:fusion` também), preenchida pelo dono;
   - nunca é impressa nem aparece em log;
   - as chamadas só vão para `openrouter.ai`.
 - **Custo:** uns 50 mil tokens por rodada, centavos. O script imprime a estimativa antes de chamar a API.

@@ -35,7 +35,9 @@ services:
       OLLAMA_KEEP_ALIVE: "-1"
       # Only one model is ever in use; without this, every model tried stays loaded and the 3 GB fills up.
       OLLAMA_MAX_LOADED_MODELS: "1"
-      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-embeddinggemma-2:270m}
+      # The model this service pulls. Its own variable: EMBEDDINGS_MODEL may name a remote model (openai/...) that
+      # Ollama cannot pull. Keep it equal to EMBEDDINGS_MODEL when using the local provider.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-embeddinggemma-2:270m}
     # Pull the model inside the service so `up --wait` waits for it (a one-shot pull service counts as ready
     # while still downloading). Skip the pull when the model is already in the volume, so restarts work offline.
     entrypoint:
@@ -44,7 +46,7 @@ services:
       - >-
         ollama serve & pid=$$!;
         until ollama list >/dev/null 2>&1; do sleep 1; done;
-        ollama show "$$EMBEDDINGS_MODEL" >/dev/null 2>&1 || ollama pull "$$EMBEDDINGS_MODEL" || exit 1;
+        ollama show "$$OLLAMA_MODEL" >/dev/null 2>&1 || ollama pull "$$OLLAMA_MODEL" || exit 1;
         wait $$pid
     ports:
       # Bound to localhost only; Ollama has no authentication.
@@ -53,7 +55,7 @@ services:
       - ollama-models:/root/.ollama
     healthcheck:
       # Healthy only once the configured model is present.
-      test: ["CMD-SHELL", 'ollama show "$$EMBEDDINGS_MODEL" >/dev/null']
+      test: ["CMD-SHELL", 'ollama show "$$OLLAMA_MODEL" >/dev/null']
       interval: 2s
       timeout: 5s
       retries: 30
