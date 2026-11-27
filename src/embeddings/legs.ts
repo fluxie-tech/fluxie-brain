@@ -85,10 +85,15 @@ export async function textLeg(query: string, filter: LegFilter, size: number): P
     .slice(0, size);
 }
 
-/** The vector leg, or undefined when the provider is down: search then falls back to the text leg alone. */
+/**
+ * The vector leg, or undefined when the provider is down or the active model has no vector to offer: search then
+ * falls back to the text leg alone. An empty leg counts as unavailable, so a model switched before the sync, or a
+ * space never synced, does not hide every entity from a `natural` query (whose fusion ignores the text).
+ */
 async function vectorLegOrNothing(config: ProviderConfig, query: string, filter: LegFilter, size: number) {
   try {
-    return await vectorLeg(config, query, filter, size);
+    const hits = await vectorLeg(config, query, filter, size);
+    return hits.length > 0 ? hits : undefined;
   } catch (err) {
     if (err instanceof EmbeddingProviderError) return undefined;
     throw err;

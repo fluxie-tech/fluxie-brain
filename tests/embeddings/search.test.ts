@@ -195,7 +195,15 @@ describe('search', () => {
   it('compares only vectors of the active model', async () => {
     // Only Gemma vectors exist: a Qwen search must not touch them (their dimension would not even match).
     const result = await searchSpace({ ...gemma, model: 'qwen3-embedding:0.6b' }, space.id, PAYMENTS, {});
-    expect(result).toEqual({ hits: [], context: { entities: [], relations: [] }, vector: 'ok' });
+    expect(result).toEqual({ hits: [], context: { entities: [], relations: [] }, vector: 'unavailable' });
+  });
+
+  it('answers a natural question from the text when the active model has no vectors at all', async () => {
+    // EMBEDDINGS_MODEL changed before the sync: an empty vector leg counts as unavailable, not as "nothing found".
+    const qwen = { ...gemma, model: 'qwen3-embedding:0.6b' };
+    const result = await searchSpace(qwen, space.id, 'redis cache eviction policy', {});
+    expect(result.vector).toBe('unavailable');
+    expect(keys(result)).toEqual(['cache']);
   });
 
   it('never returns an entity of another space', async () => {

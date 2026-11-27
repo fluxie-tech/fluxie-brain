@@ -232,6 +232,7 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 8 | Se um embedding remoto for usado: configuração por space, aviso ao usuário e custo | Para o `mcp-server` (Emenda 2) |
 | 9 | Escopo da âncora com mais de 65.535 ids: o `inArray` estoura o limite de parâmetros do Postgres (erro bruto do banco, na perna vetorial e na de texto); a saída é filtrar o escopo em SQL | Para o `mcp-server` / endurecimento (achado da fase Verify) |
 | 10 | Consulta sem acento não acha texto acentuado na perna BM25 (`faturacao` × `faturação`); exigiria a extensão `unaccent` e novos índices | Para o `mcp-server` / endurecimento (achado da fase Verify) |
+| 11 | Uma entidade isolada sem vetor num space que já tem vetores continua invisível para a consulta `natural` (a fusão ignora o texto); só o sync a corrige | O `mcp-server` garante o sync depois das escritas (achado da Review) |
 
 ## Riscos e mitigações
 
