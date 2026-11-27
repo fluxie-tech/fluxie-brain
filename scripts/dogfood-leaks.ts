@@ -14,7 +14,17 @@ export const gitleaksScan: Scan = (target) => {
   const dir = mkdtempSync(join(tmpdir(), 'gitleaks-'));
   const report = join(dir, 'report.json');
   try {
-    const args = ['dir', target, '--no-banner', '--redact', '--exit-code', '0', '--report-format', 'json'];
+    const args = [
+      'dir',
+      target,
+      '--no-banner',
+      '--redact',
+      '--exit-code',
+      '0',
+      '--report-format',
+      'json',
+      '--ignore-gitleaks-allow',
+    ];
     execFileSync('gitleaks', [...args, '--report-path', report], { stdio: 'ignore' });
     return JSON.parse(readFileSync(report, 'utf8')) as Finding[];
   } finally {
