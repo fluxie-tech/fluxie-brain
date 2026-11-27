@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -43,6 +43,41 @@ describe('dogfooding allowlist', () => {
       touch('docs/big.md', 'y'.repeat(10));
     });
     afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+    it('never follows a symlink: a linked docs folder or docs entry, or a linked root guide', () => {
+      const outside = mkdtempSync(join(tmpdir(), 'outside-'));
+      writeFileSync(join(outside, 'secret.md'), 'x');
+      const project = mkdtempSync(join(tmpdir(), 'dogfood-links-'));
+      mkdirSync(join(project, 'docs'));
+      writeFileSync(join(project, 'docs', 'ok.md'), 'x');
+      // 'junction' makes a directory link without privileges on Windows; on POSIX the type is ignored.
+      symlinkSync(outside, join(project, 'docs', 'linked'), 'junction');
+      const other = mkdtempSync(join(tmpdir(), 'dogfood-docslink-'));
+      symlinkSync(outside, join(other, 'docs'), 'junction');
+      try {
+        expect(listAllowed(project).map((f) => f.path)).toEqual(['docs/ok.md']);
+        expect(listAllowed(other)).toEqual([]);
+      } finally {
+        for (const dir of [outside, project, other]) rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not follow a symlinked root guide', () => {
+      const outside = mkdtempSync(join(tmpdir(), 'outside-'));
+      writeFileSync(join(outside, 'README.md'), 'x');
+      const project = mkdtempSync(join(tmpdir(), 'dogfood-rootlink-'));
+      try {
+        symlinkSync(join(outside, 'README.md'), join(project, 'README.md'));
+      } catch (err) {
+        // Windows without developer mode cannot create file symlinks; the Linux CI runs this for real.
+        if ((err as { code?: string }).code !== 'EPERM') throw err;
+      }
+      try {
+        expect(listAllowed(project)).toEqual([]);
+      } finally {
+        for (const dir of [outside, project]) rmSync(dir, { recursive: true, force: true });
+      }
+    });
 
     it('returns the allowed files with sizes, sorted, and nothing else', () => {
       expect(listAllowed(root)).toEqual([

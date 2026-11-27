@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import { leakyFiles } from './dogfood-leaks.ts';
 import { estimateTokens, listAllowed, makeBatches } from './dogfood-lib.ts';
 
-const source = process.env.DOGFOOD_SOURCE ?? 'C:\\Projetos\\chatbot';
+const source = process.env.DOGFOOD_SOURCE;
+if (!source) {
+  throw new Error('Set DOGFOOD_SOURCE to the project whose docs feed the dogfooding (no default path).');
+}
 const maxBytes = Number(process.argv.find((a) => a.startsWith('--max-bytes='))?.split('=')[1] ?? 120_000);
 const out = '.dogfood';
 mkdirSync(out, { recursive: true });

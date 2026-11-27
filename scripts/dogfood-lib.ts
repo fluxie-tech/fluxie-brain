@@ -1,5 +1,5 @@
 // Pure helpers for the chatbot dogfooding (SPEC-embeddings.md, Emenda 1). Kept apart so they are unit-tested.
-import { readdirSync, statSync } from 'node:fs';
+import { lstatSync, readdirSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
 /** Root-level files that are read besides docs/**. */
@@ -36,11 +36,12 @@ export type SourceFile = { path: string; bytes: number };
 export function listAllowed(root: string): SourceFile[] {
   const found: SourceFile[] = [];
   const add = (rel: string) => {
-    if (isAllowed(rel)) found.push({ path: rel, bytes: statSync(join(root, rel)).size });
+    if (isAllowed(rel)) found.push({ path: rel, bytes: lstatSync(join(root, rel)).size });
   };
+  // lstat, never stat: a symlink (a root guide or a docs/ entry pointing outside the source) is not followed.
   for (const file of ROOT_FILES) {
     try {
-      if (statSync(join(root, file)).isFile()) add(file);
+      if (lstatSync(join(root, file)).isFile()) add(file);
     } catch {
       // Missing root guide: nothing to add.
     }
@@ -54,7 +55,7 @@ export function listAllowed(root: string): SourceFile[] {
     }
   };
   try {
-    walk('docs');
+    if (lstatSync(join(root, 'docs')).isDirectory()) walk('docs');
   } catch {
     // No docs folder.
   }

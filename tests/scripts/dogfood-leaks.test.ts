@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -65,5 +66,11 @@ describe('dogfooding leak scan', () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  it('dogfood:prepare refuses to run without DOGFOOD_SOURCE, with no default path', () => {
+    const { DOGFOOD_SOURCE: _unset, ...env } = process.env;
+    const run = () => execFileSync(process.execPath, ['scripts/dogfood-prepare.ts'], { env, stdio: 'pipe' });
+    expect(run).toThrow(/DOGFOOD_SOURCE/);
   });
 });
