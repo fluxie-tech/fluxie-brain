@@ -55,11 +55,13 @@ const slashes = (path: string): string => path.replaceAll('\\', '/');
  * inside the source but off the list (never sent to an agent) is ignored.
  */
 export function leakyFiles(source: string, files: { path: string }[], scan: Scan = gitleaksScan): Set<string> {
+  // Once, on entry: on POSIX a backslash is part of a name, so join/existsSync below need the slash form.
+  const root = slashes(source);
   const known = new Set(files.map((f) => f.path));
   const targets = ['docs', ...files.filter((f) => !f.path.includes('/')).map((f) => f.path)];
   const leaky = new Set<string>();
   for (const target of targets) {
-    const path = join(source, target);
+    const path = join(root, target);
     if (!existsSync(path)) continue; // e.g. no docs folder.
     let findings: Finding[];
     try {
@@ -69,7 +71,7 @@ export function leakyFiles(source: string, files: { path: string }[], scan: Scan
       throw new Error(`gitleaks did not run (${code}). Install it and put it on PATH; nothing was prepared.`);
     }
     for (const { File } of findings) {
-      const rel = relativeTo(source, File);
+      const rel = relativeTo(root, File);
       if (rel.startsWith('..') || isAbsolute(rel)) {
         throw new Error(`gitleaks reported a file outside the source (${rel}); the mapping failed, resolve it first.`);
       }
