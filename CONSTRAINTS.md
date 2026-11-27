@@ -1,6 +1,6 @@
 # Constraints
 
-Last reviewed: 2026-11-25 by the owner (escolhas via entrevista: padrão de mercado, bloquear, 80% nas linhas alteradas + ratchet).
+Last reviewed: 2026-11-27 by the owner (escolhas via entrevista: padrão de mercado, bloquear, 80% nas linhas alteradas + ratchet; orçamento de testes revisto).
 
 Este arquivo é a régua de qualidade do fluxie-brain. Toda checagem **bloqueia**: falhou, corrige-se o código antes de seguir. **Nunca** se enfraquece este arquivo, nem as configs que ele aponta, para uma mudança passar. Afrouxar uma regra exige uma linha na tabela de exceções, com dono e validade.
 
@@ -36,8 +36,11 @@ Atalhos no `package.json`, que espelham esta tabela (em caso de divergência, va
 | Comando | O que roda | Orçamento | Medido em 2026-11-25 |
 |---|---|---|---|
 | `pnpm check:fast` | tipos, lint (inclui tamanho e complexidade), segredos do diff, floor-guard | segundos | ~3 s |
+| `pnpm test:changed` | só os testes afetados pelo diff não commitado (`vitest run --changed`) | < 90 s (ciclo TDD) | ~32 s (9 arquivos, 1 arquivo de src alterado; mudança em arquivo central ou em config roda quase a suíte inteira) |
 | `pnpm check:task` | `check:fast` + arquitetura + testes com cobertura (ratchet) + cobertura das linhas alteradas | < 90 s | ~20 s |
 | `pnpm check:full` | `check:task` + gitleaks no histórico + osv-scanner + Semgrep | sem limite (revisão, CI) | ~3 min (Semgrep domina) |
+
+Os 90 s vieram do default da skill constraint-driven-development, que os aplica só aos testes afetados pelo diff (o `test:changed`). O `check:task` roda a suíte inteira com Postgres, em série (`fileParallelism: false`). Quando ele passar dos 90 s, o dono decide entre rever o orçamento (o floor-guard barra afrouxar, então a aprovação é dele no merge) e paralelizar com um banco por worker.
 
 `check:task` precisa do Postgres no ar (`docker compose up -d --wait db`). `check:full` precisa de Docker e do `gitleaks` instalado.
 
