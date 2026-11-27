@@ -8,13 +8,13 @@ Memória compartilhada em grafo para agentes de IA, que melhora com o uso. Servi
 
 - Node.js 26+
 - pnpm 12+
-- Docker (Postgres + pgvector)
+- Docker (Postgres + pgvector + pg_textsearch, e o Ollama para os embeddings)
 
 ## Comandos
 
 ```
 cp .env.example .env              # e troque cada change-me por senhas fortes
-docker compose up -d --wait db    # Postgres + pgvector
+docker compose up -d --wait db    # Postgres + pgvector + pg_textsearch (imagem própria, reconstruída se mudar)
 pnpm install
 pnpm db:migrate                   # aplica migrações no banco de desenvolvimento
 pnpm test                         # vitest (migra e usa fluxie_brain_test)
@@ -24,7 +24,7 @@ pnpm lint                         # biome check
 
 ## Banco de dados
 
-- **PostgreSQL 19.0 + pgvector 0.8.7** (`pgvector/pgvector:0.8.7-pg19`). O PG19 foi adotado porque a imagem oficial do pgvector com release estável para ele já existia (verificado em 2026-11-25). Fallback: PG18.
+- **PostgreSQL 19.0 + pgvector 0.8.7 + pg_textsearch 1.6.0** (imagem própria em `docker/db/Dockerfile`, a partir de `pgvector/pgvector:0.8.7-pg19`). O PG19 foi adotado porque a imagem oficial do pgvector com release estável para ele já existia (verificado em 2026-11-25). Fallback: PG18.
 - **Roles:** `fluxie_migrator` é dono do schema e roda as migrações; `fluxie_app` só tem DML (sem DDL) e é o usado pela aplicação.
 - **Segurança:** autenticação `scram-sha-256` e porta publicada só em `127.0.0.1`. As senhas ficam apenas no `.env`, fora do git.
 
@@ -71,6 +71,25 @@ const preset = getPreset(DEVELOPMENT_GRAPH); // descrições, instruções e sch
 ```
 
 Um space pode guardar vários repositórios: conhecimento específico de uma stack fica ligado às âncoras dela, e o comum é alcançado pelas dependências compartilhadas. Detalhes em `SPEC-presets.md`.
+
+## Módulo embeddings
+
+Busca híbrida por significado e por palavra, em `src/embeddings/index.ts`: vetores (pgvector), texto BM25 (pg_textsearch) e grafo, fundidos por formato de consulta. Detalhes, benchmark e emendas em `SPEC-embeddings.md`.
+
+```ts
+import { search, syncEmbeddings } from './src/embeddings/index.ts';
+
+await syncEmbeddings(space.id); // gera os vetores que faltam: { embedded, remaining, failed }
+const { hits, context, vector } = await search(space.id, 'como o cache expira?', { limit: 10, depth: 1 });
+// vector === 'unavailable': a perna vetorial não contribuiu (provedor fora do ar, timeout, modelo sem vetores); só texto
+```
+
+- **Banco:** o `db` usa uma imagem própria (`docker/db/Dockerfile`: PG19 + pgvector + pg_textsearch). Depois de atualizar o repositório, reconstrua e suba com `docker compose up -d --wait db`.
+- **Ollama no compose:** o serviço `ollama` (só CPU, porta 11434 em `127.0.0.1`) baixa o modelo na primeira subida. O modelo vem de `OLLAMA_MODEL`, ou de `EMBEDDINGS_MODEL` se aquela faltar (padrão: EmbeddingGemma 2 270M). `docker compose up -d --wait` sobe tudo e espera o modelo.
+- **Provedor:** qualquer API compatível com OpenAI em `EMBEDDINGS_BASE_URL`, com `EMBEDDINGS_API_KEY` opcional (recusada com `http:` fora de loopback). Veja `.env.example`.
+- **Atualizar um `pgdata` antigo** (criado antes do `pg_textsearch`): reconstrua a imagem, recrie o contêiner e rode `CREATE EXTENSION IF NOT EXISTS pg_textsearch;` como `postgres` em cada banco, porque exige superusuário. O comentário de `migrations/0008_entities_bm25.sql` tem o passo a passo.
+- **Nunca rode `docker compose down -v`:** o `-v` apaga os volumes, inclusive o do Ollama (o modelo baixado) e o do banco. Use `docker compose down` sem `-v`.
+- **Benchmarks e dogfooding** (manuais, com o Ollama no ar; escrevem no banco de teste): `pnpm bench:embeddings` compara os modelos, `pnpm bench:fusion` calibra a fusão, `pnpm dogfood:prepare` (exige `DOGFOOD_SOURCE`) e `pnpm dogfood:build` montam o dataset. Num provedor remoto, os benchmarks só seguem com `--yes`.
 
 ## Qualidade
 
