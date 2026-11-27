@@ -1,5 +1,11 @@
 // Retrieval and latency metrics for scripts/bench-embeddings.ts, kept apart so they are unit-tested.
 
+/** True only when the provider's real host (not text in its userinfo or path) is this machine. */
+export function isLocalProvider(baseUrl: string): boolean {
+  const host = URL.parse(baseUrl)?.hostname;
+  return host === '127.0.0.1' || host === 'localhost' || host === '[::1]';
+}
+
 /** 1/rank of the first expected key within the top k, or 0 when none is there. */
 export function reciprocalRank(ranked: string[], expected: string[], k = 10): number {
   requireExpected(expected);

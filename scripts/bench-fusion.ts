@@ -1,7 +1,15 @@
 // Fusion calibration on the dogfooding dataset (SPEC-embeddings.md, Emenda 1). Run by hand with Ollama up:
 // `pnpm bench:fusion`. Wipes and fills the TEST database. Prints aggregates only, never text from the dataset.
 import { readFileSync } from 'node:fs';
-import { chooseFusion, type FusionEval, mean, percentile, recall, reciprocalRank } from './bench-metrics.ts';
+import {
+  chooseFusion,
+  type FusionEval,
+  isLocalProvider,
+  mean,
+  percentile,
+  recall,
+  reciprocalRank,
+} from './bench-metrics.ts';
 
 const testUrl = process.env.TEST_DATABASE_URL;
 if (!testUrl) throw new Error('Missing TEST_DATABASE_URL. Copy .env.example to .env.');
@@ -161,7 +169,7 @@ function printTables(
  * Never prints the API key.
  */
 function confirmRemote(baseUrl: string): boolean {
-  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(baseUrl) || process.argv.includes('--yes')) return true;
+  if (isLocalProvider(baseUrl) || process.argv.includes('--yes')) return true;
   const bytes = (s: string) => Buffer.byteLength(s);
   const entityBytes = data.entities.reduce(
     (n, e) =>
@@ -246,7 +254,7 @@ async function main() {
   };
   const timing = MEASURE_LATENCY ? await latency(config, spaceId, test) : { p50: Number.NaN, p95: 0 };
   const decision = chooseFusion(evals, timing.p95);
-  const chosen = { [evals.calibrated.mrr]: best, [evals.calibratedNoGraph.mrr]: bestNoGraph };
+  const calibratedPick = decision.chosen === evals.calibrated ? best : bestNoGraph;
 
   console.log(
     `Dataset: ${data.queries.length} consultas (calibração ${calibration.length}, teste ${test.length}); modelo ${MODEL}`,
@@ -268,7 +276,7 @@ Sem grafo: ${adaptiveLabel(bestNoGraph)}`);
       ? `\nBusca inteira (constantes atuais, ${test.length} consultas): p50 ${timing.p50.toFixed(0)} ms, p95 ${timing.p95.toFixed(0)} ms`
       : '\nLatência não medida (--no-latency): a decisão abaixo ainda precisa do corte de 300 ms, medido depois.',
   );
-  const picked = decision.chosen === evals.vectorOnly ? 'só vetor' : adaptiveLabel(chosen[decision.chosen.mrr] ?? best);
+  const picked = decision.chosen === evals.vectorOnly ? 'só vetor' : adaptiveLabel(calibratedPick);
   const quality = chooseFusion(evals, 0);
   const mrr4 = (e: FusionEval) => e.mrr.toFixed(4);
   console.log(
