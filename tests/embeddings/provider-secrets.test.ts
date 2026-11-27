@@ -1,3 +1,5 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { EmbeddingConfigError, EmbeddingProviderError } from '../../src/embeddings/index.ts';
 import { configFromEnv, embed } from '../../src/embeddings/provider.ts';
@@ -47,6 +49,26 @@ describe('credentials in EMBEDDINGS_BASE_URL', () => {
       }
     } finally {
       await stub.close();
+    }
+  });
+});
+
+describe('a timeout while reading the response body', () => {
+  it('is reported as a timeout, not as a body that is not JSON, and without the URL', async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.write('{"data":'); // headers and a partial body arrive, the rest never does
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
+    try {
+      const err = await embed({ baseUrl, model: GEMMA, apiKey: undefined }, ['x'], 300).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbeddingProviderError);
+      expect((err as Error).message).toMatch(/TimeoutError/);
+      expect((err as Error).message).not.toMatch(/not JSON|127\.0\.0\.1/);
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
     }
   });
 });

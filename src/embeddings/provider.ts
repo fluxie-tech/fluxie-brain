@@ -130,7 +130,11 @@ async function post(config: ProviderConfig, texts: string[], timeoutMs: number):
   if (!res.ok) throw new EmbeddingProviderError(`Embeddings provider returned HTTP ${res.status}.`);
   try {
     return await res.json();
-  } catch {
+  } catch (err) {
+    // The deadline also covers reading the body: report it as what it is, not as bad JSON.
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new EmbeddingProviderError(`Embeddings provider unreachable (${failureKind(err)}).`);
+    }
     throw new EmbeddingProviderError('Embeddings provider returned a body that is not JSON.');
   }
 }
