@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BATCH = 256;
 
 /** Embeds the space's entities that have no vector for the active model, or a stale one. Idempotent. */
-export function syncEmbeddings(spaceId: string, opts: { batchSize?: number } = {}): Promise<SyncResult> {
+export async function syncEmbeddings(spaceId: string, opts: { batchSize?: number } = {}): Promise<SyncResult> {
   return syncSpace(configFromEnv(), spaceId, opts.batchSize ?? 32);
 }
 

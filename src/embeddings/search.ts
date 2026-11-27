@@ -45,7 +45,7 @@ export const legSize = (limit: number) => Math.min(2 * limit, 60);
 const { tsv: _tsv, ...entityColumns } = getTableColumns(entities);
 
 /** Hybrid search (vector, BM25 text and graph legs, fused) over the space, with the provider read from the environment. */
-export function search(spaceId: string, query: string, opts: SearchOptions = {}): Promise<SearchResult> {
+export async function search(spaceId: string, query: string, opts: SearchOptions = {}): Promise<SearchResult> {
   return searchSpace(configFromEnv(), spaceId, query, opts);
 }
 
