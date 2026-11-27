@@ -236,6 +236,14 @@ A tabela completa está em `tasks/presets/plan.md`, seção "Pendências para m�
 | 12 | N+1 em `context.ts` (`neighbors` por hit: ~350 consultas com `limit` 50 e `depth` 2) | `neighbors` em lote no core-graph, para o `mcp-server` (achado da Review) |
 | 13 | O detector `queryShape` classifica hífen, datas e ordinais como `identifier` ("e-mail", "follow-up", "26/11", "1º passo"), o que muda o peso do texto | Recalibrar com o log de consultas (pendência 7), no `mcp-server` (achado da Review) |
 | 14 | Deploy na VPS: a imagem do banco usa a tag `pgvector/pgvector:0.8.7-pg19` e o `shared_preload_libraries` vem do `command` do compose | Fixar a imagem por digest e pôr o `CMD` com `shared_preload_libraries=pg_textsearch` no `docker/db/Dockerfile` (achado da Review) |
+| 15 | Erros crus do Drizzle (violação de constraint, banco fora) chegam ao agente com SQL e valores | Mapeamento genérico de erro na fronteira do `mcp-server` (amplia a 9) |
+| 16 | Sem limite de uso: um agente pode disparar `search` e `syncEmbeddings` sem parar, e cada busca chama o provedor | Rate limit por space e por chamador, como critério de aceite do `mcp-server` |
+| 17 | A resposta do provedor não tem teto de tamanho (um servidor hostil pode devolver um corpo enorme) | Teto de tamanho (bytes) na leitura da resposta, no `mcp-server` ou no endurecimento |
+| 18 | A âncora filtra por relevância, não por permissão: ela não controla acesso | A autorização é o space; o `mcp-server` deve documentar e impor isso |
+| 19 | Os agentes de extração do dogfood leem arquivos do projeto de origem | Dar a eles só a ferramenta `Read` restrita ao lote, sem Bash nem rede (para o `dogfood:build`) |
+| 20 | `ollama/ollama:0.40.18` e o modelo baixado não estão fixados por digest | Fixar a imagem e o modelo por digest no deploy (amplia a 14) |
+| 21 | O `context` com `depth` 2 pode atravessar uma ponte fora do escopo da âncora | Teste e regra no `context.ts`, junto com a 12 |
+| 22 | Os exports `db`, `entities` e `relations` do core-graph dão escrita livre a outros módulos | Regra (dependency-cruiser ou floor-guard) para só serem lidos fora do core-graph |
 
 ## Riscos e mitigações
 
